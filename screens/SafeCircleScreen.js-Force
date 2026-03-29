@@ -1,0 +1,358 @@
+// screens/SafeCircleScreen.js
+import { useState, useEffect, useRef } from "react";
+import {
+  View, Text, TouchableOpacity, StyleSheet, ScrollView,
+  TextInput, Alert, Animated, Modal
+} from "react-native";
+import * as Location from "expo-location";
+import { Ionicons } from "@expo/vector-icons";
+import { sendSOSAlert } from "../services/sos";
+
+const BG      = "#0f0a1e";
+const CARD    = "#1a1130";
+const BORDER  = "rgba(139,92,246,0.18)";
+const PRIMARY = "#8b5cf6";
+const TEXT    = "#f1f0f5";
+const SUBTEXT = "#9ca3af";
+
+const REPORT_CATEGORIES = [
+  { label: "Poor Lighting",     icon: "💡" },
+  { label: "Suspicious Person", icon: "👤" },
+  { label: "No Footpath",       icon: "🚧" },
+  { label: "Harassment Spot",   icon: "⚠️" },
+  { label: "Isolated Area",     icon: "🌑" },
+  { label: "Unsafe Traffic",    icon: "🚗" },
+];
+
+const INITIAL_CONTACTS = [
+  { id: "1", name: "Mom",         phone: "+91-98765-43210", relation: "Mother", status: "active" },
+  { id: "2", name: "Sister Riya", phone: "+91-91234-56789", relation: "Sister", status: "active" },
+  { id: "3", name: "Friend Neha", phone: "+91-87654-32109", relation: "Friend", status: "away"   },
+];
+
+const COMMUNITY_REPORTS = [
+  { id: "1", cat: "Poor Lighting",     area: "MG Road, near Metro", time: "2h ago",  upvotes: 14 },
+  { id: "2", cat: "Suspicious Person", area: "Sector 14 Park",      time: "5h ago",  upvotes: 8  },
+  { id: "3", cat: "Harassment Spot",   area: "Bus Stand No. 3",     time: "1d ago",  upvotes: 22 },
+];
+
+const AVATAR_COLORS = ["#7c3aed", "#0ea5e9", "#ec4899", "#f59e0b", "#10b981"];
+
+export default function SafeCircleScreen() {
+  const [contacts, setContacts]         = useState(INITIAL_CONTACTS);
+  const [escortActive, setEscortActive] = useState(false);
+  const [escortTime, setEscortTime]     = useState(0);
+  const [checkedIn, setCheckedIn]       = useState(false);
+  const [reports, setReports]           = useState(COMMUNITY_REPORTS);
+  const [addModal, setAddModal]         = useState(false);
+  const [reportModal, setReportModal]   = useState(false);
+  const [newContact, setNewContact]     = useState({ name: "", phone: "", relation: "" });
+  const [selectedCat, setSelectedCat]   = useState(null);
+  const [reportArea, setReportArea]     = useState("");
+  const [location, setLocation]         = useState(null);
+  const timerRef  = useRef(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (escortActive) {
+      timerRef.current = setInterval(() => setEscortTime(t => t + 1), 1000);
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.04, duration: 1000, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1,    duration: 1000, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      clearInterval(timerRef.current);
+      setEscortTime(0);
+      pulseAnim.setValue(1);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [escortActive]);
+
+  const fmt = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+  const startEscort = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") { Alert.alert("Permission needed", "Location access is required for escort."); return; }
+    const loc = await Location.getCurrentPositionAsync({});
+    setLocation(loc.coords);
+    setEscortActive(true);
+    const activeContacts = contacts.filter(c => c.status === "active");
+    sendSOSAlert(activeContacts, "escort_start").catch(e => console.warn("Escort:", e));
+  };
+
+  const endEscort = async () => {
+    setEscortActive(false);
+    setCheckedIn(true);
+    const activeContacts = contacts.filter(c => c.status === "active");
+    sendSOSAlert(activeContacts, "checkin").catch(e => console.warn("Checkin:", e));
+    Alert.alert("✅ Safe check-in sent!", `Notified ${activeContacts.length} contacts.`);
+    setTimeout(() => setCheckedIn(false), 5000);
+  };
+
+  const addContact = () => {
+    if (!newContact.name || !newContact.phone) { Alert.alert("Please fill name and phone."); return; }
+    setContacts(c => [...c, { ...newContact, id: Date.now().toString(), status: "active" }]);
+    setNewContact({ name: "", phone: "", relation: "" });
+    setAddModal(false);
+  };
+
+  const removeContact = id => {
+    Alert.alert("Remove Contact", "Remove from your SafeCircle?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: () => setContacts(c => c.filter(x => x.id !== id)) },
+    ]);
+  };
+
+  const submitReport = async () => {
+    if (!selectedCat) { Alert.alert("Select a category."); return; }
+    let area = reportArea;
+    if (!area && location) area = `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
+    if (!area) {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === "granted") {
+        const loc = await Location.getCurrentPositionAsync({});
+        area = `${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)}`;
+      } else area = "Unknown location";
+    }
+    setReports(r => [{ id: Date.now().toString(), cat: selectedCat, area, time: "Just now", upvotes: 0 }, ...r]);
+    setSelectedCat(null); setReportArea(""); setReportModal(false);
+    Alert.alert("✅ Report submitted", "Your community alert has been shared anonymously.");
+  };
+
+  const upvote = id => setReports(r => r.map(x => x.id === id ? { ...x, upvotes: x.upvotes + 1 } : x));
+
+  return (
+    <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
+      {/* Header */}
+      <View style={s.header}>
+        <Text style={s.title}>👥 SafeCircle</Text>
+        <Text style={s.subtitle}>{contacts.filter(c => c.status === "active").length} contacts active</Text>
+      </View>
+
+      {/* Virtual Escort */}
+      <Animated.View style={[s.escortCard, escortActive && s.escortCardActive, { transform: [{ scale: pulseAnim }] }]}>
+        <View style={s.escortHeader}>
+          <View style={[s.escortIconBg, escortActive && { backgroundColor: "rgba(52,211,153,0.15)" }]}>
+            <Ionicons name={escortActive ? "navigate" : "navigate-outline"} size={20} color={escortActive ? "#34d399" : PRIMARY} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.escortTitle, escortActive && { color: "#34d399" }]}>Virtual Escort</Text>
+            {escortActive && <Text style={s.escortSub}>{contacts.filter(c => c.status === "active").length} contacts watching your journey</Text>}
+          </View>
+          {escortActive && (
+            <View style={s.liveChip}>
+              <View style={s.liveDot} />
+              <Text style={s.liveText}>LIVE</Text>
+            </View>
+          )}
+        </View>
+
+        {escortActive ? (
+          <View style={s.timerSection}>
+            <Text style={s.timer}>{fmt(escortTime)}</Text>
+            {location && <Text style={s.coords}>📍 {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}</Text>}
+            <TouchableOpacity style={s.safeBtn} onPress={endEscort}>
+              <Ionicons name="checkmark-circle" size={18} color="white" />
+              <Text style={s.safeBtnText}>I'm Safe — End Journey</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={{ gap: 10 }}>
+            <Text style={s.escortDesc}>Share your live journey until you arrive safely.</Text>
+            <TouchableOpacity style={s.startBtn} onPress={startEscort}>
+              <Ionicons name="navigate" size={16} color="white" />
+              <Text style={s.startBtnText}>Start Virtual Escort</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {checkedIn && (
+          <View style={s.checkinBadge}>
+            <Ionicons name="checkmark-circle" size={14} color="#34d399" />
+            <Text style={s.checkinText}>Safe check-in sent to your circle!</Text>
+          </View>
+        )}
+      </Animated.View>
+
+      {/* Contacts */}
+      <View style={s.card}>
+        <View style={s.cardHeader}>
+          <Text style={s.cardTitle}>My Circle</Text>
+          <TouchableOpacity style={s.addBtn} onPress={() => setAddModal(true)}>
+            <Ionicons name="person-add-outline" size={14} color={PRIMARY} />
+            <Text style={s.addBtnText}>Add</Text>
+          </TouchableOpacity>
+        </View>
+        {contacts.map((c, idx) => (
+          <TouchableOpacity key={c.id} style={s.contactRow} onLongPress={() => removeContact(c.id)}>
+            <View style={[s.avatar, { backgroundColor: AVATAR_COLORS[idx % AVATAR_COLORS.length] + "22" }]}>
+              <Text style={[s.avatarText, { color: AVATAR_COLORS[idx % AVATAR_COLORS.length] }]}>{c.name[0]}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.contactName}>{c.name}</Text>
+              <Text style={s.contactMeta}>{c.phone}{c.relation ? ` · ${c.relation}` : ""}</Text>
+            </View>
+            <View style={[s.statusBadge, { backgroundColor: c.status === "active" ? "rgba(52,211,153,0.12)" : "rgba(107,114,128,0.15)" }]}>
+              <View style={[s.statusDot, { backgroundColor: c.status === "active" ? "#34d399" : "#4b5563" }]} />
+              <Text style={[s.statusText, { color: c.status === "active" ? "#34d399" : "#4b5563" }]}>{c.status}</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+        <Text style={s.hint}>Long-press to remove</Text>
+      </View>
+
+      {/* Community Reports */}
+      <View style={s.card}>
+        <View style={s.cardHeader}>
+          <Text style={s.cardTitle}>Community Alerts</Text>
+          <TouchableOpacity style={[s.addBtn, { borderColor: "rgba(239,68,68,0.3)" }]} onPress={() => setReportModal(true)}>
+            <Ionicons name="flag-outline" size={14} color="#ef4444" />
+            <Text style={[s.addBtnText, { color: "#ef4444" }]}>Report</Text>
+          </TouchableOpacity>
+        </View>
+        {reports.map(r => (
+          <View key={r.id} style={s.reportRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.reportCat}>{r.cat}</Text>
+              <Text style={s.reportArea}>{r.area}</Text>
+              <Text style={s.reportTime}>{r.time}</Text>
+            </View>
+            <TouchableOpacity style={s.upvoteBtn} onPress={() => upvote(r.id)}>
+              <Ionicons name="arrow-up" size={14} color={PRIMARY} />
+              <Text style={s.upvoteText}>{r.upvotes}</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+
+      <View style={{ height: 40 }} />
+
+      {/* Add Contact Modal */}
+      <Modal visible={addModal} transparent animationType="slide">
+        <View style={s.overlay}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>Add to SafeCircle</Text>
+            {[
+              { key: "name",     placeholder: "Full Name",           icon: "person-outline" },
+              { key: "phone",    placeholder: "Phone Number",        icon: "call-outline"   },
+              { key: "relation", placeholder: "Relation (optional)", icon: "heart-outline"  },
+            ].map(f => (
+              <View key={f.key} style={s.modalInputRow}>
+                <Ionicons name={f.icon} size={16} color="#6b7280" />
+                <TextInput style={s.modalInput} placeholder={f.placeholder} placeholderTextColor="#4b5563" value={newContact[f.key]}
+                  onChangeText={v => setNewContact(n => ({ ...n, [f.key]: v }))}
+                  keyboardType={f.key === "phone" ? "phone-pad" : "default"} />
+              </View>
+            ))}
+            <View style={s.modalBtns}>
+              <TouchableOpacity style={s.cancelBtn} onPress={() => setAddModal(false)}>
+                <Text style={s.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.confirmBtn} onPress={addContact}>
+                <Text style={s.confirmText}>Add Contact</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Report Modal */}
+      <Modal visible={reportModal} transparent animationType="slide">
+        <View style={s.overlay}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>Report Unsafe Area</Text>
+            <Text style={s.modalSub}>Anonymous — helps other women stay safe.</Text>
+            <View style={s.catGrid}>
+              {REPORT_CATEGORIES.map(c => (
+                <TouchableOpacity key={c.label} style={[s.catBtn, selectedCat === c.label && s.catActive]} onPress={() => setSelectedCat(c.label)}>
+                  <Text style={s.catIcon}>{c.icon}</Text>
+                  <Text style={[s.catLabel, selectedCat === c.label && { color: "white" }]}>{c.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={s.modalInputRow}>
+              <Ionicons name="location-outline" size={16} color="#6b7280" />
+              <TextInput style={s.modalInput} placeholder="Area name (or auto-detect)" placeholderTextColor="#4b5563" value={reportArea} onChangeText={setReportArea} />
+            </View>
+            <View style={s.modalBtns}>
+              <TouchableOpacity style={s.cancelBtn} onPress={() => setReportModal(false)}>
+                <Text style={s.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.confirmBtn, { backgroundColor: "#ef4444" }]} onPress={submitReport}>
+                <Text style={s.confirmText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </ScrollView>
+  );
+}
+
+const s = StyleSheet.create({
+  container:     { flex: 1, backgroundColor: BG },
+  header:        { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 16 },
+  title:         { fontSize: 24, fontWeight: "800", color: TEXT },
+  subtitle:      { fontSize: 12, color: PRIMARY, marginTop: 4, fontWeight: "600" },
+  // Escort
+  escortCard:    { marginHorizontal: 16, marginBottom: 14, backgroundColor: CARD, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: BORDER },
+  escortCardActive: { borderColor: "rgba(52,211,153,0.3)", backgroundColor: "#0f1f1a" },
+  escortHeader:  { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 },
+  escortIconBg:  { width: 40, height: 40, borderRadius: 12, backgroundColor: "rgba(139,92,246,0.12)", alignItems: "center", justifyContent: "center" },
+  escortTitle:   { fontSize: 15, fontWeight: "700", color: TEXT },
+  escortSub:     { fontSize: 11, color: SUBTEXT, marginTop: 1 },
+  liveChip:      { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(52,211,153,0.12)", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  liveDot:       { width: 6, height: 6, borderRadius: 3, backgroundColor: "#34d399" },
+  liveText:      { fontSize: 10, fontWeight: "800", color: "#34d399", letterSpacing: 1 },
+  timerSection:  { alignItems: "center", gap: 6 },
+  timer:         { fontSize: 42, fontWeight: "900", color: "#34d399", letterSpacing: 3 },
+  coords:        { fontSize: 11, color: SUBTEXT },
+  safeBtn:       { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#34d399", borderRadius: 14, paddingVertical: 13, paddingHorizontal: 24, marginTop: 4 },
+  safeBtnText:   { color: "white", fontWeight: "700", fontSize: 14 },
+  escortDesc:    { fontSize: 13, color: SUBTEXT, lineHeight: 19 },
+  startBtn:      { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, backgroundColor: PRIMARY, borderRadius: 14, paddingVertical: 13 },
+  startBtnText:  { color: "white", fontWeight: "700", fontSize: 14 },
+  checkinBadge:  { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10, backgroundColor: "rgba(52,211,153,0.1)", borderRadius: 10, padding: 8 },
+  checkinText:   { color: "#34d399", fontSize: 12, fontWeight: "600" },
+  // Cards
+  card:          { backgroundColor: CARD, borderRadius: 20, padding: 18, marginHorizontal: 16, marginBottom: 14, borderWidth: 1, borderColor: BORDER },
+  cardHeader:    { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
+  cardTitle:     { fontSize: 15, fontWeight: "700", color: TEXT },
+  addBtn:        { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderColor: BORDER, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
+  addBtnText:    { color: PRIMARY, fontSize: 12, fontWeight: "600" },
+  // Contacts
+  contactRow:    { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.04)" },
+  avatar:        { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  avatarText:    { fontWeight: "800", fontSize: 15 },
+  contactName:   { fontSize: 14, fontWeight: "600", color: TEXT },
+  contactMeta:   { fontSize: 11, color: SUBTEXT, marginTop: 1 },
+  statusBadge:   { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  statusDot:     { width: 6, height: 6, borderRadius: 3 },
+  statusText:    { fontSize: 10, fontWeight: "600" },
+  hint:          { fontSize: 10, color: "#374151", textAlign: "center", marginTop: 10 },
+  // Reports
+  reportRow:     { flexDirection: "row", alignItems: "flex-start", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.04)", gap: 10 },
+  reportCat:     { fontSize: 13, fontWeight: "600", color: TEXT },
+  reportArea:    { fontSize: 11, color: SUBTEXT, marginTop: 1 },
+  reportTime:    { fontSize: 10, color: "#4b5563", marginTop: 1 },
+  upvoteBtn:     { alignItems: "center", gap: 2, borderWidth: 1, borderColor: BORDER, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 5 },
+  upvoteText:    { fontSize: 12, color: PRIMARY, fontWeight: "700" },
+  // Modals
+  overlay:       { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  modalCard:     { backgroundColor: "#1a1130", borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 44, borderTopWidth: 1, borderColor: BORDER },
+  modalTitle:    { fontSize: 18, fontWeight: "800", color: TEXT, marginBottom: 4 },
+  modalSub:      { fontSize: 12, color: SUBTEXT, marginBottom: 16 },
+  modalInputRow: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: BORDER, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10, backgroundColor: "rgba(255,255,255,0.03)" },
+  modalInput:    { flex: 1, fontSize: 14, color: TEXT },
+  catGrid:       { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 },
+  catBtn:        { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: BORDER, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: "rgba(255,255,255,0.03)" },
+  catActive:     { backgroundColor: PRIMARY, borderColor: PRIMARY },
+  catIcon:       { fontSize: 14 },
+  catLabel:      { fontSize: 12, color: SUBTEXT },
+  modalBtns:     { flexDirection: "row", gap: 10, marginTop: 8 },
+  cancelBtn:     { flex: 1, borderWidth: 1, borderColor: BORDER, borderRadius: 14, paddingVertical: 13, alignItems: "center" },
+  cancelText:    { color: SUBTEXT, fontWeight: "600" },
+  confirmBtn:    { flex: 1, backgroundColor: PRIMARY, borderRadius: 14, paddingVertical: 13, alignItems: "center" },
+  confirmText:   { color: "white", fontWeight: "700" },
+});

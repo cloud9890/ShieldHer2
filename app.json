@@ -1,0 +1,68 @@
+﻿{
+  "expo": {
+    "name": "ShieldHer2",
+    "slug": "ShieldHer2",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ShieldHer needs your location to share it with your safety circle and analyze safe routes.",
+          "locationAlwaysAndWhenInUsePermission": "ShieldHer needs your location to share it with your safety circle and analyze safe routes."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#9333ea",
+          "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "ShieldHer needs camera access to capture photo evidence in the Vault."
+        }
+      ],
+      "expo-sensors"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "ShieldHer needs your location to share with your safety circle and analyze route safety.",
+        "NSLocationAlwaysUsageDescription": "ShieldHer needs background location for Guardian Mode.",
+        "NSMicrophoneUsageDescription": "ShieldHer uses the microphone to record audio evidence when SOS is activated.",
+        "NSCameraUsageDescription": "ShieldHer uses the camera to capture photo evidence in the Vault."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "RECORD_AUDIO",
+        "CAMERA",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
