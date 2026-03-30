@@ -15,7 +15,7 @@ const triggerHaptic = () => {
 };
 
 const EMERGENCY_CONTACTS = [
-  { name: "Mom",         phone: "+91-98765-43210" },
+  { name: "Mom",         phone: process.env.EXPO_PUBLIC_TWILIO_VERIFIED_NUMBER || "+91-98765-43210" },
   { name: "Sister Riya", phone: "+91-91234-56789" },
 ];
 

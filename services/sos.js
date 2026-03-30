@@ -87,7 +87,7 @@ function buildMessage(type, coords) {
 
 async function sendSMS(phone, message) {
   const { data, error } = await supabase.functions.invoke("send-sms", {
-    body: JSON.stringify({ to: phone, message }),
+    body: { to: phone, message },
   });
   if (error) throw new Error(`SMS failed for ${phone}: ${error.message}`);
   return data;

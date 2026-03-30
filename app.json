@@ -1,6 +1,6 @@
-﻿{
+{
   "expo": {
-    "name": "ShieldHer2",
+    "name": "ShieldHer",
     "slug": "ShieldHer2",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -45,6 +45,12 @@
       }
     },
     "android": {
+      "package": "com.yash.shieldher",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB8hborDSFZBu0jfY26LPDGuuRExGzUVUA"
+        }
+      },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -58,11 +64,20 @@
         "RECORD_AUDIO",
         "CAMERA",
         "VIBRATE",
-        "RECEIVE_BOOT_COMPLETED"
+        "RECEIVE_BOOT_COMPLETED",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "daf5cfd0-126b-48da-84c4-93c6d8452bf7"
+      }
     }
   }
 }
