@@ -1,34 +1,51 @@
-// services/sos.js
-// Handles all SOS logic: SMS via Twilio, live location, recording
-
+// services/sos.js — with shake detection + all existing functionality
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import { Audio } from "expo-av";
+import { Accelerometer } from "expo-sensors";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:4000";
 
-// ── Types ──────────────────────────────────────────────────────────────────
-// alertType: "sos" | "checkin" | "escort_start" | "escort_end"
+// ── Shake Detection ────────────────────────────────────────────────────────
+let _shakeSub   = null;
+let _shakeCount = 0;
+let _shakeTimer = null;
 
-// ── Main SOS trigger ───────────────────────────────────────────────────────
+export function startShakeDetection(onTrigger) {
+  if (_shakeSub) return;
+  _shakeCount = 0;
+  Accelerometer.setUpdateInterval(150);
+  _shakeSub = Accelerometer.addListener(({ x, y, z }) => {
+    const mag = Math.sqrt(x * x + y * y + z * z);
+    if (mag > 2.8) {
+      _shakeCount++;
+      if (_shakeTimer) clearTimeout(_shakeTimer);
+      _shakeTimer = setTimeout(() => { _shakeCount = 0; }, 3000);
+      if (_shakeCount >= 5) {
+        _shakeCount = 0;
+        clearTimeout(_shakeTimer);
+        _shakeTimer = null;
+        onTrigger();
+      }
+    }
+  });
+}
+
+export function stopShakeDetection() {
+  _shakeSub?.remove();
+  _shakeSub = null;
+  if (_shakeTimer) clearTimeout(_shakeTimer);
+  _shakeTimer = null;
+  _shakeCount = 0;
+}
+
+// ── SOS Alert ─────────────────────────────────────────────────────────────
 export async function sendSOSAlert(contacts, alertType = "sos") {
   try {
-    // 1. Get current GPS
     const coords = await getCurrentLocation();
-
-    // 2. Build message based on alert type
     const msg = buildMessage(alertType, coords);
-
-    // 3. Send to backend → Twilio SMS for each contact
-    const results = await Promise.allSettled(
-      contacts.map(c => sendSMS(c.phone, msg))
-    );
-
-    // 4. Log how many succeeded
+    const results = await Promise.allSettled(contacts.map(c => sendSMS(c.phone, msg)));
     const sent = results.filter(r => r.status === "fulfilled").length;
-    console.log(`SOS sent to ${sent}/${contacts.length} contacts`);
-
-    // 5. Push local notification to confirm
     await Notifications.scheduleNotificationAsync({
       content: {
         title: alertType === "sos" ? "🚨 SOS Sent" : "✅ Safe Check-in Sent",
@@ -36,7 +53,6 @@ export async function sendSOSAlert(contacts, alertType = "sos") {
       },
       trigger: null,
     });
-
     return { success: true, sent, coords };
   } catch (err) {
     console.error("SOS error:", err);
@@ -44,7 +60,6 @@ export async function sendSOSAlert(contacts, alertType = "sos") {
   }
 }
 
-// ── Get GPS coords ─────────────────────────────────────────────────────────
 export async function getCurrentLocation() {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== "granted") throw new Error("Location permission denied");
@@ -52,22 +67,18 @@ export async function getCurrentLocation() {
   return loc.coords;
 }
 
-// ── Build SMS message ──────────────────────────────────────────────────────
 function buildMessage(type, coords) {
-  const mapsLink = `https://maps.google.com/?q=${coords.latitude},${coords.longitude}`;
+  const link = `https://maps.google.com/?q=${coords.latitude},${coords.longitude}`;
   const time = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-
   const templates = {
-    sos: `🚨 EMERGENCY ALERT from ShieldHer\n\nI need help! My live location:\n${mapsLink}\n\nTime: ${time}\n\nPlease call me immediately or contact emergency services.`,
-    checkin: `✅ Safe Check-in — ShieldHer\n\nI have arrived safely.\nLocation: ${mapsLink}\nTime: ${time}`,
-    escort_start: `🛡️ ShieldHer Escort Started\n\nI'm sharing my live journey with you.\nStarting location: ${mapsLink}\nTime: ${time}\n\nYou'll receive a safe check-in when I arrive.`,
-    escort_end: `✅ Journey Complete — ShieldHer\n\nI've arrived safely!\nFinal location: ${mapsLink}\nTime: ${time}`,
+    sos:          `🚨 EMERGENCY ALERT from ShieldHer\n\nI need help! My live location:\n${link}\n\nTime: ${time}\n\nPlease call me immediately or contact emergency services.`,
+    checkin:      `✅ Safe Check-in — ShieldHer\n\nI have arrived safely.\nLocation: ${link}\nTime: ${time}`,
+    escort_start: `🛡️ ShieldHer Escort Started\n\nI'm sharing my live journey with you.\nStarting location: ${link}\nTime: ${time}`,
+    escort_end:   `✅ Journey Complete — ShieldHer\n\nI've arrived safely!\nFinal location: ${link}\nTime: ${time}`,
   };
-
   return templates[type] || templates.sos;
 }
 
-// ── Send SMS via backend (Twilio) ──────────────────────────────────────────
 async function sendSMS(phone, message) {
   const res = await fetch(`${BACKEND_URL}/api/sms`, {
     method: "POST",
@@ -78,20 +89,16 @@ async function sendSMS(phone, message) {
   return res.json();
 }
 
-// ── Start audio recording (evidence) ──────────────────────────────────────
+// ── Recording ──────────────────────────────────────────────────────────────
 let _recording = null;
 
 export async function startEvidenceRecording() {
   try {
     const { granted } = await Audio.requestPermissionsAsync();
     if (!granted) throw new Error("Audio permission denied");
-
     await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-    const { recording } = await Audio.Recording.createAsync(
-      Audio.RecordingOptionsPresets.HIGH_QUALITY
-    );
+    const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
     _recording = recording;
-    console.log("🎙️ Evidence recording started");
     return true;
   } catch (err) {
     console.error("Recording error:", err);
@@ -105,21 +112,16 @@ export async function stopEvidenceRecording() {
     await _recording.stopAndUnloadAsync();
     const uri = _recording.getURI();
     _recording = null;
-    console.log("🎙️ Recording saved:", uri);
-    return uri; // local file URI — upload to S3 in production
-  } catch (err) {
-    console.error("Stop recording error:", err);
-    return null;
-  }
+    return uri;
+  } catch { return null; }
 }
 
-// ── Watch location continuously (for escort mode) ─────────────────────────
+// ── Location Watch ─────────────────────────────────────────────────────────
 let _locationSub = null;
 
 export async function startLocationWatch(onUpdate) {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== "granted") return false;
-
   _locationSub = await Location.watchPositionAsync(
     { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 10 },
     loc => onUpdate(loc.coords)
@@ -132,10 +134,12 @@ export function stopLocationWatch() {
   _locationSub = null;
 }
 
-// ── Register for push notifications ───────────────────────────────────────
+// ── Push Notifications ─────────────────────────────────────────────────────
 export async function registerForPushNotifications() {
   const { status } = await Notifications.requestPermissionsAsync();
   if (status !== "granted") return null;
-  const token = await Notifications.getExpoPushTokenAsync();
-  return token.data;
+  try {
+    const token = await Notifications.getExpoPushTokenAsync();
+    return token.data;
+  } catch { return null; }
 }
