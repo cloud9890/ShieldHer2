@@ -5,9 +5,14 @@ import {
   Alert, Vibration, ScrollView, Platform
 } from "react-native";
 import * as Location from "expo-location";
-import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { sendSOSAlert, startEvidenceRecording, registerForPushNotifications, startShakeDetection, stopShakeDetection } from "../services/sos";
+
+// Haptics is only available on native
+const triggerHaptic = () => {
+  if (Platform.OS === "web") return;
+  try { require("expo-haptics").notificationAsync(require("expo-haptics").NotificationFeedbackType.Error); } catch {}
+};
 
 const EMERGENCY_CONTACTS = [
   { name: "Mom",         phone: "+91-98765-43210" },
@@ -38,10 +43,10 @@ export default function HomeScreen() {
   const pulseAnim     = useRef(new Animated.Value(1)).current;
   const glowAnim      = useRef(new Animated.Value(0.4)).current;
 
-  // Shake detection — starts/stops with component
+  // Shake detection — starts/stops with component (native only)
   useEffect(() => {
     const onShake = () => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      triggerHaptic();
       activateSOS();
     };
     startShakeDetection(onShake);

@@ -1,10 +1,16 @@
 // services/sos.js — with shake detection + all existing functionality
+import { Platform } from "react-native";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import { Audio } from "expo-av";
-import { Accelerometer } from "expo-sensors";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
+// Lazy-load Accelerometer only on native (web doesn't support it)
+const getAccelerometer = () => {
+  if (Platform.OS === "web") return null;
+  return require("expo-sensors").Accelerometer;
+};
 
 // ── Shake Detection ────────────────────────────────────────────────────────
 let _shakeSub   = null;
@@ -12,7 +18,9 @@ let _shakeCount = 0;
 let _shakeTimer = null;
 
 export function startShakeDetection(onTrigger) {
-  if (_shakeSub) return;
+  if (Platform.OS === "web") return; // not supported on web
+  const Accelerometer = getAccelerometer();
+  if (!Accelerometer || _shakeSub) return;
   _shakeCount = 0;
   Accelerometer.setUpdateInterval(150);
   _shakeSub = Accelerometer.addListener(({ x, y, z }) => {
