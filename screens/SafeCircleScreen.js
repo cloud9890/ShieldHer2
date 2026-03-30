@@ -18,7 +18,7 @@ const REPORT_CATEGORIES = [
 ];
 
 const INITIAL_CONTACTS = [
-  { id: "1", name: "Mom",         phone: "+91-98765-43210", relation: "Mother", status: "active" },
+  { id: "1", name: "Mom",         phone: process.env.EXPO_PUBLIC_TWILIO_VERIFIED_NUMBER || "+91-98765-43210", relation: "Mother", status: "active" },
   { id: "2", name: "Sister Riya", phone: "+91-91234-56789", relation: "Sister", status: "active" },
   { id: "3", name: "Friend Neha", phone: "+91-87654-32109", relation: "Friend", status: "away"   },
 ];
