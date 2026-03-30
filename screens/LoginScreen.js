@@ -5,23 +5,28 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../services/supabase";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   const signUp = async () => {
     setLoading(true);
+    setErrorMsg(null);
     const { error } = await supabase.auth.signUp({ email, password });
-    if (error) Alert.alert("Error", error.message);
-    else Alert.alert("Check your email", "Verify your account then log in.");
+    if (error) {
+      setErrorMsg(error.message);
+    } else {
+      setErrorMsg("✅ Success! Please check your email for a confirmation link to log in.");
+    }
     setLoading(false);
   };
 
   const signIn = async () => {
     setLoading(true);
+    setErrorMsg(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) Alert.alert("Error", error.message);
-    // On success, App.js will naturally re-render when auth state changes
+    if (error) setErrorMsg(error.message);
     setLoading(false);
   };
 
@@ -58,6 +63,10 @@ export default function LoginScreen() {
           />
         </View>
 
+        {errorMsg ? (
+          <Text style={s.errorText}>{errorMsg}</Text>
+        ) : null}
+
         {loading ? (
           <ActivityIndicator color="#8b5cf6" style={{ marginVertical: 10 }} />
         ) : (
@@ -87,4 +96,5 @@ const s = StyleSheet.create({
   loginText: { color: "white", fontWeight: "700", fontSize: 15 },
   signupBtn: { backgroundColor: "transparent", borderRadius: 14, paddingVertical: 14, alignItems: "center", borderWidth: 1, borderColor: "#8b5cf6", marginTop: 4 },
   signupText:{ color: "#a78bfa", fontWeight: "700", fontSize: 15 },
+  errorText: { color: "#ef4444", fontSize: 12, textAlign: "center", marginTop: 4, fontWeight: "600" },
 });
