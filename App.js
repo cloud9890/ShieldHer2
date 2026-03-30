@@ -1,6 +1,6 @@
 // App.js — Root Stack + 5 Bottom Tabs + Swipe Navigation + Back Buttons
-import { useRef } from "react";
-import { View, PanResponder } from "react-native";
+import { useState, useEffect, useRef } from "react";
+import { View, PanResponder, ActivityIndicator } from "react-native";
 import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createBottomTabNavigator }     from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator }   from "@react-navigation/native-stack";
@@ -17,6 +17,9 @@ import NearbyScreen      from "./screens/NearbyScreen";
 import SafetyLawsScreen  from "./screens/SafetyLawsScreen";
 import SelfDefenseScreen from "./screens/SelfDefenseScreen";
 import MoreScreen        from "./screens/MoreScreen";
+import LoginScreen       from "./screens/LoginScreen";
+
+import { supabase } from "./services/supabase";
 
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -94,9 +97,21 @@ function TabNavigator() {
   );
 }
 
-// ── Root App ─────────────────────────────────────────────────────────────
 export default function App() {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
   const currentTabRef = useRef("Home");
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Swipe-between-tabs with PanResponder
   const swipePan = useRef(
@@ -120,12 +135,20 @@ export default function App() {
     })
   ).current;
 
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0f0a1e", justifyContent: "center" }}>
+        <ActivityIndicator color="#8b5cf6" size="large" />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1 }} {...swipePan.panHandlers}>
       <NavigationContainer
         ref={navigationRef}
         onStateChange={() => {
-          // Track the current route name to know if we're on a tab
+          if (!session) return;
           if (navigationRef.isReady()) {
             const name = navigationRef.getCurrentRoute()?.name;
             if (name && TAB_ORDER.includes(name)) {
@@ -136,15 +159,21 @@ export default function App() {
       >
         <StatusBar style="light" />
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {/* Main tab view */}
-          <Stack.Screen name="MainTabs"    component={TabNavigator} />
+          {!session ? (
+            <Stack.Screen name="Login" component={LoginScreen} />
+          ) : (
+            <>
+              {/* Main tab view */}
+              <Stack.Screen name="MainTabs"    component={TabNavigator} />
 
-          {/* Sub-screens accessible from More hub — all have back buttons */}
-          <Stack.Screen name="Route"       component={SafeRouteScreen}   options={DARK_HEADER("Safe Route")}     />
-          <Stack.Screen name="AI"          component={AIShieldScreen}    options={DARK_HEADER("AI Shield")}      />
-          <Stack.Screen name="Laws"        component={SafetyLawsScreen}  options={DARK_HEADER("Safety Laws")}    />
-          <Stack.Screen name="SelfDefense" component={SelfDefenseScreen} options={DARK_HEADER("Self Defense")}   />
-          <Stack.Screen name="Profile"     component={ProfileScreen}     options={DARK_HEADER("My Profile")}     />
+              {/* Sub-screens accessible from More hub — all have back buttons */}
+              <Stack.Screen name="Route"       component={SafeRouteScreen}   options={DARK_HEADER("Safe Route")}     />
+              <Stack.Screen name="AI"          component={AIShieldScreen}    options={DARK_HEADER("AI Shield")}      />
+              <Stack.Screen name="Laws"        component={SafetyLawsScreen}  options={DARK_HEADER("Safety Laws")}    />
+              <Stack.Screen name="SelfDefense" component={SelfDefenseScreen} options={DARK_HEADER("Self Defense")}   />
+              <Stack.Screen name="Profile"     component={ProfileScreen}     options={DARK_HEADER("My Profile")}     />
+            </>
+          )}
         </Stack.Navigator>
       </NavigationContainer>
     </View>
