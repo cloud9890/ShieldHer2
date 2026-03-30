@@ -5,8 +5,9 @@ import {
   Alert, Vibration, ScrollView, Platform
 } from "react-native";
 import * as Location from "expo-location";
+import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
-import { sendSOSAlert, startEvidenceRecording, registerForPushNotifications } from "../services/sos";
+import { sendSOSAlert, startEvidenceRecording, registerForPushNotifications, startShakeDetection, stopShakeDetection } from "../services/sos";
 
 const EMERGENCY_CONTACTS = [
   { name: "Mom",         phone: "+91-98765-43210" },
@@ -31,10 +32,22 @@ export default function HomeScreen() {
   const [fakeCall, setFakeCall]     = useState(false);
   const [guardianOn, setGuardianOn] = useState(true);
   const [location, setLocation]     = useState(null);
+  const [shakeBadge, setShakeBadge] = useState(false);
   const pressProgress = useRef(new Animated.Value(0)).current;
   const pressAnim     = useRef(null);
   const pulseAnim     = useRef(new Animated.Value(1)).current;
   const glowAnim      = useRef(new Animated.Value(0.4)).current;
+
+  // Shake detection — starts/stops with component
+  useEffect(() => {
+    const onShake = () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      activateSOS();
+    };
+    startShakeDetection(onShake);
+    setShakeBadge(true);
+    return () => { stopShakeDetection(); setShakeBadge(false); };
+  }, []);
 
   useEffect(() => {
     registerForPushNotifications().catch(() => {});
