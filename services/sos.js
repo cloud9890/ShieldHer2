@@ -1,10 +1,8 @@
-// services/sos.js — with shake detection + all existing functionality
 import { Platform } from "react-native";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import { Audio } from "expo-av";
-
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:4000";
+import { supabase } from "./supabase";
 
 // Lazy-load Accelerometer only on native (web doesn't support it)
 const getAccelerometer = () => {
@@ -88,13 +86,11 @@ function buildMessage(type, coords) {
 }
 
 async function sendSMS(phone, message) {
-  const res = await fetch(`${BACKEND_URL}/api/sms`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+  const { data, error } = await supabase.functions.invoke("send-sms", {
     body: JSON.stringify({ to: phone, message }),
   });
-  if (!res.ok) throw new Error(`SMS failed for ${phone}`);
-  return res.json();
+  if (error) throw new Error(`SMS failed for ${phone}: ${error.message}`);
+  return data;
 }
 
 // ── Recording ──────────────────────────────────────────────────────────────

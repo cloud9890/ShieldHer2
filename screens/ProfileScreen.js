@@ -2,11 +2,12 @@
 import { useState, useEffect } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, Switch, Alert, Linking, Image, Platform
+  TextInput, Switch, Alert, Linking, Image, Platform, ActivityIndicator
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
+import { supabase } from "../services/supabase";
 
 const BG      = "#0f0a1e";
 const CARD    = "#1a1130";
@@ -25,35 +26,62 @@ export default function ProfileScreen() {
   const [shakeOn,  setShakeOn]  = useState(true);
   const [notifOn,  setNotifOn]  = useState(true);
   const [guardOn,  setGuardOn]  = useState(true);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem("shieldher_profile").then(d => { if (d) setProfile(JSON.parse(d)); });
-    AsyncStorage.getItem("shieldher_profile_pic").then(uri => { if (uri) setImageUri(uri); });
-    AsyncStorage.getItem("shieldher_settings").then(d => {
-      if (d) {
-        const s = JSON.parse(d);
-        setShakeOn(s.shakeOn ?? true);
-        setNotifOn(s.notifOn ?? true);
-        setGuardOn(s.guardOn ?? true);
-      }
-    });
+    loadProfile();
   }, []);
+
+  const loadProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    if (data) {
+      setProfile({ name: data.name || "Your Name", phone: data.phone || "+91-" });
+      setShakeOn(data.shake_on ?? true);
+      setNotifOn(data.notif_on ?? true);
+      setGuardOn(data.guard_on ?? true);
+      if (data.avatar_url) setImageUri(data.avatar_url);
+    }
+  };
 
   // ── Profile save ─────────────────────────────────────────────────────────
   const save = async () => {
     if (!draft.name.trim()) { Alert.alert("Name cannot be empty."); return; }
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const u = { name: draft.name.trim(), phone: draft.phone.trim() };
-    setProfile(u);
-    await AsyncStorage.setItem("shieldher_profile", JSON.stringify(u));
-    setEditing(false);
+    
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({ id: user.id, ...u, updated_at: new Date() });
+
+    if (error) {
+      Alert.alert("Error saving profile", error.message);
+    } else {
+      setProfile(u);
+      setEditing(false);
+    }
   };
 
   const saveSetting = async (key, val) => {
-    const s = { shakeOn, notifOn, guardOn, [key]: val };
-    await AsyncStorage.setItem("shieldher_settings", JSON.stringify(s));
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    await supabase
+      .from("profiles")
+      .upsert({ id: user.id, [key]: val, updated_at: new Date() });
   };
 
-  // ── Photo upload ─────────────────────────────────────────────────────────
+  // ── Photo upload (Supabase Storage) ──────────────────────────────────────
   const pickImage = () => {
     Alert.alert("Profile Photo", "Choose source", [
       { text: "📷 Camera",  onPress: launchCamera  },
@@ -63,60 +91,69 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const processImageResult = async (result) => {
+    if (result.canceled) return;
+    setUploading(true);
+    try {
+      const asset = result.assets[0];
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not logged in");
+
+      // Fetch file to get blob
+      const res = await fetch(asset.uri);
+      const blob = await res.blob();
+      const ext = asset.uri.substring(asset.uri.lastIndexOf(".") + 1) || "jpg";
+      const filePath = `${user.id}/${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, blob, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+      
+      await supabase.from("profiles").upsert({ id: user.id, avatar_url: data.publicUrl });
+      setImageUri(data.publicUrl);
+    } catch (err) {
+      Alert.alert("Upload Failed", err.message);
+    }
+    setUploading(false);
+  };
+
   const launchCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission needed", "Camera permission is required to take a photo.");
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.75,
-      allowsEditing: true,
-      aspect: [1, 1],
-    });
-    if (!result.canceled) savePhoto(result.assets[0].uri);
+    if (status !== "granted") { Alert.alert("Permission needed"); return; }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.5, allowsEditing: true, aspect: [1, 1] });
+    processImageResult(result);
   };
 
   const launchGallery = async () => {
-    let status;
     if (Platform.OS !== "web") {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      status = perm.status;
-      if (status !== "granted") {
-        Alert.alert("Permission needed", "Gallery permission is required.");
-        return;
-      }
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") { Alert.alert("Permission needed"); return; }
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      quality:       0.75,
-      allowsEditing: true,
-      aspect:        [1, 1],
-      mediaTypes:    ImagePicker.MediaTypeOptions.Images,
-    });
-    if (!result.canceled) savePhoto(result.assets[0].uri);
-  };
-
-  const savePhoto = async (uri) => {
-    setImageUri(uri);
-    await AsyncStorage.setItem("shieldher_profile_pic", uri);
+    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.5, allowsEditing: true, aspect: [1, 1] });
+    processImageResult(result);
   };
 
   const removePhoto = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("profiles").upsert({ id: user.id, avatar_url: null });
     setImageUri(null);
-    await AsyncStorage.removeItem("shieldher_profile_pic");
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
   };
 
   // ── Derived ──────────────────────────────────────────────────────────────
   const avatarColor = AVATAR_COLORS[(profile.name.charCodeAt(0) || 0) % AVATAR_COLORS.length];
   const initials    = profile.name.trim().split(" ").map(w => w[0] || "").join("").slice(0, 2).toUpperCase() || "SH";
 
-  // ── Reusable Row ─────────────────────────────────────────────────────────
   const Row = ({ icon, color = PRIMARY, label, sub, right, onPress, last }) => (
-    <TouchableOpacity
-      style={[s.row, !last && s.rowBorder]}
-      onPress={onPress}
-      activeOpacity={onPress ? 0.7 : 1}
-    >
+    <TouchableOpacity style={[s.row, !last && s.rowBorder]} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
       <View style={[s.rowIcon, { backgroundColor: color + "18" }]}>
         <Ionicons name={icon} size={16} color={color} />
       </View>
@@ -131,33 +168,25 @@ export default function ProfileScreen() {
   const Card = ({ title, children, redBorder }) => (
     <View style={s.section}>
       <Text style={s.sectionLabel}>{title}</Text>
-      <View style={[s.sectionCard, redBorder && { borderColor: "rgba(239,68,68,0.25)" }]}>
-        {children}
-      </View>
+      <View style={[s.sectionCard, redBorder && { borderColor: "rgba(239,68,68,0.25)" }]}>{children}</View>
     </View>
   );
 
   return (
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
       <View style={s.header}>
-        <Text style={s.headerLabel}>MY PROFILE</Text>
-        <TouchableOpacity
-          style={s.editBtn}
-          onPress={() => {
+        <Text style={s.headerLabel}>MY PROFILE (CLOUD)</Text>
+        <TouchableOpacity style={s.editBtn} onPress={() => {
             if (!editing) setDraft({ name: profile.name, phone: profile.phone });
-            setEditing(e => !e);
-          }}
-        >
+            setEditing(!editing);
+          }}>
           <Ionicons name={editing ? "close" : "pencil"} size={15} color={PRIMARY} />
           <Text style={s.editBtnText}>{editing ? "Cancel" : "Edit"}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Avatar Card */}
       <View style={s.avatarCard}>
-        {/* Tappable avatar — opens photo picker */}
-        <TouchableOpacity style={s.avatarWrapper} onPress={pickImage} activeOpacity={0.85}>
+        <TouchableOpacity style={s.avatarWrapper} onPress={pickImage} activeOpacity={0.85} disabled={uploading}>
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={s.avatarImage} />
           ) : (
@@ -165,112 +194,52 @@ export default function ProfileScreen() {
               <Text style={[s.avatarText, { color: avatarColor }]}>{initials}</Text>
             </View>
           )}
-          {/* Camera overlay badge */}
           <View style={s.cameraOverlay}>
-            <Ionicons name="camera" size={14} color="white" />
+            {uploading ? <ActivityIndicator size="small" color="white" /> : <Ionicons name="cloud-upload" size={14} color="white" />}
           </View>
         </TouchableOpacity>
 
-        {/* Edit form or Profile info */}
         {editing ? (
           <View style={s.editForm}>
-            {[
-              { key: "name",  icon: "person-outline", placeholder: "Full name",      kb: "default"   },
-              { key: "phone", icon: "call-outline",   placeholder: "+91-XXXXXXXXXX", kb: "phone-pad" },
-            ].map(f => (
-              <View key={f.key} style={s.inputRow}>
-                <Ionicons name={f.icon} size={15} color={SUBTEXT} />
-                <TextInput
-                  style={s.input}
-                  value={draft[f.key]}
-                  onChangeText={v => setDraft(d => ({ ...d, [f.key]: v }))}
-                  placeholder={f.placeholder}
-                  placeholderTextColor="#4b5563"
-                  keyboardType={f.kb}
-                />
-              </View>
-            ))}
+            <View style={s.inputRow}>
+              <Ionicons name="person-outline" size={15} color={SUBTEXT} />
+              <TextInput style={s.input} value={draft.name} onChangeText={v => setDraft(d => ({ ...d, name: v }))} placeholder="Full name" placeholderTextColor="#4b5563" />
+            </View>
+            <View style={s.inputRow}>
+              <Ionicons name="call-outline" size={15} color={SUBTEXT} />
+              <TextInput style={s.input} value={draft.phone} onChangeText={v => setDraft(d => ({ ...d, phone: v }))} placeholder="+91-XXXXXXXXXX" placeholderTextColor="#4b5563" keyboardType="phone-pad" />
+            </View>
             <TouchableOpacity style={s.saveBtn} onPress={save}>
-              <Ionicons name="checkmark" size={16} color="white" />
-              <Text style={s.saveBtnText}>Save Profile</Text>
+              <Ionicons name="cloud-done" size={16} color="white" />
+              <Text style={s.saveBtnText}>Save to Cloud</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <View style={s.profileInfo}>
             <Text style={s.profileName}>{profile.name}</Text>
-            <Text style={s.profilePhone}>{profile.phone || "Add phone number"}</Text>
+            <Text style={s.profilePhone}>{profile.phone}</Text>
             <View style={s.badge}>
-              <Ionicons name="shield-checkmark" size={12} color="#34d399" />
-              <Text style={s.badgeText}>ShieldHer Protected</Text>
+              <Ionicons name="cloud-done" size={12} color="#34d399" />
+              <Text style={s.badgeText}>Supabase Synced</Text>
             </View>
-            <Text style={s.photoHint}>Tap photo to change</Text>
           </View>
         )}
       </View>
 
-      {/* Safety Settings */}
       <Card title="SAFETY SETTINGS">
-        <Row
-          icon="phone-portrait-outline" color="#ec4899"
-          label="Shake to SOS" sub="Shake device 5x to trigger emergency alert"
-          right={
-            <Switch value={shakeOn} onValueChange={v => { setShakeOn(v); saveSetting("shakeOn", v); }}
-              trackColor={{ false: "#374151", true: PRIMARY + "80" }} thumbColor={shakeOn ? PRIMARY : "#6b7280"} />
-          }
-        />
-        <Row
-          icon="notifications-outline" color="#f59e0b"
-          label="Push Notifications" sub="SOS confirmations and safety alerts"
-          right={
-            <Switch value={notifOn} onValueChange={v => { setNotifOn(v); saveSetting("notifOn", v); }}
-              trackColor={{ false: "#374151", true: PRIMARY + "80" }} thumbColor={notifOn ? PRIMARY : "#6b7280"} />
-          }
-        />
-        <Row
-          icon="eye-outline" color="#34d399"
-          label="Guardian Mode" sub="Active monitoring while app is open" last
-          right={
-            <Switch value={guardOn} onValueChange={v => { setGuardOn(v); saveSetting("guardOn", v); }}
-              trackColor={{ false: "#374151", true: "#34d399" + "80" }} thumbColor={guardOn ? "#34d399" : "#6b7280"} />
-          }
-        />
+        <Row icon="phone-portrait-outline" color="#ec4899" label="Shake to SOS" right={
+            <Switch value={shakeOn} onValueChange={v => { setShakeOn(v); saveSetting("shake_on", v); }} trackColor={{ true: PRIMARY + "80" }} thumbColor={shakeOn ? PRIMARY : "#6b7280"} />
+          } />
+        <Row icon="notifications-outline" color="#f59e0b" label="Push Notifications" right={
+            <Switch value={notifOn} onValueChange={v => { setNotifOn(v); saveSetting("notif_on", v); }} trackColor={{ true: PRIMARY + "80" }} thumbColor={notifOn ? PRIMARY : "#6b7280"} />
+          } />
+        <Row icon="eye-outline" color="#34d399" label="Guardian Mode" last right={
+            <Switch value={guardOn} onValueChange={v => { setGuardOn(v); saveSetting("guard_on", v); }} trackColor={{ true: "#34d39980" }} thumbColor={guardOn ? "#34d399" : "#6b7280"} />
+          } />
       </Card>
 
-      {/* Emergency Quick Dial */}
-      <Card title="EMERGENCY QUICK DIAL">
-        <Row icon="call"    color="#ef4444" label="Police"            sub="Dial 100"        onPress={() => Linking.openURL("tel:100")} />
-        <Row icon="medical" color="#ec4899" label="Women Helpline"    sub="Dial 181 — 24×7" onPress={() => Linking.openURL("tel:181")} />
-        <Row icon="shield"  color="#8b5cf6" label="National Emergency" sub="Dial 112"       last onPress={() => Linking.openURL("tel:112")} />
-      </Card>
-
-      {/* About */}
-      <Card title="ABOUT">
-        <Row icon="information-circle-outline" label={"App Version v" + VERSION} sub="ShieldHer Safety Platform" />
-        <Row icon="logo-github" color="#e5e7eb" label="GitHub Repository" sub="cloud9890/ShieldHer2"
-          onPress={() => Linking.openURL("https://github.com/cloud9890/ShieldHer2")} />
-        <Row icon="shield-outline" color="#34d399" label="Privacy Policy"
-          onPress={() => Alert.alert("Privacy", "All evidence is stored locally on your device. Location is shared only with your chosen contacts via encrypted SMS. No data is sent to third-party servers except Twilio for SMS alerts.")} />
-        <Row icon="heart-outline" color="#ec4899" label="Made with 💜 for women's safety" last />
-      </Card>
-
-      {/* Danger Zone */}
-      <Card title="DANGER ZONE" redBorder>
-        <Row
-          icon="trash-outline" color="#ef4444"
-          label="Clear All Data" sub="Delete all incidents, contacts & profile" last
-          onPress={() => Alert.alert("Clear All Data?", "This cannot be undone.", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Clear Everything", style: "destructive", onPress: async () => {
-              await AsyncStorage.multiRemove([
-                "shieldher_profile", "shieldher_profile_pic", "shieldher_settings",
-                "shieldher_contacts", "shieldher_incidents",
-              ]);
-              setImageUri(null);
-              setProfile({ name: "Your Name", phone: "+91-" });
-              Alert.alert("Done", "All local data has been erased.");
-            }},
-          ])}
-        />
+      <Card title="ACCOUNT">
+        <Row icon="log-out-outline" color="#ef4444" label="Sign Out" sub="Disconnect from cloud" last onPress={signOut} />
       </Card>
 
       <View style={{ height: 40 }} />
@@ -280,12 +249,11 @@ export default function ProfileScreen() {
 
 const s = StyleSheet.create({
   container:      { flex: 1, backgroundColor: BG },
-  header:         { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 56, paddingHorizontal: 20, paddingBottom: 8 },
-  headerLabel:    { fontSize: 11, color: "#4b5563", fontWeight: "700", letterSpacing: 1.2 },
+  header:         { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 20, paddingHorizontal: 20, paddingBottom: 8 },
+  headerLabel:    { fontSize: 11, color: "#a78bfa", fontWeight: "700", letterSpacing: 1.2 },
   editBtn:        { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderColor: BORDER, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, backgroundColor: "rgba(139,92,246,0.07)" },
   editBtnText:    { color: PRIMARY, fontSize: 12, fontWeight: "600" },
 
-  // Avatar card
   avatarCard:     { backgroundColor: CARD, borderRadius: 24, marginHorizontal: 16, marginBottom: 8, padding: 20, alignItems: "center", borderWidth: 1, borderColor: BORDER, gap: 14 },
   avatarWrapper:  { position: "relative" },
   avatarInitials: { width: 88, height: 88, borderRadius: 24, borderWidth: 2, alignItems: "center", justifyContent: "center" },
@@ -297,21 +265,16 @@ const s = StyleSheet.create({
   profilePhone:   { fontSize: 14, color: SUBTEXT },
   badge:          { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(52,211,153,0.1)", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4, marginTop: 4, borderWidth: 1, borderColor: "rgba(52,211,153,0.2)" },
   badgeText:      { fontSize: 11, color: "#34d399", fontWeight: "600" },
-  photoHint:      { fontSize: 10, color: "#374151", marginTop: 6 },
 
-  // Edit form
   editForm:       { width: "100%", gap: 10 },
   inputRow:       { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: BORDER, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, backgroundColor: "rgba(255,255,255,0.03)" },
   input:          { flex: 1, fontSize: 14, color: TEXT },
   saveBtn:        { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, backgroundColor: PRIMARY, borderRadius: 14, paddingVertical: 13 },
   saveBtnText:    { color: "white", fontWeight: "700", fontSize: 14 },
 
-  // Sections
   section:        { marginHorizontal: 16, marginBottom: 14 },
   sectionLabel:   { fontSize: 10, color: "#4b5563", fontWeight: "700", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 8, marginLeft: 4 },
   sectionCard:    { backgroundColor: CARD, borderRadius: 18, borderWidth: 1, borderColor: BORDER, overflow: "hidden" },
-
-  // Rows
   row:            { flexDirection: "row", alignItems: "center", padding: 14, gap: 12 },
   rowBorder:      { borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.05)" },
   rowIcon:        { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
