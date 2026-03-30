@@ -1,10 +1,12 @@
-// App.js — Root Stack + Bottom Tabs (Home, Nearby, Circle, Vault, More)
-import { NavigationContainer }                   from "@react-navigation/native";
-import { createBottomTabNavigator }              from "@react-navigation/bottom-tabs";
-import { createNativeStackNavigator }            from "@react-navigation/native-stack";
-import { Ionicons }                              from "@expo/vector-icons";
-import { StatusBar }                             from "expo-status-bar";
-import { View }                                  from "react-native";
+// App.js — Root Stack + 5 Bottom Tabs + Swipe Navigation + Back Buttons
+import { useRef } from "react";
+import { View, PanResponder } from "react-native";
+import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
+import { createBottomTabNavigator }     from "@react-navigation/bottom-tabs";
+import { createNativeStackNavigator }   from "@react-navigation/native-stack";
+import { Ionicons }                     from "@expo/vector-icons";
+import { StatusBar }                    from "expo-status-bar";
+
 import HomeScreen        from "./screens/HomeScreen";
 import SafeRouteScreen   from "./screens/SafeRouteScreen";
 import SafeCircleScreen  from "./screens/SafeCircleScreen";
@@ -14,58 +16,41 @@ import ProfileScreen     from "./screens/ProfileScreen";
 import NearbyScreen      from "./screens/NearbyScreen";
 import SafetyLawsScreen  from "./screens/SafetyLawsScreen";
 import SelfDefenseScreen from "./screens/SelfDefenseScreen";
+import MoreScreen        from "./screens/MoreScreen";
 
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// ── More Hub Screen ──────────────────────────────────────────────────────
-import { Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+// Navigation ref for programmatic navigation (used by swipe)
+const navigationRef = createNavigationContainerRef();
 
-function MoreScreen({ navigation }) {
-  const ITEMS = [
-    { label: "Safe Route",      sub: "AI-powered route safety analysis",    icon: "map",              color: "#8b5cf6", screen: "Route"       },
-    { label: "AI Shield",       sub: "Harassment detection & safety chat",   icon: "sparkles",         color: "#ec4899", screen: "AI"          },
-    { label: "Safety Laws",     sub: "Know your rights under Indian law",    icon: "library",          color: "#f59e0b", screen: "Laws"        },
-    { label: "Self Defense",    sub: "Video guides for self-protection",     icon: "fitness",          color: "#ef4444", screen: "SelfDefense" },
-    { label: "My Profile",      sub: "Settings, preferences & quick dials", icon: "person-circle",    color: "#34d399", screen: "Profile"     },
-  ];
-  return (
-    <ScrollView style={{ flex: 1, backgroundColor: "#0f0a1e" }} showsVerticalScrollIndicator={false}>
-      <View style={{ paddingTop: 56, paddingHorizontal: 20, paddingBottom: 16 }}>
-        <Text style={{ fontSize: 24, fontWeight: "800", color: "#f1f0f5" }}>More</Text>
-        <Text style={{ fontSize: 12, color: "#8b5cf6", marginTop: 4, fontWeight: "600" }}>All ShieldHer features</Text>
-      </View>
-      <View style={{ paddingHorizontal: 16, gap: 10 }}>
-        {ITEMS.map(item => (
-          <TouchableOpacity
-            key={item.screen}
-            style={{ flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: "#1a1130", borderRadius: 18, padding: 16, borderWidth: 1, borderColor: "rgba(139,92,246,0.18)" }}
-            onPress={() => navigation.navigate(item.screen)}
-            activeOpacity={0.8}
-          >
-            <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: item.color + "18", alignItems: "center", justifyContent: "center" }}>
-              <Ionicons name={item.icon} size={22} color={item.color} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: "700", color: "#f1f0f5" }}>{item.label}</Text>
-              <Text style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{item.sub}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#4b5563" />
-          </TouchableOpacity>
-        ))}
-      </View>
-      <View style={{ height: 40 }} />
-    </ScrollView>
-  );
-}
+// ── Tab order for swipe gestures ─────────────────────────────────────────
+const TAB_ORDER = ["Home", "Nearby", "Circle", "Vault", "More"];
+
+// ── Dark header options for sub-screens (adds back button) ───────────────
+const DARK_HEADER = (title) => ({
+  headerShown: true,
+  title,
+  headerStyle: {
+    backgroundColor: "#0f0a1e",
+  },
+  headerTintColor: "#a78bfa",
+  headerTitleStyle: {
+    color: "#f1f0f5",
+    fontWeight: "700",
+    fontSize: 17,
+  },
+  headerShadowVisible: false,
+  headerBackTitle: "More",
+});
 
 // ── Bottom Tab Navigator ─────────────────────────────────────────────────
 const TABS = [
-  { name: "Home",    component: HomeScreen,      icon: "shield-outline",   activeIcon: "shield"    },
-  { name: "Nearby",  component: NearbyScreen,    icon: "location-outline", activeIcon: "location"  },
-  { name: "Circle",  component: SafeCircleScreen,icon: "people-outline",   activeIcon: "people"    },
-  { name: "Vault",   component: VaultScreen,     icon: "folder-outline",   activeIcon: "folder"    },
-  { name: "More",    component: MoreScreen,      icon: "grid-outline",     activeIcon: "grid"      },
+  { name: "Home",   component: HomeScreen,      icon: "shield-outline",   activeIcon: "shield"    },
+  { name: "Nearby", component: NearbyScreen,    icon: "location-outline", activeIcon: "location"  },
+  { name: "Circle", component: SafeCircleScreen,icon: "people-outline",   activeIcon: "people"    },
+  { name: "Vault",  component: VaultScreen,     icon: "folder-outline",   activeIcon: "folder"    },
+  { name: "More",   component: MoreScreen,      icon: "grid-outline",     activeIcon: "grid"      },
 ];
 
 function TabNavigator() {
@@ -77,11 +62,11 @@ function TabNavigator() {
         tabBarInactiveTintColor: "#4b5563",
         tabBarStyle: {
           backgroundColor: "#0a0818",
-          borderTopColor: "rgba(139,92,246,0.2)",
-          borderTopWidth: 1,
-          height: 65,
-          paddingBottom: 10,
-          paddingTop: 6,
+          borderTopColor:  "rgba(139,92,246,0.2)",
+          borderTopWidth:  1,
+          height:          65,
+          paddingBottom:   10,
+          paddingTop:      6,
         },
         tabBarLabelStyle: { fontSize: 10, fontWeight: "600", letterSpacing: 0.2 },
         tabBarIcon: ({ focused, color }) => {
@@ -91,9 +76,9 @@ function TabNavigator() {
               alignItems: "center", justifyContent: "center",
               ...(focused && {
                 backgroundColor: "rgba(139,92,246,0.15)",
-                borderRadius: 12,
+                borderRadius:    12,
                 paddingHorizontal: 14,
-                paddingVertical: 4,
+                paddingVertical:   4,
               }),
             }}>
               <Ionicons name={focused ? tab.activeIcon : tab.icon} size={22} color={color} />
@@ -109,21 +94,59 @@ function TabNavigator() {
   );
 }
 
-// ── Root Stack ────────────────────────────────────────────────────────────
+// ── Root App ─────────────────────────────────────────────────────────────
 export default function App() {
+  const currentTabRef = useRef("Home");
+
+  // Swipe-between-tabs with PanResponder
+  const swipePan = useRef(
+    PanResponder.create({
+      // Only capture very horizontal, fast swipes
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dx) > 15 && Math.abs(gs.dx) > Math.abs(gs.dy) * 2.5 && Math.abs(gs.vx) > 0.3,
+      onPanResponderRelease: (_, gs) => {
+        // Only swipe when on a tab (not inside a stack sub-screen)
+        const idx = TAB_ORDER.indexOf(currentTabRef.current);
+        if (idx === -1) return; // inside sub-screen — don't interfere
+
+        if (gs.dx < -60 && idx < TAB_ORDER.length - 1) {
+          // Swipe left → next tab
+          navigationRef.current?.navigate(TAB_ORDER[idx + 1]);
+        } else if (gs.dx > 60 && idx > 0) {
+          // Swipe right → previous tab
+          navigationRef.current?.navigate(TAB_ORDER[idx - 1]);
+        }
+      },
+    })
+  ).current;
+
   return (
-    <NavigationContainer>
-      <StatusBar style="light" />
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="MainTabs"    component={TabNavigator}       />
-        <Stack.Screen name="Route"       component={SafeRouteScreen}    />
-        <Stack.Screen name="AI"          component={AIShieldScreen}     />
-        <Stack.Screen name="Laws"        component={SafetyLawsScreen}   />
-        <Stack.Screen name="SelfDefense" component={SelfDefenseScreen}  />
-        <Stack.Screen name="Profile"     component={ProfileScreen}      />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <View style={{ flex: 1 }} {...swipePan.panHandlers}>
+      <NavigationContainer
+        ref={navigationRef}
+        onStateChange={() => {
+          // Track the current route name to know if we're on a tab
+          if (navigationRef.isReady()) {
+            const name = navigationRef.getCurrentRoute()?.name;
+            if (name && TAB_ORDER.includes(name)) {
+              currentTabRef.current = name;
+            }
+          }
+        }}
+      >
+        <StatusBar style="light" />
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {/* Main tab view */}
+          <Stack.Screen name="MainTabs"    component={TabNavigator} />
+
+          {/* Sub-screens accessible from More hub — all have back buttons */}
+          <Stack.Screen name="Route"       component={SafeRouteScreen}   options={DARK_HEADER("Safe Route")}     />
+          <Stack.Screen name="AI"          component={AIShieldScreen}    options={DARK_HEADER("AI Shield")}      />
+          <Stack.Screen name="Laws"        component={SafetyLawsScreen}  options={DARK_HEADER("Safety Laws")}    />
+          <Stack.Screen name="SelfDefense" component={SelfDefenseScreen} options={DARK_HEADER("Self Defense")}   />
+          <Stack.Screen name="Profile"     component={ProfileScreen}     options={DARK_HEADER("My Profile")}     />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({});
