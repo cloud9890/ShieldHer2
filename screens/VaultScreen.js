@@ -55,7 +55,7 @@ export default function VaultScreen() {
       <View style={s.header}>
         <View style={s.headerRow}>
           <View>
-            <Text style={s.title}>📁 Evidence Vault</Text>
+            <Text style={s.title}>Evidence Vault</Text>
             <Text style={s.subtitle}>{incidents.length} incident{incidents.length !== 1 ? "s" : ""} documented</Text>
           </View>
           <View style={s.encBadge}>

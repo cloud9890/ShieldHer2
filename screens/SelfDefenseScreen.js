@@ -21,7 +21,7 @@ const VIDEOS = [
     duration: "~8 min",
     level: "Beginner",
     color: "#8b5cf6",
-    emoji: "💪",
+    icon: "body-outline",
     desc: "Essential techniques every woman should know — wrist escapes, palm strikes, and breaking free from grabs.",
     query: "5 basic self defense moves for women beginners",
   },
@@ -32,7 +32,7 @@ const VIDEOS = [
     duration: "~5 min",
     level: "Beginner",
     color: "#ec4899",
-    emoji: "🤝",
+    icon: "hand-left-outline",
     desc: "Step-by-step techniques to break free when someone grabs your wrist from any direction.",
     query: "how to escape wrist grab self defense women",
   },
@@ -43,7 +43,7 @@ const VIDEOS = [
     duration: "~6 min",
     level: "Beginner",
     color: "#f59e0b",
-    emoji: "🐻",
+    icon: "resize-outline",
     desc: "Effectively escape when someone grabs you from behind — arms pinned or free.",
     query: "bear hug escape self defense women krav maga",
   },
@@ -54,7 +54,7 @@ const VIDEOS = [
     duration: "~10 min",
     level: "Beginner",
     color: "#06b6d4",
-    emoji: "🚶‍♀️",
+    icon: "walk-outline",
     desc: "How to assertively respond to verbal harassment in public, de-escalation, and when to act.",
     query: "how to handle street harassment women safety tips",
   },
@@ -65,7 +65,7 @@ const VIDEOS = [
     duration: "~12 min",
     level: "Beginner",
     color: "#34d399",
-    emoji: "👁️",
+    icon: "eye-outline",
     desc: "Cooper's Color Code for threat awareness — how to stay alert without anxiety.",
     query: "situational awareness personal safety women",
   },
@@ -76,7 +76,7 @@ const VIDEOS = [
     duration: "~7 min",
     level: "Intermediate",
     color: "#ef4444",
-    emoji: "👊",
+    icon: "fitness-outline",
     desc: "High-power strikes to vulnerable zones — effective even without prior training.",
     query: "elbow palm strike self defense women training",
   },
@@ -87,7 +87,7 @@ const VIDEOS = [
     duration: "~8 min",
     level: "Intermediate",
     color: "#a78bfa",
-    emoji: "🙅‍♀️",
+    icon: "shield-outline",
     desc: "Both front and rear choke escapes using body mechanics, not just strength.",
     query: "choke hold escape self defense women step by step",
   },
@@ -98,7 +98,7 @@ const VIDEOS = [
     duration: "~9 min",
     level: "All levels",
     color: "#f97316",
-    emoji: "🔑",
+    icon: "key-outline",
     desc: "Keys, bags, umbrellas as defensive tools — legal, always available, effective.",
     query: "self defense using everyday objects women keys bag",
   },
@@ -127,13 +127,13 @@ export default function SelfDefenseScreen() {
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={s.header}>
-        <Text style={s.title}>🥋 Self Defense</Text>
+        <Text style={s.title}>Self Defense</Text>
         <Text style={s.subtitle}>Watch, learn, stay prepared</Text>
       </View>
 
       {/* Safety tip banner */}
       <View style={s.tipBanner}>
-        <Text style={s.tipEmoji}>💡</Text>
+        <Ionicons name="bulb-outline" size={20} color="#a78bfa" />
         <Text style={s.tipText}>
           Practice these techniques regularly. Muscle memory formed in safety could save your life in danger.
         </Text>
@@ -158,7 +158,9 @@ export default function SelfDefenseScreen() {
           <TouchableOpacity key={video.id} style={s.videoCard} onPress={() => openVideo(video.query)} activeOpacity={0.85}>
             {/* Thumbnail area */}
             <View style={[s.thumbnail, { backgroundColor: video.color + "18" }]}>
-              <Text style={s.thumbnailEmoji}>{video.emoji}</Text>
+              <View style={{ alignItems: "center", justifyContent: "center", width: 64, height: 64, borderRadius: 32, backgroundColor: video.color + "22" }}>
+                <Ionicons name={video.icon} size={34} color={video.color} />
+              </View>
               <View style={s.playBtn}>
                 <Ionicons name="play-circle" size={28} color="white" />
               </View>
@@ -210,7 +212,6 @@ const s = StyleSheet.create({
   title:            { fontSize: 24, fontWeight: "800", color: TEXT },
   subtitle:         { fontSize: 12, color: PRIMARY, marginTop: 4, fontWeight: "600" },
   tipBanner:        { flexDirection: "row", gap: 10, alignItems: "flex-start", backgroundColor: "rgba(139,92,246,0.08)", borderRadius: 16, marginHorizontal: 16, marginBottom: 14, padding: 14, borderWidth: 1, borderColor: BORDER },
-  tipEmoji:         { fontSize: 20 },
   tipText:          { flex: 1, fontSize: 12, color: "#a78bfa", lineHeight: 18 },
   catScroll:        { marginBottom: 14 },
   catScrollContent: { paddingHorizontal: 16, gap: 8 },

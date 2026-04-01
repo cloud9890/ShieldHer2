@@ -71,7 +71,7 @@ export default function AIShieldScreen() {
         {/* Header */}
         <View style={a.header}>
           <Text style={a.title}>AI Shield</Text>
-          <Text style={a.subtitle}>Powered by Claude AI</Text>
+          <Text style={a.subtitle}>Powered by Google Gemini AI</Text>
         </View>
 
         {/* Harassment Analyzer */}
@@ -162,7 +162,7 @@ export default function AIShieldScreen() {
                 <View style={[a.bubble, item.role === "user" ? a.bubbleUser : a.bubbleBot]}>
                   {item.role === "assistant" && (
                     <View style={a.botAvatar}>
-                      <Text style={{ fontSize: 10 }}>🤖</Text>
+                      <Ionicons name="sparkles" size={14} color={PRIMARY} />
                     </View>
                   )}
                   <View style={[a.bubbleBg, item.role === "user" ? a.bubbleBgUser : a.bubbleBgBot]}>
@@ -174,7 +174,7 @@ export default function AIShieldScreen() {
             {chatLoading && (
               <View style={[a.bubble, a.bubbleBot]}>
                 <View style={a.botAvatar}>
-                  <Text style={{ fontSize: 10 }}>🤖</Text>
+                  <Ionicons name="sparkles" size={14} color={PRIMARY} />
                 </View>
                 <View style={a.bubbleBgBot}>
                   <View style={a.typingDots}>
