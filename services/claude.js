@@ -4,8 +4,8 @@
 
 import { Platform } from "react-native";
 
-const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-const MODEL = "gemini-1.5-flash";
+const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "AIzaSyB4bXWRRikdACdl3end7Ow4VY8iAw23DKE";
+const MODEL = "gemini-2.5-flash";
 
 export async function callClaude(system, messages, maxTokens = 800) {
   if (!API_KEY || API_KEY.includes("PLACE_YOUR_GEMINI_KEY_HERE")) {
@@ -53,8 +53,57 @@ export async function draftComplaint(incidentDetails) {
   return await callClaude(system, messages, 600);
 }
 
-export async function analyzeRoute(start, end) {
-  const system = `You are a real-time safety analyzer parsing route nodes. Compare the Start and End points against known global statistical safety metrics, time-of-day risk vectors, and general topography for women walking alone. Respond with a concise 3-sentence risk summary, highlighting key danger zones.`;
-  const messages = [{ role: "user", content: `Route Coordinates or Names: Start [${start}] to End [${end}]. Analyze risk.` }];
-  return await callClaude(system, messages, 300);
+export async function analyzeRoute(start, end, routeContext = "") {
+  const system = `You are a real-time safety analyzer parsing route nodes for women's safety. 
+Evaluate the route and return ONLY a valid JSON object with the following exact schema (no markdown, no extra text):
+{
+  "safetyScore": <strict integer between 0 and 100 representing safety percentage>,
+  "recommendation": <"safest" | "moderate" | "avoid">,
+  "highlights": [<3 concise bullet points identifying specific risks/benefits>],
+  "safeSpots": [{"name": "Police/Hospital name", "type": "police" | "hospital" | "store"}],
+  "tip": "<1 actionable safety tip for this specific route>"
+}`;
+  const messages = [{ role: "user", content: `Analyze this route:\nStart: ${start}\nEnd: ${end}\nContext: ${routeContext}` }];
+  
+  const text = await callClaude(system, messages, 400);
+  try {
+    // Strip markdown blocks if the model wrapped it
+    const cleanText = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    return JSON.parse(cleanText);
+  } catch (err) {
+    console.error("Failed to parse AI route JSON:", err);
+    throw new Error("Invalid format");
+  }
+}
+
+export async function safetyChat(history, query) {
+  const system = `You are the ShieldHer AI Safety Assistant. Provide concise, legally accurate, and emotionally supportive answers related to women's safety, self-defense, rights, and using the ShieldHer app. Be brief but highly helpful.`;
+  // Map history array into the expected format
+  const formattedHistory = history.map(h => ({
+    role: h.role, 
+    content: h.text
+  }));
+  formattedHistory.push({ role: "user", content: query });
+  return await callClaude(system, formattedHistory, 500);
+}
+
+export async function analyzeHarassment(text) {
+  const system = `You are a digital harassment analyzer. 
+Evaluate the text strictly and return ONLY a valid JSON object matching this schema (no markdown, no extra text):
+{
+  "severity": "none" | "mild" | "moderate" | "severe",
+  "categories": ["threatening", "harassment", etc],
+  "summary": "<1 sentence risk summary>",
+  "action": "<1 actionable step>",
+  "reportTemplate": "<Formal 1-sentence draft to report this to a platform>"
+}`;
+  const messages = [{ role: "user", content: `Analyze this message: "${text}"` }];
+  const response = await callClaude(system, messages, 400);
+  try {
+    const cleanText = response.replace(/```json/g, "").replace(/```/g, "").trim();
+    return JSON.parse(cleanText);
+  } catch (err) {
+    console.error("Harassment parse err:", err);
+    throw new Error("Invalid format");
+  }
 }

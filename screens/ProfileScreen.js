@@ -83,40 +83,53 @@ export default function ProfileScreen() {
 
   // ── Photo upload (Supabase Storage) ──────────────────────────────────────
   const pickImage = () => {
+    if (Platform.OS === "web") {
+      // On web, Alert doesn't work — go straight to gallery
+      launchGallery();
+      return;
+    }
     Alert.alert("Profile Photo", "Choose source", [
-      { text: "📷 Camera",  onPress: launchCamera  },
-      { text: "🖼️ Gallery", onPress: launchGallery },
-      { text: "🗑️ Remove",  onPress: removePhoto,  style: "destructive" },
-      { text: "Cancel",                             style: "cancel"      },
+      { text: "Camera",       onPress: launchCamera  },
+      { text: "Gallery",      onPress: launchGallery },
+      { text: "Remove Photo", onPress: removePhoto, style: "destructive" },
+      { text: "Cancel",       style: "cancel" },
     ]);
   };
 
   const processImageResult = async (result) => {
-    if (result.canceled) return;
+    if (result.canceled || !result.assets?.length) return;
     setUploading(true);
     try {
       const asset = result.assets[0];
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not logged in");
 
-      // Fetch file to get blob
-      const res = await fetch(asset.uri);
-      const blob = await res.blob();
-      const ext = asset.uri.substring(asset.uri.lastIndexOf(".") + 1) || "jpg";
-      const filePath = `${user.id}/${Date.now()}.${ext}`;
+      // Determine extension & MIME type
+      const uriParts = asset.uri.split(".");
+      const ext  = uriParts[uriParts.length - 1]?.toLowerCase() || "jpg";
+      const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+      const filePath = `${user.id}/avatar.${ext}`;
+
+      // Fetch the image as an arraybuffer (works on both web and native)
+      const res   = await fetch(asset.uri);
+      const buffer = await res.arrayBuffer();
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(filePath, blob, { upsert: true });
+        .upload(filePath, buffer, { contentType: mime, upsert: true });
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
-      
-      await supabase.from("profiles").upsert({ id: user.id, avatar_url: data.publicUrl });
-      setImageUri(data.publicUrl);
+      // Add cache-buster so the Image component re-fetches
+      const { data: pubData } = supabase.storage.from("avatars").getPublicUrl(filePath);
+      const publicUrl = pubData.publicUrl + "?t=" + Date.now();
+
+      await supabase.from("profiles").upsert({ id: user.id, avatar_url: pubData.publicUrl });
+      setImageUri(publicUrl);
+      Alert.alert("Success", "Profile photo updated!");
     } catch (err) {
-      Alert.alert("Upload Failed", err.message);
+      console.error("Upload error:", err);
+      Alert.alert("Upload Failed", err.message || "Could not upload photo. Make sure the 'avatars' bucket exists in Supabase Storage.");
     }
     setUploading(false);
   };

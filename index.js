@@ -1,3 +1,4 @@
+import 'react-native-url-polyfill/auto'; // ← MUST be first — patches global URL before Supabase init
 import { registerRootComponent } from 'expo';
 
 import App from './App';

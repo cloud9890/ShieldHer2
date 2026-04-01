@@ -2,7 +2,15 @@ import { Platform } from "react-native";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import { Audio } from "expo-av";
+import * as TaskManager from "expo-task-manager";
 import { supabase } from "./supabase";
+
+const GUARDIAN_BG_TASK = "shieldher-guardian-bg";
+
+TaskManager.defineTask(GUARDIAN_BG_TASK, ({ data, error }) => {
+  if (error) return;
+  // This headless task keeps the JS thread alive natively so _shakeSub continues to receive hardware accelerometer events!
+});
 
 // Lazy-load Accelerometer only on native (web doesn't support it)
 const getAccelerometer = () => {
@@ -45,21 +53,136 @@ export function stopShakeDetection() {
   _shakeCount = 0;
 }
 
-// ── SOS Alert ─────────────────────────────────────────────────────────────
-export async function sendSOSAlert(contacts, alertType = "sos") {
-  try {
-    const coords = await getCurrentLocation();
-    const msg = buildMessage(alertType, coords);
-    const results = await Promise.allSettled(contacts.map(c => sendSMS(c.phone, msg)));
-    const sent = results.filter(r => r.status === "fulfilled").length;
-    await Notifications.scheduleNotificationAsync({
+
+// ── Background Guardian ────────────────────────────────────────────────────
+// Strategy: We use a foreground Service notification (via expo-notifications) 
+// PLUS a location background task to keep the Android JS thread alive.
+// This is the only way to guarantee the Accelerometer shake listener continues
+// when the screen is locked, without writing native Java code.
+
+const BG_CHANNEL_ID   = "shieldher-guardian";
+let   _guardianNotifId = null;
+
+// Re-exported so HomeScreen can always call this ref
+let _shakeCallback = null;
+export function setGlobalShakeCallback(cb) { _shakeCallback = cb; }
+
+// The location task fires periodically while in background.
+// We use this heartbeat to re-attach the shake listener if it was killed.
+TaskManager.defineTask(GUARDIAN_BG_TASK, async ({ data, error }) => {
+  if (error) return;
+  // If JS thread is alive (it is, because this task ran), ensure shake is active
+  if (_shakeCallback && !_shakeSub) {
+    startShakeDetection(_shakeCallback);
+  }
+});
+
+export async function startBackgroundGuardian(onShake) {
+  if (Platform.OS === "web") return false;
+
+  // Store the callback so the task can reattach it
+  if (onShake) _shakeCallback = onShake;
+
+  // ── Step 1: Setup notification channel (Android Foreground Service) ──────
+  await Notifications.setNotificationChannelAsync(BG_CHANNEL_ID, {
+    name:       "Guardian Mode",
+    importance: Notifications.AndroidImportance.LOW,
+    sound:      null,
+    vibrationPattern: [0],
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
+
+  if (!_guardianNotifId) {
+    const notif = await Notifications.scheduleNotificationAsync({
       content: {
-        title: alertType === "sos" ? "🚨 SOS Sent" : "✅ Safe Check-in Sent",
-        body: `${sent} of ${contacts.length} contacts notified.`,
+        title: "ShieldHer Guardian Active",
+        body:  "Shake detection is running. Shake vigorously 5× to trigger SOS.",
+        data:  { type: "guardian" },
+        sticky: true,
+        autoDismiss: false,
+        android: {
+          channelId: BG_CHANNEL_ID,
+          ongoing:   true,
+          priority:  "low",
+          smallIcon:  "notification_icon",
+          color:      "#8b5cf6",
+        },
       },
       trigger: null,
     });
-    return { success: true, sent, coords };
+    _guardianNotifId = notif;
+  }
+
+  // ── Step 2: Start location background task (keeps JS thread alive) ────────
+  try {
+    const { status: fg } = await Location.requestForegroundPermissionsAsync();
+    const { status: bg } = await Location.requestBackgroundPermissionsAsync();
+
+    if (fg === "granted" && bg === "granted") {
+      const isReg = await TaskManager.isTaskRegisteredAsync(GUARDIAN_BG_TASK);
+      if (!isReg) {
+        await Location.startLocationUpdatesAsync(GUARDIAN_BG_TASK, {
+          accuracy:   Location.Accuracy.Balanced,
+          timeInterval: 15000,
+          distanceInterval: 0,
+          showsBackgroundLocationIndicator: true,
+          foregroundService: {
+            notificationTitle: "ShieldHer Guardian Active",
+            notificationBody:  "Shake detection is running in background.",
+            notificationColor: "#8b5cf6",
+          },
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("Background location task failed (permissions?):", e.message);
+    // Even without location permission, the notification keeps the thread alive
+  }
+
+  return true;
+}
+
+export async function stopBackgroundGuardian() {
+  if (Platform.OS === "web") return;
+
+  // Remove persistent notification
+  if (_guardianNotifId) {
+    await Notifications.dismissNotificationAsync(_guardianNotifId).catch(() => {});
+    _guardianNotifId = null;
+  }
+  await Notifications.dismissAllNotificationsAsync().catch(() => {});
+
+  // Stop location task
+  try {
+    const isReg = await TaskManager.isTaskRegisteredAsync(GUARDIAN_BG_TASK);
+    if (isReg) await Location.stopLocationUpdatesAsync(GUARDIAN_BG_TASK);
+  } catch (e) { /* already stopped */ }
+}
+
+
+// ── SOS Alert ─────────────────────────────────────────────────────────────
+export async function sendSOSAlert(contacts, alertType = "sos", preFetchedCoords = null) {
+  try {
+    const coords = preFetchedCoords || await getCurrentLocation();
+    const msg = buildMessage(alertType, coords);
+    const results = await Promise.allSettled(contacts.map(c => sendSMS(c.phone, msg)));
+    const sent = results.filter(r => r.status === "fulfilled").length;
+    const failed = results.filter(r => r.status === "rejected");
+    if (failed.length > 0) {
+      failed.forEach(f => console.error("SMS rejection:", f.reason));
+    }
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: alertType === "sos" ? "SOS Sent" : "Safe Check-in Sent",
+          body: `${sent} of ${contacts.length} contacts notified.`,
+        },
+        trigger: null,
+      });
+    } catch (notifErr) {
+      console.warn("Notification skipped:", notifErr.message);
+    }
+    return { success: true, sent, failed: failed.length, coords };
   } catch (err) {
     console.error("SOS error:", err);
     return { success: false, error: err.message };
@@ -69,7 +192,8 @@ export async function sendSOSAlert(contacts, alertType = "sos") {
 export async function getCurrentLocation() {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== "granted") throw new Error("Location permission denied");
-  const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+  // Use Balanced (not High) — High fails silently on web
+  const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
   return loc.coords;
 }
 
@@ -85,12 +209,24 @@ function buildMessage(type, coords) {
   return templates[type] || templates.sos;
 }
 
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || "https://fklkcolgqaglrzukoslz.supabase.co";
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZrbGtjb2xncWFnbHJ6dWtvc2x6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NjE2MjIsImV4cCI6MjA5MDMzNzYyMn0.tqDS0SXcxNFaCN3jyV--tNlL9ptuiCLvk6ZiYJQuIg4";
+
 async function sendSMS(phone, message) {
-  const { data, error } = await supabase.functions.invoke("send-sms", {
-    body: { to: phone, message },
+  // Direct fetch instead of supabase.functions.invoke — avoids silent auth failures on web
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/send-sms`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      "apikey": SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({ to: phone, message }),
   });
-  if (error) throw new Error(`SMS failed for ${phone}: ${error.message}`);
-  return data;
+  const result = await res.json();
+  if (!res.ok) throw new Error(`SMS failed for ${phone}: ${result.error || res.status}`);
+  console.log(`SMS sent to ${phone}:`, result.sid);
+  return result;
 }
 
 // ── Recording ──────────────────────────────────────────────────────────────

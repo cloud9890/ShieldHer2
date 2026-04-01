@@ -1,15 +1,16 @@
 // screens/SafeRouteScreen.js
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Platform } from "react-native";
 import * as Location from "expo-location";
 import { analyzeRoute } from "../services/claude";
 import { Ionicons } from "@expo/vector-icons";
 
-let MapView, Marker;
+let MapView, Marker, Polyline;
 if (Platform.OS !== "web") {
   const Maps = require("react-native-maps");
-  MapView = Maps.default;
-  Marker = Maps.Marker;
+  MapView  = Maps.default;
+  Marker   = Maps.Marker;
+  Polyline = Maps.Polyline;
 }
 
 const BG      = "#0f0a1e";
@@ -18,31 +19,107 @@ const BORDER  = "rgba(139,92,246,0.18)";
 const PRIMARY = "#8b5cf6";
 const TEXT    = "#f1f0f5";
 const SUBTEXT = "#9ca3af";
+const PINK    = "#ec4899";
 
-const SAFE_SPOT_ICONS = { police: "👮", hospital: "🏥", store: "🏪" };
+const GOOGLE_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || "AIzaSyB8hborDSFZBu0jfY26LPDGuuRExGzUVUA";
+const SAFE_SPOT_ICONS = { police: "shield-half-outline", hospital: "medkit-outline", store: "cart-outline" };
+
+// Utility to decode Google's encoded polyline string
+const decodePolyline = (t, e = 5) => {
+  let n, o, u, l, r = 0, h = 0, i = 0, d = [], c = 0, a = 0, f = null, p = Math.pow(10, e);
+  for (; r < t.length;) {
+    f = null, c = 0, a = 0;
+    do f = t.charCodeAt(r++) - 63, a |= (31 & f) << c, c += 5; while (f >= 32);
+    n = 1 & a ? ~(a >> 1) : a >> 1, c = a = 0;
+    do f = t.charCodeAt(r++) - 63, a |= (31 & f) << c, c += 5; while (f >= 32);
+    o = 1 & a ? ~(a >> 1) : a >> 1, h += n, i += o;
+    d.push({ latitude: h / p, longitude: i / p });
+  }
+  return d;
+};
 
 export default function SafeRouteScreen() {
-  const [from, setFrom]       = useState("My Location");
+  const [from, setFrom]       = useState("Locating...");
   const [to, setTo]           = useState("");
   const [result, setResult]   = useState(null);
   const [loading, setLoading] = useState(false);
+  const [routeLine, setRouteLine] = useState(null);
+  const [destRegion, setDestRegion] = useState(null);
   const [region, setRegion]   = useState({ latitude: 28.6139, longitude: 77.2090, latitudeDelta: 0.05, longitudeDelta: 0.05 });
 
-  const analyze = async () => {
-    if (!to.trim()) return;
-    setLoading(true);
-    try {
+  useEffect(() => {
+    (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === "granted") {
-        const loc = await Location.getCurrentPositionAsync({});
-        setRegion(r => ({ ...r, latitude: loc.coords.latitude, longitude: loc.coords.longitude }));
+      if (status !== "granted") { setFrom(""); return; }
+      
+      try {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setRegion({ latitude: loc.coords.latitude, longitude: loc.coords.longitude, latitudeDelta: 0.03, longitudeDelta: 0.03 });
+        
+        // Auto-geocode the current location
+        const [geo] = await Location.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+        if (geo) {
+          const addr = [geo.name, geo.street, geo.city].filter(Boolean).join(", ");
+          setFrom(addr || "My Location");
+        } else {
+          setFrom(`${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)}`);
+        }
+      } catch (e) {
+        setFrom("My Location");
       }
+    })();
+  }, []);
+
+  const analyze = async () => {
+    if (!to.trim() || !from.trim() || from === "Locating...") return;
+    setLoading(true);
+    setRouteLine(null);
+    setDestRegion(null);
+
+    let routeContext = `Route: ${from} to ${to}.`;
+
+    try {
+      // 1. Fetch Google Directions
+      if (GOOGLE_KEY) {
+        const dirUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&key=${GOOGLE_KEY}`;
+        const dirRes = await fetch(dirUrl);
+        const dirData = await dirRes.json();
+
+        if (dirData.routes && dirData.routes.length > 0) {
+          const route = dirData.routes[0];
+          
+          if (route.overview_polyline?.points) {
+            const points = decodePolyline(route.overview_polyline.points);
+            setRouteLine(points);
+            
+            if (points.length > 0) {
+               const mid = points[Math.floor(points.length / 2)];
+               setRegion({
+                 latitude: mid.latitude,
+                 longitude: mid.longitude,
+                 latitudeDelta: 0.08,
+                 longitudeDelta: 0.08
+               });
+               setDestRegion(points[points.length - 1]);
+            }
+          }
+          
+          if (route.legs?.[0]?.steps) {
+            const steps = route.legs[0].steps.map(s => s.html_instructions.replace(/<[^>]+>/g, ''));
+            routeContext += `\nSteps:\n${steps.join("\n")}.`;
+          }
+        }
+      }
+
+      // 2. Pass real route data to AI
       const hour = new Date().getHours();
       const timeLabel = hour < 6 ? "late night" : hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
-      const data = await analyzeRoute(from, to, timeLabel);
+      
+      const data = await analyzeRoute(from, to, "Time: " + timeLabel + "\n\n" + routeContext);
       setResult(data);
-    } catch {
-      setResult({ safetyScore: 68, recommendation: "moderate", highlights: ["Main road is well-lit", "Avoid shortcut through park after dark", "Metro station 400m away"], safeSpots: [{ name: "City Police Booth", type: "police" }, { name: "24hr Apollo Pharmacy", type: "store" }], tip: "Share live location with a contact before starting this journey." });
+    } catch (e) {
+      console.error("Route error:", e);
+      setResult({ safetyScore: 68, recommendation: "moderate", highlights: ["Could not fetch precise directions.", "AI fallback triggered."], safeSpots: [], tip: "Always share your live location." });
     }
     setLoading(false);
   };
@@ -65,7 +142,9 @@ export default function SafeRouteScreen() {
           </View>
         ) : MapView ? (
           <MapView style={{ flex: 1 }} region={region} showsUserLocation showsMyLocationButton customMapStyle={darkMapStyle}>
-            <Marker coordinate={{ latitude: region.latitude, longitude: region.longitude }} title="You are here" pinColor={PRIMARY} />
+            {!routeLine && <Marker coordinate={{ latitude: region.latitude, longitude: region.longitude }} title="You are here" pinColor={PRIMARY} />}
+            {destRegion && <Marker coordinate={{ latitude: destRegion.latitude, longitude: destRegion.longitude }} title="Destination" pinColor={PINK} />}
+            {routeLine && Polyline && <Polyline coordinates={routeLine} strokeWidth={4} strokeColor={PRIMARY} />}
           </MapView>
         ) : null}
         {/* Overlay gradient illusion */}
@@ -73,7 +152,10 @@ export default function SafeRouteScreen() {
       </View>
 
       <ScrollView style={s.sheet} showsVerticalScrollIndicator={false}>
-        <Text style={s.title}>🗺️ Safe Route</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Ionicons name="map" size={20} color="#a78bfa" />
+          <Text style={s.title}>Safe Route</Text>
+        </View>
 
         {/* Input Card */}
         <View style={s.inputCard}>
@@ -88,7 +170,7 @@ export default function SafeRouteScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={[s.btn, (!to || loading) && { opacity: 0.5 }]} onPress={analyze} disabled={!to || loading}>
+        <TouchableOpacity style={[s.btn, (!to || loading || from === "Locating...") && { opacity: 0.5 }]} onPress={analyze} disabled={!to || loading || from === "Locating..."}>
           {loading ? <ActivityIndicator color="white" /> : (
             <>
               <Ionicons name="shield-checkmark" size={18} color="white" />
@@ -108,12 +190,12 @@ export default function SafeRouteScreen() {
                   <Text style={s.scoreHint}>AI-assessed risk level</Text>
                 </View>
                 <View style={s.scoreCircle}>
-                  <Text style={[s.scoreVal, { color: scoreColor(result.safetyScore) }]}>{result.safetyScore}</Text>
+                  <Text style={[s.scoreVal, { color: scoreColor(result.safetyScore) }]}>{result.safetyScore || '--'}</Text>
                   <Text style={s.scoreDenom}>/100</Text>
                 </View>
               </View>
               <View style={s.progressBg}>
-                <View style={[s.progressFill, { width: `${result.safetyScore}%`, backgroundColor: scoreColor(result.safetyScore) }]} />
+                <View style={[s.progressFill, { width: `${result.safetyScore || 0}%`, backgroundColor: scoreColor(result.safetyScore || 0) }]} />
               </View>
 
               {/* Recommendation */}
@@ -136,7 +218,7 @@ export default function SafeRouteScreen() {
                   <Text style={s.subheading}>SAFE SPOTS NEARBY</Text>
                   {result.safeSpots.map((sp, i) => (
                     <View key={i} style={s.safeSpotRow}>
-                      <Text style={s.safeSpotIcon}>{SAFE_SPOT_ICONS[sp.type] || "📍"}</Text>
+                      <Ionicons name={SAFE_SPOT_ICONS[sp.type] || "location-outline"} size={18} color="#34d399" />
                       <Text style={s.safeSpotName}>{sp.name}</Text>
                     </View>
                   ))}

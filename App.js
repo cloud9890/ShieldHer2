@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { View, PanResponder, ActivityIndicator } from "react-native";
 import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createBottomTabNavigator }     from "@react-navigation/bottom-tabs";
+import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { createNativeStackNavigator }   from "@react-navigation/native-stack";
 import { Ionicons }                     from "@expo/vector-icons";
 import { StatusBar }                    from "expo-status-bar";
@@ -56,9 +57,15 @@ const TABS = [
   { name: "More",   component: MoreScreen,      icon: "grid-outline",     activeIcon: "grid"      },
 ];
 
+// ── Animated swipe tab navigator ────────────────────────────────────────────
+// Using createMaterialTopTabNavigator for real ViewPager swipe animations.
+// We position it at the bottom by flipping the layout.
 function TabNavigator() {
+  const Tab = createMaterialTopTabNavigator();
+
   return (
     <Tab.Navigator
+      tabBarPosition="bottom"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor:   "#a78bfa",
@@ -72,6 +79,7 @@ function TabNavigator() {
           paddingTop:      6,
         },
         tabBarLabelStyle: { fontSize: 10, fontWeight: "600", letterSpacing: 0.2 },
+        tabBarIndicatorStyle: { height: 0 },
         tabBarIcon: ({ focused, color }) => {
           const tab = TABS.find(t => t.name === route.name);
           return (
@@ -88,6 +96,9 @@ function TabNavigator() {
             </View>
           );
         },
+        // Animate tab switches with a slide transition
+        animationEnabled: true,
+        lazy: true,
       })}
     >
       {TABS.map(t => (

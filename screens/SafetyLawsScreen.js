@@ -104,7 +104,7 @@ export default function SafetyLawsScreen() {
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={s.header}>
-        <Text style={s.title}>⚖️ Women Safety Laws</Text>
+        <Text style={s.title}>Women Safety Laws</Text>
         <Text style={s.subtitle}>Know your rights. Stay empowered.</Text>
       </View>
 

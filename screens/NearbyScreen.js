@@ -21,7 +21,7 @@ const PRIMARY = "#8b5cf6";
 const TEXT    = "#f1f0f5";
 const SUBTEXT = "#9ca3af";
 
-const GOOGLE_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || "";
+const GOOGLE_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || "AIzaSyB8hborDSFZBu0jfY26LPDGuuRExGzUVUA";
 
 // Fallback for when no API key is set
 const EMERGENCY_CONTACTS = [
@@ -184,7 +184,12 @@ export default function NearbyScreen() {
                     <Text style={s.placeName} numberOfLines={1}>{place.name}</Text>
                     <Text style={s.placeAddress} numberOfLines={1}>{place.address || "Emergency service"}</Text>
                     {place.rating && (
-                      <Text style={s.placeRating}>⭐ {place.rating}  {place.open === true ? "🟢 Open" : place.open === false ? "🔴 Closed" : ""}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <Ionicons name="star" size={12} color="#fbbf24" />
+                        <Text style={s.placeRating}>{place.rating}</Text>
+                        {place.open === true && <><Ionicons name="ellipse" size={8} color="#4ade80" /><Text style={[s.placeRating, { color: "#4ade80" }]}>Open</Text></>}
+                        {place.open === false && <><Ionicons name="ellipse" size={8} color="#ef4444" /><Text style={[s.placeRating, { color: "#ef4444" }]}>Closed</Text></>}
+                      </View>
                     )}
                   </View>
                   <View style={s.placeActions}>

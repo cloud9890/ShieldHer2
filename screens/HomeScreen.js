@@ -6,7 +6,7 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
-import { sendSOSAlert, startEvidenceRecording, registerForPushNotifications, startShakeDetection, stopShakeDetection } from "../services/sos";
+import { sendSOSAlert, startEvidenceRecording, registerForPushNotifications, startShakeDetection, stopShakeDetection, startBackgroundGuardian, stopBackgroundGuardian, setGlobalShakeCallback } from "../services/sos";
 
 // Haptics is only available on native
 const triggerHaptic = () => {
@@ -15,7 +15,7 @@ const triggerHaptic = () => {
 };
 
 const EMERGENCY_CONTACTS = [
-  { name: "Mom",         phone: process.env.EXPO_PUBLIC_TWILIO_VERIFIED_NUMBER || "+91-98765-43210" },
+  { name: "Mom",         phone: process.env.EXPO_PUBLIC_TWILIO_VERIFIED_NUMBER || "+918310661631" },
   { name: "Sister Riya", phone: "+91-91234-56789" },
 ];
 
@@ -43,16 +43,24 @@ export default function HomeScreen() {
   const pulseAnim     = useRef(new Animated.Value(1)).current;
   const glowAnim      = useRef(new Animated.Value(0.4)).current;
 
-  // Shake detection — starts/stops with component (native only)
+  // Shake detection & Background Service link
   useEffect(() => {
     const onShake = () => {
       triggerHaptic();
       activateSOS();
     };
-    startShakeDetection(onShake);
-    setShakeBadge(true);
-    return () => { stopShakeDetection(); setShakeBadge(false); };
-  }, []);
+    if (guardianOn) {
+      setGlobalShakeCallback(onShake); // store for background task reattach
+      startShakeDetection(onShake);
+      startBackgroundGuardian(onShake);
+      setShakeBadge(true);
+    } else {
+      stopShakeDetection();
+      stopBackgroundGuardian();
+      setShakeBadge(false);
+    }
+    // We do NOT stop it on unmount! We want it to run in the background if they close the screen.
+  }, [guardianOn]);
 
   useEffect(() => {
     registerForPushNotifications().catch(() => {});
@@ -105,7 +113,7 @@ export default function HomeScreen() {
   if (fakeCall) return (
     <View style={s.fcBg}>
       <View style={s.fcTop}>
-        <View style={s.fcAvatar}><Text style={{ fontSize: 44 }}>👩</Text></View>
+        <View style={s.fcAvatar}><Ionicons name="person-circle" size={72} color="#a78bfa" /></View>
         <Text style={s.fcName}>Mom</Text>
         <Text style={s.fcSub}>Incoming Call…</Text>
       </View>
@@ -124,7 +132,7 @@ export default function HomeScreen() {
   if (sosActive) return (
     <View style={s.sosBg}>
       <Animated.View style={[s.sosGlow, { opacity: glowAnim }]} />
-      <Text style={{ fontSize: 64 }}>🚨</Text>
+      <Ionicons name="alert-circle" size={72} color="#ef4444" />
       <Text style={s.sosActiveTitle}>SOS ACTIVATED</Text>
       <View style={s.sosActiveCard}>
         {["Live location sent to contacts", "SMS alert dispatched", "Recording started", "Nearest police notified"]
@@ -135,7 +143,7 @@ export default function HomeScreen() {
             </View>
           ))}
       </View>
-      {location && <Text style={s.sosCoords}>📍 {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}</Text>}
+      {location && <Text style={s.sosCoords}><Ionicons name="location" size={12} color="#a78bfa" /> {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}</Text>}
       <TouchableOpacity style={s.cancelSosBtn} onPress={() => { setSosActive(false); pressProgress.setValue(0); }}>
         <Text style={s.cancelSosBtnText}>I'm Safe — Cancel SOS</Text>
       </TouchableOpacity>
@@ -150,7 +158,7 @@ export default function HomeScreen() {
         <View style={s.headerInner}>
           <View>
             <Text style={s.greeting}>Good evening,</Text>
-            <Text style={s.headerTitle}>Stay Safe 💜</Text>
+            <Text style={s.headerTitle}>Stay Safe <Ionicons name="heart" size={18} color="#ec4899" /></Text>
           </View>
           <View style={s.notifBtn}>
             <Ionicons name="notifications" size={20} color={PRIMARY} />

@@ -58,6 +58,8 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
