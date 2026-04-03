@@ -7,7 +7,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { supabase } from "../services/supabase";
+import { supabase } from "../api/supabase";
 
 const { width, height } = Dimensions.get("window");
 

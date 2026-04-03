@@ -7,7 +7,7 @@ import {
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { sendSOSAlert } from "../services/sos";
+import { sendSOSAlert } from "../api/sos";
 
 const BG      = "#0f0a1e";
 const CARD    = "#1a1130";

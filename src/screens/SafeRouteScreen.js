@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Platform } from "react-native";
 import * as Location from "expo-location";
-import { analyzeRoute } from "../services/claude";
+import { analyzeRoute } from "../api/claude";
 import { Ionicons } from "@expo/vector-icons";
 
 let MapView, Marker, Polyline;
