@@ -305,7 +305,3 @@ const s = StyleSheet.create({
   fcBtns:    { flexDirection: "row", gap: 60 },
   fcBtn:     { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
 });
-, padding: 18, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.03)" },
-  modRowLabel:    { flex: 1, color: TEXT, fontSize: 15, fontWeight: "600" },
-});
-
