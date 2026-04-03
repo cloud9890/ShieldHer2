@@ -2,11 +2,18 @@
 import { useState, useEffect, useRef } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated,
-  Alert, Vibration, ScrollView, Platform
+  Alert, Vibration, ScrollView, Platform, Modal, Image,
+  TextInput, Switch, ActivityIndicator
 } from "react-native";
 import * as Location from "expo-location";
+import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
-import { sendSOSAlert, startEvidenceRecording, registerForPushNotifications, startShakeDetection, stopShakeDetection, startBackgroundGuardian, stopBackgroundGuardian, setGlobalShakeCallback } from "../services/sos";
+import { supabase } from "../services/supabase";
+import {
+  sendSOSAlert, startEvidenceRecording, registerForPushNotifications,
+  startShakeDetection, stopShakeDetection, startBackgroundGuardian,
+  stopBackgroundGuardian, setGlobalShakeCallback
+} from "../services/sos";
 
 // Haptics is only available on native
 const triggerHaptic = () => {
@@ -31,6 +38,7 @@ const PRIMARY   = "#8b5cf6";
 const PINK      = "#ec4899";
 const TEXT      = "#f1f0f5";
 const SUBTEXT   = "#9ca3af";
+const AVATAR_COLORS = ["#7c3aed","#0ea5e9","#ec4899","#f59e0b","#10b981"];
 
 export default function HomeScreen() {
   const [sosActive, setSosActive]   = useState(false);
@@ -38,32 +46,25 @@ export default function HomeScreen() {
   const [guardianOn, setGuardianOn] = useState(true);
   const [location, setLocation]     = useState(null);
   const [shakeBadge, setShakeBadge] = useState(false);
+  
+  // Profile State
+  const [showProfile, setShowProfile] = useState(false);
+  const [profile, setProfile] = useState({ name: "User", phone: "" });
+  const [imageUri, setImageUri] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ name: "", phone: "" });
+  const [uploading, setUploading] = useState(false);
+
   const pressProgress = useRef(new Animated.Value(0)).current;
   const pressAnim     = useRef(null);
   const pulseAnim     = useRef(new Animated.Value(1)).current;
   const glowAnim      = useRef(new Animated.Value(0.4)).current;
 
-  // Shake detection & Background Service link
   useEffect(() => {
-    const onShake = () => {
-      triggerHaptic();
-      activateSOS();
-    };
-    if (guardianOn) {
-      setGlobalShakeCallback(onShake); // store for background task reattach
-      startShakeDetection(onShake);
-      startBackgroundGuardian(onShake);
-      setShakeBadge(true);
-    } else {
-      stopShakeDetection();
-      stopBackgroundGuardian();
-      setShakeBadge(false);
-    }
-    // We do NOT stop it on unmount! We want it to run in the background if they close the screen.
-  }, [guardianOn]);
-
-  useEffect(() => {
+    loadProfile();
     registerForPushNotifications().catch(() => {});
+    
+    // Animations
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.12, duration: 900, useNativeDriver: true }),
@@ -80,6 +81,67 @@ export default function HomeScreen() {
     glow.start();
     return () => { pulse.stop(); glow.stop(); };
   }, []);
+
+  // Shake detection sync
+  useEffect(() => {
+    const onShake = () => { triggerHaptic(); activateSOS(); };
+    if (guardianOn) {
+      setGlobalShakeCallback(onShake);
+      startShakeDetection(onShake);
+      startBackgroundGuardian(onShake);
+      setShakeBadge(true);
+    } else {
+      stopShakeDetection();
+      stopBackgroundGuardian();
+      setShakeBadge(false);
+    }
+  }, [guardianOn]);
+
+  const loadProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    if (data) {
+      setProfile({ name: data.name || "User", phone: data.phone || "" });
+      if (data.avatar_url) setImageUri(data.avatar_url);
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!draft.name.trim()) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const u = { name: draft.name.trim(), phone: draft.phone.trim() };
+    const { error } = await supabase.from("profiles").upsert({ id: user.id, ...u, updated_at: new Date() });
+    if (!error) { setProfile(u); setEditing(false); }
+    else { Alert.alert("Error", error.message); }
+  };
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.5, allowsEditing: true, aspect: [1, 1] });
+    if (result.canceled || !result.assets?.length) return;
+    
+    setUploading(true);
+    try {
+      const asset = result.assets[0];
+      const { data: { user } } = await supabase.auth.getUser();
+      const ext = asset.uri.split(".").pop();
+      const filePath = `${user.id}/avatar.${ext}`;
+      const res = await fetch(asset.uri);
+      const buffer = await res.arrayBuffer();
+      
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, buffer, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: pubData } = supabase.storage.from("avatars").getPublicUrl(filePath);
+      await supabase.from("profiles").upsert({ id: user.id, avatar_url: pubData.publicUrl });
+      setImageUri(pubData.publicUrl + "?t=" + Date.now());
+    } catch (err) {
+      Alert.alert("Upload Failed", err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const getLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -106,10 +168,11 @@ export default function HomeScreen() {
     startEvidenceRecording().catch(() => {});
   };
 
-  const ringColor = pressProgress.interpolate({ inputRange: [0, 1], outputRange: ["rgba(239,68,68,0)", "rgba(239,68,68,0.35)"] });
-  const ringWidth = pressProgress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] });
+  const avatarColor = AVATAR_COLORS[(profile.name?.charCodeAt(0) || 0) % AVATAR_COLORS.length];
+  const initials = profile.name?.trim().split(" ").map(w => w[0] || "").join("").slice(0, 2).toUpperCase() || "SH";
 
-  // ── Fake Call ─────────────────────────────────────────────
+  // ── Render Helpers ────────────────────────────────────────
+
   if (fakeCall) return (
     <View style={s.fcBg}>
       <View style={s.fcTop}>
@@ -128,7 +191,6 @@ export default function HomeScreen() {
     </View>
   );
 
-  // ── SOS Active ────────────────────────────────────────────
   if (sosActive) return (
     <View style={s.sosBg}>
       <Animated.View style={[s.sosGlow, { opacity: glowAnim }]} />
@@ -150,23 +212,31 @@ export default function HomeScreen() {
     </View>
   );
 
-  // ── Main ──────────────────────────────────────────────────
   return (
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={s.header}>
         <View style={s.headerInner}>
           <View>
-            <Text style={s.greeting}>Good evening,</Text>
+            <Text style={s.greeting}>Good evening, {profile.name.split(" ")[0]}</Text>
             <Text style={s.headerTitle}>Stay Safe <Ionicons name="heart" size={18} color="#ec4899" /></Text>
           </View>
-          <View style={s.notifBtn}>
-            <Ionicons name="notifications" size={20} color={PRIMARY} />
+          <View style={s.headerRight}>
+            <View style={s.notifBtn}><Ionicons name="notifications" size={18} color={PRIMARY} /></View>
+            <TouchableOpacity style={s.profileThumb} onPress={() => setShowProfile(true)}>
+              {imageUri ? (
+                <Image source={{ uri: imageUri }} style={s.thumbImg} />
+              ) : (
+                <View style={[s.thumbInitials, { backgroundColor: avatarColor + "22" }]}>
+                  <Text style={[s.thumbText, { color: avatarColor }]}>{initials}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </View>
 
-      {/* Guardian Badge */}
+      {/* Guardian Mode */}
       <TouchableOpacity style={s.guardianCard} onPress={() => setGuardianOn(g => !g)} activeOpacity={0.8}>
         <View style={s.guardianLeft}>
           <Animated.View style={[s.guardianDot, { backgroundColor: guardianOn ? "#4ade80" : "#4b5563", transform: guardianOn ? [{ scale: pulseAnim }] : [] }]} />
@@ -180,27 +250,20 @@ export default function HomeScreen() {
         </View>
       </TouchableOpacity>
 
-      {/* SOS Button */}
+      {/* SOS Button Area */}
       <View style={s.sosSection}>
         <View style={s.sosRingOuter}>
           <Animated.View style={[s.sosRingMid, { opacity: glowAnim }]} />
           <View style={s.sosRing}>
-            <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: ringColor, borderRadius: 999 }]} />
-            <TouchableOpacity
-              style={s.sosBtn}
-              onPressIn={startPress}
-              onPressOut={cancelPress}
-              activeOpacity={0.9}
-            >
+            <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: pressProgress.interpolate({ inputRange: [0, 1], outputRange: ["rgba(239,68,68,0)", "rgba(239,68,68,0.35)"] }), borderRadius: 999 }]} />
+            <TouchableOpacity style={s.sosBtn} onPressIn={startPress} onPressOut={cancelPress} activeOpacity={0.9}>
               <Text style={s.sosBtnLabel}>SOS</Text>
               <Text style={s.sosBtnSub}>Hold 3s</Text>
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Progress arc (linear under button) */}
         <View style={s.sosProgressTrack}>
-          <Animated.View style={[s.sosProgressFill, { width: ringWidth }]} />
+          <Animated.View style={[s.sosProgressFill, { width: pressProgress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }) }]} />
         </View>
         <Text style={s.sosHint}>Hold to send emergency alert to your contacts</Text>
 
@@ -223,62 +286,138 @@ export default function HomeScreen() {
         </View>
       ))}
 
-      <View style={{ height: 32 }} />
+      {/* ── Profile Modal ────────────────────────────────────── */}
+      <Modal visible={showProfile} animationType="slide" transparent={false}>
+        <View style={s.modBg}>
+          <View style={s.modHeader}>
+            <TouchableOpacity onPress={() => setShowProfile(false)}><Ionicons name="chevron-down" size={28} color={PRIMARY} /></TouchableOpacity>
+            <Text style={s.modTitle}>Account Settings</Text>
+            <TouchableOpacity style={s.modEdit} onPress={() => { if(!editing) setDraft(profile); setEditing(!editing); }}>
+              <Text style={s.modEditText}>{editing ? "Cancel" : "Edit"}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
+            <View style={s.modAvatarSection}>
+              <TouchableOpacity style={s.modAvatar} onPress={pickImage}>
+                {imageUri ? <Image source={{ uri: imageUri }} style={s.modImg} /> : <View style={[s.modInitials, { backgroundColor: avatarColor + "22" }]}><Text style={[s.modInitText, { color: avatarColor }]}>{initials}</Text></View>}
+                <View style={s.modCam}><Ionicons name="camera" size={12} color="white" /></View>
+              </TouchableOpacity>
+              {uploading && <ActivityIndicator color={PRIMARY} style={{ marginTop: 10 }} />}
+            </View>
+
+            {editing ? (
+              <View style={s.modForm}>
+                <View style={s.modInputRow}><Ionicons name="person-outline" size={16} color={SUBTEXT} /><TextInput style={s.modInput} value={draft.name} onChangeText={v => setDraft(d=>({...d, name:v}))} placeholder="Name" placeholderTextColor="#4b5563" /></View>
+                <View style={s.modInputRow}><Ionicons name="call-outline" size={16} color={SUBTEXT} /><TextInput style={s.modInput} value={draft.phone} onChangeText={v => setDraft(d=>({...d, phone:v}))} placeholder="Phone" placeholderTextColor="#4b5563" keyboardType="phone-pad" /></View>
+                <TouchableOpacity style={s.modSave} onPress={saveProfile}><Text style={s.modSaveText}>Update Profile</Text></TouchableOpacity>
+              </View>
+            ) : (
+              <View style={s.modInfo}>
+                <Text style={s.modNameText}>{profile.name}</Text>
+                <Text style={s.modPhoneText}>{profile.phone || "No phone added"}</Text>
+              </View>
+            )}
+
+            <View style={s.modSection}>
+              <Text style={s.modSectionLabel}>Settings</Text>
+              <View style={s.modCard}>
+                <View style={s.modRow}><Ionicons name="phone-portrait-outline" size={18} color={PINK} /><Text style={s.modRowLabel}>Shake to SOS</Text><Switch value={true} trackColor={{ true: PRIMARY+"80" }} thumbColor={PRIMARY} /></View>
+                <View style={s.modRow}><Ionicons name="notifications-outline" size={18} color="#f59e0b" /><Text style={s.modRowLabel}>Alerts</Text><Switch value={true} trackColor={{ true: PRIMARY+"80" }} thumbColor={PRIMARY} /></View>
+                <TouchableOpacity style={[s.modRow, { borderBottomWidth: 0 }]} onPress={() => supabase.auth.signOut()}><Ionicons name="log-out-outline" size={18} color="#ef4444" /><Text style={[s.modRowLabel, { color: "#ef4444" }]}>Sign Out</Text></TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
   container:        { flex: 1, backgroundColor: BG },
-  // Header
   header:           { backgroundColor: "#12082a", paddingTop: 56, paddingBottom: 24, paddingHorizontal: 20 },
-  headerInner:      { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  greeting:         { color: "#7c3aed", fontSize: 12, fontWeight: "600", letterSpacing: 0.5, textTransform: "uppercase" },
+  headerInner:      { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  headerRight:      { flexDirection: "row", alignItems: "center", gap: 12 },
+  greeting:         { color: "#7c3aed", fontSize: 13, fontWeight: "700", textTransform: "uppercase" },
   headerTitle:      { color: TEXT, fontSize: 26, fontWeight: "800", marginTop: 2 },
-  notifBtn:         { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(139,92,246,0.12)", borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center" },
-  // Guardian
+  notifBtn:         { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(139,92,246,0.1)", borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center" },
+  profileThumb:     { width: 38, height: 38, borderRadius: 12, overflow: "hidden", borderWidth: 1.5, borderColor: PRIMARY },
+  thumbImg:         { width: "100%", height: "100%" },
+  thumbInitials:    { width: "100%", height: "100%", alignItems: "center", justifyContent: "center" },
+  thumbText:        { fontSize: 14, fontWeight: "800" },
+
   guardianCard:     { marginHorizontal: 16, marginTop: 16, backgroundColor: CARD, borderRadius: 18, padding: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderColor: BORDER },
   guardianLeft:     { flexDirection: "row", alignItems: "center", gap: 12 },
-  guardianDot:      { width: 12, height: 12, borderRadius: 6 },
+  guardianDot:      { width: 10, height: 10, borderRadius: 5 },
   guardianLabel:    { color: TEXT, fontSize: 14, fontWeight: "700" },
   guardianStatus:   { fontSize: 11, marginTop: 1 },
-  guardianToggle:   { width: 42, height: 24, borderRadius: 12, padding: 2, justifyContent: "center" },
-  guardianThumb:    { width: 20, height: 20, borderRadius: 10, backgroundColor: "white", elevation: 2 },
-  // SOS
-  sosSection:       { alignItems: "center", paddingVertical: 32, paddingHorizontal: 20 },
+  guardianToggle:   { width: 40, height: 22, borderRadius: 11, padding: 2, justifyContent: "center" },
+  guardianThumb:    { width: 18, height: 18, borderRadius: 9, backgroundColor: "white" },
+
+  sosSection:       { alignItems: "center", paddingVertical: 32 },
   sosRingOuter:     { width: 200, height: 200, alignItems: "center", justifyContent: "center" },
-  sosRingMid:       { position: "absolute", width: 196, height: 196, borderRadius: 98, backgroundColor: "rgba(239,68,68,0.08)", borderWidth: 2, borderColor: "rgba(239,68,68,0.25)" },
-  sosRing:          { width: 164, height: 164, borderRadius: 82, borderWidth: 3, borderColor: "rgba(239,68,68,0.4)", alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  sosBtn:           { width: 148, height: 148, borderRadius: 74, backgroundColor: "#dc2626", alignItems: "center", justifyContent: "center", elevation: 12 },
-  sosBtnLabel:      { color: "white", fontSize: 30, fontWeight: "900", letterSpacing: 1 },
-  sosBtnSub:        { color: "rgba(255,255,255,0.7)", fontSize: 11, marginTop: 2 },
-  sosProgressTrack: { width: 220, height: 4, backgroundColor: "rgba(239,68,68,0.15)", borderRadius: 2, marginTop: 14, overflow: "hidden" },
+  sosRingMid:       { position: "absolute", width: 196, height: 196, borderRadius: 98, backgroundColor: "rgba(239,68,68,0.06)", borderWidth: 2, borderColor: "rgba(239,68,68,0.2)" },
+  sosRing:          { width: 164, height: 164, borderRadius: 82, borderWidth: 3, borderColor: "rgba(239,68,68,0.3)", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  sosBtn:           { width: 148, height: 148, borderRadius: 74, backgroundColor: "#dc2626", alignItems: "center", justifyContent: "center" },
+  sosBtnLabel:      { color: "white", fontSize: 32, fontWeight: "900" },
+  sosBtnSub:        { color: "rgba(255,255,255,0.6)", fontSize: 11, marginTop: 2 },
+  sosProgressTrack: { width: 220, height: 4, backgroundColor: "rgba(239,68,68,0.1)", borderRadius: 2, marginTop: 14 },
   sosProgressFill:  { height: 4, backgroundColor: "#ef4444", borderRadius: 2 },
   sosHint:          { fontSize: 12, color: SUBTEXT, textAlign: "center", marginTop: 10 },
-  fakeCallBtn:      { marginTop: 14, borderWidth: 1, borderColor: BORDER, borderRadius: 20, paddingVertical: 9, paddingHorizontal: 22, flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(139,92,246,0.07)" },
+  fakeCallBtn:      { marginTop: 16, borderWidth: 1, borderColor: BORDER, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(139,92,246,0.05)" },
   fakeCallBtnText:  { color: PRIMARY, fontSize: 13, fontWeight: "600" },
-  // Alerts
-  sectionLabel:     { fontSize: 11, color: "#6b7280", fontWeight: "700", textTransform: "uppercase", letterSpacing: 1.2, marginHorizontal: 20, marginBottom: 10 },
+
+  sectionLabel:     { fontSize: 10, color: "#6b7280", fontWeight: "700", textTransform: "uppercase", letterSpacing: 1.2, marginHorizontal: 20, marginBottom: 10 },
   alertCard:        { backgroundColor: CARD, marginHorizontal: 16, marginBottom: 8, borderRadius: 16, padding: 14, flexDirection: "row", gap: 12, alignItems: "center", borderWidth: 1, borderColor: BORDER },
-  alertDot:         { width: 8, height: 8, borderRadius: 4, marginTop: 2 },
+  alertDot:         { width: 8, height: 8, borderRadius: 4 },
   alertText:        { fontSize: 13, color: TEXT },
   alertTime:        { fontSize: 11, color: SUBTEXT, marginTop: 2 },
-  // SOS Active
-  sosBg:            { flex: 1, backgroundColor: "#1a0505", alignItems: "center", justifyContent: "center", padding: 28, gap: 16 },
-  sosGlow:          { position: "absolute", width: 300, height: 300, borderRadius: 150, backgroundColor: "rgba(220,38,38,0.2)", top: "25%" },
-  sosActiveTitle:   { color: "#fca5a5", fontSize: 28, fontWeight: "900", letterSpacing: 2 },
-  sosActiveCard:    { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 18, padding: 18, width: "100%", gap: 10, borderWidth: 1, borderColor: "rgba(239,68,68,0.2)" },
+
+  sosBg:            { flex: 1, backgroundColor: "#1a0505", alignItems: "center", justifyContent: "center", padding: 24 },
+  sosGlow:          { position: "absolute", width: 300, height: 300, borderRadius: 150, backgroundColor: "rgba(220,38,38,0.15)", top: "25%" },
+  sosActiveTitle:   { color: "#fca5a5", fontSize: 26, fontWeight: "900", letterSpacing: 2, marginVertical: 20 },
+  sosActiveCard:    { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 18, padding: 20, width: "100%", gap: 12 },
   sosItem:          { flexDirection: "row", alignItems: "center", gap: 10 },
   sosItemText:      { color: "white", fontSize: 14 },
-  sosCoords:        { color: "#fca5a5", fontSize: 11 },
-  cancelSosBtn:     { backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 30, paddingVertical: 14, paddingHorizontal: 36, borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
-  cancelSosBtnText: { color: "white", fontWeight: "700", fontSize: 15 },
-  // Fake Call
-  fcBg:      { flex: 1, backgroundColor: "#080c10", alignItems: "center", justifyContent: "space-between", paddingVertical: 64 },
+  sosCoords:        { color: "#fca5a5", fontSize: 11, marginTop: 20 },
+  cancelSosBtn:     { backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 30, paddingVertical: 14, paddingHorizontal: 40, marginTop: 30, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
+  cancelSosBtnText: { color: "white", fontWeight: "700" },
+
+  fcBg:      { flex: 1, backgroundColor: "#080c10", alignItems: "center", justifyContent: "space-between", paddingVertical: 80 },
   fcTop:     { alignItems: "center", gap: 12 },
-  fcAvatar:  { width: 92, height: 92, borderRadius: 46, backgroundColor: "#1a2332", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "rgba(99,102,241,0.3)" },
-  fcName:    { color: TEXT, fontSize: 26, fontWeight: "700" },
-  fcSub:     { color: "#34d399", fontSize: 14, letterSpacing: 0.5 },
-  fcBtns:    { flexDirection: "row", gap: 52 },
-  fcBtn:     { width: 68, height: 68, borderRadius: 34, alignItems: "center", justifyContent: "center" },
+  fcAvatar:  { width: 100, height: 100, borderRadius: 50, backgroundColor: "#1a2332", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: PRIMARY },
+  fcName:    { color: TEXT, fontSize: 28, fontWeight: "700" },
+  fcSub:     { color: "#34d399", fontSize: 14 },
+  fcBtns:    { flexDirection: "row", gap: 60 },
+  fcBtn:     { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
+
+  // Modal Profile
+  modBg:          { flex: 1, backgroundColor: BG },
+  modHeader:      { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingTop: 60, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: BORDER },
+  modTitle:       { color: TEXT, fontSize: 18, fontWeight: "800" },
+  modEdit:        { padding: 5 },
+  modEditText:    { color: PRIMARY, fontWeight: "600" },
+  modAvatarSection: { alignItems: "center", marginVertical: 30 },
+  modAvatar:      { width: 110, height: 110, borderRadius: 30, overflow: "hidden", borderWidth: 2, borderColor: BORDER },
+  modImg:         { width: "100%", height: "100%" },
+  modInitials:    { width: "100%", height: "100%", alignItems: "center", justifyContent: "center" },
+  modInitText:    { fontSize: 36, fontWeight: "900" },
+  modCam:         { position: "absolute", bottom: 0, right: 0, backgroundColor: PRIMARY, width: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: BG },
+  modInfo:        { alignItems: "center", gap: 6, marginBottom: 30 },
+  modNameText:    { fontSize: 26, fontWeight: "900", color: TEXT },
+  modPhoneText:   { fontSize: 15, color: SUBTEXT },
+  modForm:        { gap: 12, marginBottom: 30 },
+  modInputRow:    { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "rgba(255,255,255,0.03)", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: BORDER },
+  modInput:       { flex: 1, color: TEXT, fontSize: 15 },
+  modSave:        { backgroundColor: PRIMARY, borderRadius: 16, paddingVertical: 16, alignItems: "center", marginTop: 10 },
+  modSaveText:    { color: "white", fontWeight: "800", fontSize: 16 },
+  modSection:     { gap: 10 },
+  modSectionLabel: { color: SUBTEXT, fontSize: 11, fontWeight: "700", textTransform: "uppercase", marginLeft: 4 },
+  modCard:        { backgroundColor: CARD, borderRadius: 20, borderWidth: 1, borderColor: BORDER, overflow: "hidden" },
+  modRow:         { flexDirection: "row", alignItems: "center", gap: 14, padding: 18, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.03)" },
+  modRowLabel:    { flex: 1, color: TEXT, fontSize: 15, fontWeight: "600" },
 });
+
