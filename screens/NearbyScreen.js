@@ -25,7 +25,7 @@ const TEXT          = "#f1f0f5";
 const SUBTEXT       = "#9ca3af";
 const PRIMARY       = "#8b5cf6";
 const BORDER        = "rgba(139,92,246,0.2)";
-const GOOGLE_KEY    = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || "AIzaSyB8hborDSFZBu0jfY26LPDGuuRExGzUVUA";
+const GOOGLE_KEY    = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
 
 // ── Incident categories (for safety alerts on map) ──────────────────────────
 const INCIDENT_TYPES = [
@@ -267,7 +267,7 @@ export default function NearbyScreen() {
             provider={PROVIDER_GOOGLE}
           >
             {/* Safety incident markers */}
-            {incidents.filter(i => i.lat).map(inc => (
+            {incidents.filter(i => typeof i.lat === "number" && typeof i.lng === "number").map(inc => (
               <Marker
                 key={inc.id}
                 coordinate={{ latitude: inc.lat, longitude: inc.lng }}
@@ -278,7 +278,7 @@ export default function NearbyScreen() {
             ))}
 
             {/* Nearby place markers */}
-            {!noKey && places.map(p => (
+            {!noKey && places.filter(p => typeof p.lat === "number" && typeof p.lng === "number").map(p => (
               <Marker
                 key={p.id}
                 coordinate={{ latitude: p.lat, longitude: p.lng }}
@@ -289,7 +289,7 @@ export default function NearbyScreen() {
             ))}
 
             {/* User location pulse ring */}
-            {location && (
+            {location && typeof location.latitude === "number" && typeof location.longitude === "number" && (
               <Circle
                 center={location}
                 radius={80}
