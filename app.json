@@ -33,7 +33,8 @@
           "cameraPermission": "ShieldHer needs camera access to capture photo evidence in the Vault."
         }
       ],
-      "expo-sensors"
+      "expo-sensors",
+      "expo-sharing"
     ],
     "ios": {
       "supportsTablet": true,

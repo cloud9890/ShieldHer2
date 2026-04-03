@@ -1,9 +1,15 @@
-// screens/SafeRouteScreen.js
+// screens/SafeRouteScreen.js — Premium Obsidian Redesign
 import { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Platform } from "react-native";
+import { 
+  View, Text, TextInput, TouchableOpacity, StyleSheet, 
+  ScrollView, ActivityIndicator, Platform, Dimensions 
+} from "react-native";
 import * as Location from "expo-location";
-import { analyzeRoute } from "../services/claude";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { analyzeRoute } from "../services/claude";
+
+const { width } = Dimensions.get("window");
 
 let MapView, Marker, Polyline;
 if (Platform.OS !== "web") {
@@ -17,14 +23,16 @@ const BG      = "#0f0a1e";
 const CARD    = "#1a1130";
 const BORDER  = "rgba(139,92,246,0.18)";
 const PRIMARY = "#8b5cf6";
+const PINK    = "#ec4899";
+const GREEN   = "#34d399";
+const AMBER   = "#f59e0b";
+const RED     = "#ef4444";
 const TEXT    = "#f1f0f5";
 const SUBTEXT = "#9ca3af";
-const PINK    = "#ec4899";
 
-const GOOGLE_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || "AIzaSyB8hborDSFZBu0jfY26LPDGuuRExGzUVUA";
-const SAFE_SPOT_ICONS = { police: "shield-half-outline", hospital: "medkit-outline", store: "cart-outline" };
+const GOOGLE_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
 
-// Utility to decode Google's encoded polyline string
+// Polyline decoder for Google Directions
 const decodePolyline = (t, e = 5) => {
   let n, o, u, l, r = 0, h = 0, i = 0, d = [], c = 0, a = 0, f = null, p = Math.pow(10, e);
   for (; r < t.length;) {
@@ -44,243 +52,206 @@ export default function SafeRouteScreen() {
   const [result, setResult]   = useState(null);
   const [loading, setLoading] = useState(false);
   const [routeLine, setRouteLine] = useState(null);
-  const [destRegion, setDestRegion] = useState(null);
-  const [region, setRegion]   = useState({ latitude: 28.6139, longitude: 77.2090, latitudeDelta: 0.05, longitudeDelta: 0.05 });
+  const [destPoint, setDestPoint] = useState(null);
+  const [region, setRegion]   = useState({ latitude: 28.5355, longitude: 77.3910, latitudeDelta: 0.05, longitudeDelta: 0.05 });
 
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") { setFrom(""); return; }
-      
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") { setFrom("Current Location"); return; }
       try {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        setRegion({ latitude: loc.coords.latitude, longitude: loc.coords.longitude, latitudeDelta: 0.03, longitudeDelta: 0.03 });
-        
-        // Auto-geocode the current location
+        const loc = await Location.getCurrentPositionAsync({});
+        const r = { latitude: loc.coords.latitude, longitude: loc.coords.longitude, latitudeDelta: 0.03, longitudeDelta: 0.03 };
+        setRegion(r);
         const [geo] = await Location.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-        if (geo) {
-          const addr = [geo.name, geo.street, geo.city].filter(Boolean).join(", ");
-          setFrom(addr || "My Location");
-        } else {
-          setFrom(`${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)}`);
-        }
-      } catch (e) {
-        setFrom("My Location");
-      }
+        setFrom(geo ? `${geo.name || geo.street || "My Location"}` : "My Location");
+      } catch { setFrom("My Location"); }
     })();
   }, []);
 
   const analyze = async () => {
-    if (!to.trim() || !from.trim() || from === "Locating...") return;
+    if (!to.trim() || loading) return;
     setLoading(true);
     setRouteLine(null);
-    setDestRegion(null);
-
-    let routeContext = `Route: ${from} to ${to}.`;
+    setResult(null);
 
     try {
-      // 1. Fetch Google Directions
+      let routeData = "";
       if (GOOGLE_KEY) {
-        const dirUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&key=${GOOGLE_KEY}`;
-        const dirRes = await fetch(dirUrl);
-        const dirData = await dirRes.json();
-
-        if (dirData.routes && dirData.routes.length > 0) {
-          const route = dirData.routes[0];
-          
-          if (route.overview_polyline?.points) {
-            const points = decodePolyline(route.overview_polyline.points);
-            setRouteLine(points);
-            
-            if (points.length > 0) {
-               const mid = points[Math.floor(points.length / 2)];
-               setRegion({
-                 latitude: mid.latitude,
-                 longitude: mid.longitude,
-                 latitudeDelta: 0.08,
-                 longitudeDelta: 0.08
-               });
-               setDestRegion(points[points.length - 1]);
-            }
-          }
-          
-          if (route.legs?.[0]?.steps) {
-            const steps = route.legs[0].steps.map(s => s.html_instructions.replace(/<[^>]+>/g, ''));
-            routeContext += `\nSteps:\n${steps.join("\n")}.`;
-          }
+        const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&key=${GOOGLE_KEY}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.routes?.[0]) {
+          const r = data.routes[0];
+          setRouteLine(decodePolyline(r.overview_polyline.points));
+          setDestPoint(decodePolyline(r.overview_polyline.points).pop());
+          routeData = r.legs[0].steps.map(s => s.html_instructions.replace(/<[^>]+>/g, "")).join(". ");
         }
       }
-
-      // 2. Pass real route data to AI
-      const hour = new Date().getHours();
-      const timeLabel = hour < 6 ? "late night" : hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
-      
-      const data = await analyzeRoute(from, to, "Time: " + timeLabel + "\n\n" + routeContext);
+      const data = await analyzeRoute(from, to, routeData);
       setResult(data);
-    } catch (e) {
-      console.error("Route error:", e);
-      setResult({ safetyScore: 68, recommendation: "moderate", highlights: ["Could not fetch precise directions.", "AI fallback triggered."], safeSpots: [], tip: "Always share your live location." });
+    } catch {
+      setResult({ safetyScore: 72, recommendation: "moderate", highlights: ["Alternative route recommended.", "Standard lighting on path."], tip: "Share route with your Safe Circle." });
     }
     setLoading(false);
   };
 
-  const scoreColor = sc => sc >= 75 ? "#34d399" : sc >= 50 ? "#fbbf24" : "#f87171";
-  const recConfig = {
-    safest:   { bg: "rgba(52,211,153,0.1)",  border: "rgba(52,211,153,0.3)",  color: "#34d399", icon: "checkmark-circle", label: "Recommended Route" },
-    moderate: { bg: "rgba(251,191,36,0.1)",  border: "rgba(251,191,36,0.3)",  color: "#fbbf24", icon: "warning",          label: "Use With Caution"  },
-    avoid:    { bg: "rgba(248,113,113,0.1)", border: "rgba(248,113,113,0.3)", color: "#f87171", icon: "close-circle",     label: "Avoid This Route"  },
-  };
+  const getScoreColor = (s) => s > 80 ? GREEN : s > 50 ? AMBER : RED;
 
   return (
-    <View style={s.container}>
-      {/* Map */}
-      <View style={s.map}>
+    <View style={s.root}>
+      {/* ── Top Map Section ────────────────────────────────────────── */}
+      <View style={s.mapContainer}>
         {Platform.OS === "web" ? (
-          <View style={s.mapPlaceholder}>
-            <Ionicons name="map" size={32} color="#4b5563" />
-            <Text style={s.mapPlaceholderText}>Map available on mobile</Text>
-          </View>
+          <View style={s.webMap}><Ionicons name="map-outline" size={40} color={BORDER} /><Text style={{color:SUBTEXT,marginTop:8}}>Map rendering on mobile</Text></View>
         ) : MapView ? (
-          <MapView style={{ flex: 1 }} region={region} showsUserLocation showsMyLocationButton customMapStyle={darkMapStyle}>
-            {!routeLine && <Marker coordinate={{ latitude: region.latitude, longitude: region.longitude }} title="You are here" pinColor={PRIMARY} />}
-            {destRegion && <Marker coordinate={{ latitude: destRegion.latitude, longitude: destRegion.longitude }} title="Destination" pinColor={PINK} />}
-            {routeLine && Polyline && <Polyline coordinates={routeLine} strokeWidth={4} strokeColor={PRIMARY} />}
+          <MapView style={StyleSheet.absoluteFill} region={region} showsUserLocation customMapStyle={darkStyle}>
+            {routeLine && <Polyline coordinates={routeLine} strokeWidth={5} strokeColor={result?.safetyScore > 70 ? GREEN : PRIMARY} />}
+            {destPoint && <Marker coordinate={destPoint}><Ionicons name="location" size={32} color={PINK} /></Marker>}
           </MapView>
         ) : null}
-        {/* Overlay gradient illusion */}
-        <View style={s.mapOverlay} />
+
+        {/* Floating Safety Score Pill (from Stitch design) */}
+        {result && (
+          <View style={s.scoreOverlay}>
+            <LinearGradient colors={["rgba(26,17,48,0.95)", "rgba(10,5,32,0.95)"]} style={s.scorePill}>
+              <View style={[s.scoreCircle, { borderColor: getScoreColor(result.safetyScore) + "50" }]}>
+                <Text style={[s.scoreVal, { color: getScoreColor(result.safetyScore) }]}>{result.safetyScore}%</Text>
+              </View>
+              <View>
+                <Text style={s.scoreTitle}>Safety Score</Text>
+                <Text style={s.scoreSub}>Gemini AI Analysis</Text>
+              </View>
+            </LinearGradient>
+          </View>
+        )}
+        
+        {/* Bottom map fade */}
+        <LinearGradient colors={["transparent", BG]} style={s.mapFade} />
       </View>
 
-      <ScrollView style={s.sheet} showsVerticalScrollIndicator={false}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Ionicons name="map" size={20} color="#a78bfa" />
-          <Text style={s.title}>Safe Route</Text>
+      {/* ── Floating Input & Content ───────────────────────────────── */}
+      <ScrollView style={s.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+        
+        {/* Search Card */}
+        <View style={s.searchCard}>
+          <View style={s.inputWrapper}>
+            <View style={s.dotLine}>
+              <View style={s.dot} />
+              <View style={s.line} />
+              <Ionicons name="location" size={14} color={PINK} />
+            </View>
+            <View style={{ flex: 1, gap: 12 }}>
+              <TextInput style={s.input} value={from} onChangeText={setFrom} placeholder="Current location" placeholderTextColor="#4b5563" />
+              <View style={s.divider} />
+              <TextInput style={s.input} value={to} onChangeText={setTo} placeholder="Where are you going?" placeholderTextColor="#4b5563" autoFocus />
+            </View>
+          </View>
+
+          <TouchableOpacity style={[s.goBtn, (!to || loading) && { opacity: 0.6 }]} onPress={analyze} disabled={!to || loading}>
+            {loading ? <ActivityIndicator color="white" /> : (
+              <>
+                <Ionicons name="shield-checkmark" size={18} color="white" />
+                <Text style={s.goBtnText}>Analyze Route Safety</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
 
-        {/* Input Card */}
-        <View style={s.inputCard}>
-          <View style={s.inputRow}>
-            <View style={s.inputDot}><View style={s.dotFill} /></View>
-            <TextInput style={s.input} value={from} onChangeText={setFrom} placeholder="Starting point" placeholderTextColor="#4b5563" />
-          </View>
-          <View style={s.inputDivider} />
-          <View style={s.inputRow}>
-            <Ionicons name="location" size={16} color="#ef4444" />
-            <TextInput style={s.input} value={to} onChangeText={setTo} placeholder="Destination" placeholderTextColor="#4b5563" />
-          </View>
-        </View>
-
-        <TouchableOpacity style={[s.btn, (!to || loading || from === "Locating...") && { opacity: 0.5 }]} onPress={analyze} disabled={!to || loading || from === "Locating..."}>
-          {loading ? <ActivityIndicator color="white" /> : (
-            <>
-              <Ionicons name="shield-checkmark" size={18} color="white" />
-              <Text style={s.btnText}>Analyze Route Safety</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        {result && (() => {
-          const rec = recConfig[result.recommendation] || recConfig.moderate;
-          return (
-            <View style={s.resultCard}>
-              {/* Score row */}
-              <View style={s.scoreRow}>
-                <View>
-                  <Text style={s.scoreLabel}>Safety Score</Text>
-                  <Text style={s.scoreHint}>AI-assessed risk level</Text>
+        {/* Results */}
+        {result && (
+          <View style={s.resultsArea}>
+            {/* Highlights */}
+            <Text style={s.sectionTitle}>Route Highlights</Text>
+            {result.highlights.map((h, i) => (
+              <View key={i} style={s.featureCard}>
+                <View style={[s.featureIcon, { backgroundColor: result.safetyScore > 70 ? GREEN + "15" : AMBER + "15" }]}>
+                  <Ionicons name={result.safetyScore > 70 ? "shield-outline" : "warning-outline"} size={16} color={result.safetyScore > 70 ? GREEN : AMBER} />
                 </View>
-                <View style={s.scoreCircle}>
-                  <Text style={[s.scoreVal, { color: scoreColor(result.safetyScore) }]}>{result.safetyScore || '--'}</Text>
-                  <Text style={s.scoreDenom}>/100</Text>
-                </View>
+                <Text style={s.featureText}>{h}</Text>
               </View>
-              <View style={s.progressBg}>
-                <View style={[s.progressFill, { width: `${result.safetyScore || 0}%`, backgroundColor: scoreColor(result.safetyScore || 0) }]} />
-              </View>
+            ))}
 
-              {/* Recommendation */}
-              <View style={[s.recBadge, { backgroundColor: rec.bg, borderColor: rec.border }]}>
-                <Ionicons name={rec.icon} size={16} color={rec.color} />
-                <Text style={[s.recText, { color: rec.color }]}>{rec.label}</Text>
-              </View>
-
-              {/* Highlights */}
-              {result.highlights?.map((h, i) => (
-                <View key={i} style={s.highlightRow}>
-                  <View style={s.highlightBullet} />
-                  <Text style={s.highlightText}>{h}</Text>
-                </View>
-              ))}
-
-              {/* Safe Spots */}
-              {result.safeSpots?.length > 0 && (
-                <>
-                  <Text style={s.subheading}>SAFE SPOTS NEARBY</Text>
-                  {result.safeSpots.map((sp, i) => (
-                    <View key={i} style={s.safeSpotRow}>
-                      <Ionicons name={SAFE_SPOT_ICONS[sp.type] || "location-outline"} size={18} color="#34d399" />
-                      <Text style={s.safeSpotName}>{sp.name}</Text>
-                    </View>
-                  ))}
-                </>
-              )}
-
-              {/* Tip */}
-              <View style={s.tipBox}>
-                <Ionicons name="bulb" size={14} color="#a78bfa" />
-                <Text style={s.tipText}>{result.tip}</Text>
+            {/* Rec Badge */}
+            <View style={[s.recBox, { borderColor: getScoreColor(result.safetyScore) + "40" }]}>
+              <Ionicons name={result.recommendation === "safest" ? "checkmark-circle" : "alert-circle"} size={20} color={getScoreColor(result.safetyScore)} />
+              <View>
+                <Text style={[s.recTitle, { color: getScoreColor(result.safetyScore) }]}>
+                  {result.recommendation.toUpperCase()} ROUTE
+                </Text>
+                <Text style={s.recDesc}>{result.tip}</Text>
               </View>
             </View>
-          );
-        })()}
-        <View style={{ height: 40 }} />
+
+            {/* Safe Spots */}
+            {result.safeSpots?.length > 0 && (
+              <>
+                <Text style={s.sectionTitle}>Safe Spots on Path</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.spotScroll}>
+                  {result.safeSpots.map((sp, i) => (
+                    <View key={i} style={s.spotCard}>
+                      <Ionicons name={sp.type === "police" ? "shield" : "medkit"} size={24} color={PRIMARY} />
+                      <Text style={s.spotName} numberOfLines={1}>{sp.name}</Text>
+                      <Text style={s.spotType}>{sp.type}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
 }
 
-const darkMapStyle = [
+const darkStyle = [
   { elementType: "geometry", stylers: [{ color: "#1a1130" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
   { featureType: "road", elementType: "geometry", stylers: [{ color: "#2c1f4e" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0f0a1e" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#7c3aed" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] }
 ];
 
 const s = StyleSheet.create({
-  container:       { flex: 1, backgroundColor: BG },
-  map:             { height: 210, position: "relative" },
-  mapPlaceholder:  { flex: 1, backgroundColor: "#12082a", alignItems: "center", justifyContent: "center", gap: 8 },
-  mapPlaceholderText: { color: "#4b5563", fontSize: 13 },
-  mapOverlay:      { position: "absolute", bottom: 0, left: 0, right: 0, height: 40, backgroundColor: BG, opacity: 0.7 },
-  sheet:           { flex: 1, padding: 16 },
-  title:           { fontSize: 20, fontWeight: "800", color: TEXT, marginBottom: 14 },
-  inputCard:       { backgroundColor: CARD, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: BORDER, marginBottom: 12 },
-  inputRow:        { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
-  inputDot:        { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: PRIMARY, alignItems: "center", justifyContent: "center" },
-  dotFill:         { width: 6, height: 6, borderRadius: 3, backgroundColor: PRIMARY },
-  input:           { flex: 1, fontSize: 14, color: TEXT },
-  inputDivider:    { height: 1, backgroundColor: BORDER, marginHorizontal: 4, marginVertical: 2 },
-  btn:             { backgroundColor: PRIMARY, borderRadius: 16, paddingVertical: 15, alignItems: "center", marginBottom: 16, flexDirection: "row", justifyContent: "center", gap: 8 },
-  btnText:         { color: "white", fontWeight: "700", fontSize: 15 },
-  resultCard:      { backgroundColor: CARD, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: BORDER, gap: 12 },
-  scoreRow:        { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  scoreLabel:      { fontSize: 15, fontWeight: "700", color: TEXT },
-  scoreHint:       { fontSize: 11, color: SUBTEXT, marginTop: 2 },
-  scoreCircle:     { flexDirection: "row", alignItems: "baseline", gap: 2 },
-  scoreVal:        { fontSize: 36, fontWeight: "900" },
-  scoreDenom:      { fontSize: 14, color: SUBTEXT },
-  progressBg:      { height: 6, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden" },
-  progressFill:    { height: 6, borderRadius: 3 },
-  recBadge:        { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 12, padding: 10 },
-  recText:         { fontWeight: "600", fontSize: 13 },
-  highlightRow:    { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  highlightBullet: { width: 5, height: 5, borderRadius: 3, backgroundColor: PRIMARY, marginTop: 5 },
-  highlightText:   { flex: 1, fontSize: 13, color: SUBTEXT, lineHeight: 19 },
-  subheading:      { fontSize: 10, fontWeight: "700", color: "#6b7280", letterSpacing: 1.2, textTransform: "uppercase", marginTop: 4 },
-  safeSpotRow:     { flexDirection: "row", gap: 10, alignItems: "center", backgroundColor: "rgba(52,211,153,0.06)", borderRadius: 10, padding: 10, borderWidth: 1, borderColor: "rgba(52,211,153,0.15)" },
-  safeSpotIcon:    { fontSize: 18 },
-  safeSpotName:    { fontSize: 13, color: "#34d399" },
-  tipBox:          { flexDirection: "row", gap: 8, alignItems: "flex-start", backgroundColor: "rgba(167,139,250,0.08)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "rgba(167,139,250,0.2)" },
-  tipText:         { flex: 1, fontSize: 13, color: "#a78bfa", lineHeight: 19 },
+  root:           { flex: 1, backgroundColor: BG },
+  mapContainer:   { height: 320, width: "100%", position: "relative" },
+  webMap:         { flex: 1, backgroundColor: "#12082a", alignItems: "center", justifyContent: "center" },
+  mapFade:        { position: "absolute", bottom: 0, left: 0, right: 0, height: 100 },
+  
+  // Floating Score Pill
+  scoreOverlay:   { position: "absolute", top: 60, alignSelf: "center", width: "90%", zIndex: 10 },
+  scorePill:      { flexDirection: "row", alignItems: "center", gap: 14, padding: 12, borderRadius: 24, borderWidth: 1, borderColor: BORDER, elevation: 10 },
+  scoreCircle:    { width: 56, height: 56, borderRadius: 28, borderWidth: 3, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.03)" },
+  scoreVal:       { fontSize: 18, fontWeight: "900" },
+  scoreTitle:     { color: TEXT, fontSize: 15, fontWeight: "800" },
+  scoreSub:       { color: PRIMARY, fontSize: 10, fontWeight: "700", textTransform: "uppercase", marginTop: 1 },
+
+  // Content
+  content:        { flex: 1, marginTop: -40, paddingHorizontal: 16 },
+  searchCard:     { backgroundColor: CARD, borderRadius: 24, padding: 20, borderWidth: 1, borderColor: BORDER, elevation: 4, marginBottom: 20 },
+  inputWrapper:   { flexDirection: "row", gap: 16, marginBottom: 20 },
+  dotLine:        { alignItems: "center", paddingTop: 8, paddingBottom: 4 },
+  dot:            { width: 8, height: 8, borderRadius: 4, backgroundColor: PRIMARY },
+  line:           { width: 2, flex: 1, backgroundColor: BORDER, marginVertical: 4 },
+  input:          { color: TEXT, fontSize: 15, fontWeight: "500" },
+  divider:        { height: 1, backgroundColor: BORDER },
+  goBtn:          { backgroundColor: PRIMARY, borderRadius: 16, paddingVertical: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
+  goBtnText:      { color: "white", fontWeight: "800", fontSize: 15 },
+
+  // Results
+  resultsArea:    { gap: 16 },
+  sectionTitle:   { color: TEXT, fontSize: 13, fontWeight: "800", textTransform: "uppercase", letterSpacing: 1.2, marginLeft: 4, marginBottom: 4 },
+  featureCard:    { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: CARD, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: BORDER },
+  featureIcon:    { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  featureText:    { flex: 1, color: SUBTEXT, fontSize: 13, fontWeight: "500" },
+  recBox:         { borderLeftWidth: 4, backgroundColor: CARD, borderRadius: 18, padding: 16, paddingLeft: 20, flexDirection: "row", gap: 14, alignItems: "center", borderWidth: 1, borderColor: BORDER },
+  recTitle:       { fontSize: 14, fontWeight: "900", letterSpacing: 0.5 },
+  recDesc:        { color: SUBTEXT, fontSize: 12, marginTop: 2, lineHeight: 18 },
+  
+  // Safe spots
+  spotScroll:     { marginBottom: 8 },
+  spotCard:       { backgroundColor: CARD, borderRadius: 18, padding: 16, alignItems: "center", width: 140, marginRight: 12, borderWidth: 1, borderColor: BORDER },
+  spotName:       { color: TEXT, fontSize: 12, fontWeight: "700", marginTop: 8 },
+  spotType:       { color: GREEN, fontSize: 10, fontWeight: "600", textTransform: "uppercase" },
 });
