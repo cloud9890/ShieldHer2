@@ -7,7 +7,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
-import { supabase } from "../services/supabase";
+import { supabase } from "../api/supabase";
 
 const BG      = "#0f0a1e";
 const CARD    = "#1a1130";

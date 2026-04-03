@@ -4,8 +4,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Activi
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
-import { draftComplaint, analyzeEvidence } from "../services/claude";
-import { supabase } from "../services/supabase";
+import { draftComplaint, analyzeEvidence } from "../api/claude";
+import { supabase } from "../api/supabase";
 import { Ionicons } from "@expo/vector-icons";
 
 const BG      = "#0f0a1e";

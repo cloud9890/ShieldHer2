@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { analyzeHarassment, safetyChat } from "../services/claude";
+import { analyzeHarassment, safetyChat } from "../api/claude";
 
 const BG      = "#0f0a1e";
 const CARD    = "#1a1130";
