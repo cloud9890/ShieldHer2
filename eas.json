@@ -1,8 +1,18 @@
 {
+  "cli": {
+    "appVersionSource": "remote"
+  },
   "build": {
     "preview": {
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://fklkcolgqaglrzukoslz.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZrbGtjb2xncWFnbHJ6dWtvc2x6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NjE2MjIsImV4cCI6MjA5MDMzNzYyMn0.tqDS0SXcxNFaCN3jyV--tNlL9ptuiCLvk6ZiYJQuIg4",
+        "EXPO_PUBLIC_GOOGLE_MAPS_KEY": "AIzaSyB8hborDSFZBu0jfY26LPDGuuRExGzUVUA",
+        "EXPO_PUBLIC_TWILIO_VERIFIED_NUMBER": "+918310661631",
+        "EXPO_PUBLIC_GEMINI_API_KEY": "AIzaSyAC0hfmTlRFhvhCNGc-ZZFL9O8F33LmoME"
       }
     },
     "production": {}

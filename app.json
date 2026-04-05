@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "ShieldHer",
-    "slug": "shieldher",
+    "slug": "ShieldHer2",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -34,7 +34,8 @@
         }
       ],
       "expo-sensors",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-secure-store"
     ],
     "ios": {
       "supportsTablet": true,
