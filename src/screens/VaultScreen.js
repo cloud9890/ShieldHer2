@@ -192,9 +192,6 @@ export default function VaultScreen() {
             </View>
           )}
 
-          <Text style={s.label}>Incident Type</Text>
-
-          <Text style={s.label}>Incident Type</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
             {INCIDENT_TYPES.map(t => (
               <TouchableOpacity key={t} onPress={() => setForm(f => ({ ...f, type: t }))}

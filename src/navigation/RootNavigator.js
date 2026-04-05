@@ -18,6 +18,7 @@ import SafetyLawsScreen  from "../screens/SafetyLawsScreen";
 import SelfDefenseScreen from "../screens/SelfDefenseScreen";
 import MoreScreen        from "../screens/MoreScreen";
 import LoginScreen       from "../screens/LoginScreen";
+import ProfileScreen     from "../screens/ProfileScreen";
 
 // API
 import { supabase } from "../api/supabase";
@@ -165,6 +166,7 @@ export default function RootNavigator() {
               <Stack.Screen name="AI"          component={AIShieldScreen}    options={DARK_HEADER("AI Shield")}      />
               <Stack.Screen name="Laws"        component={SafetyLawsScreen}  options={DARK_HEADER("Safety Laws")}    />
               <Stack.Screen name="SelfDefense" component={SelfDefenseScreen} options={DARK_HEADER("Self Defense")}   />
+              <Stack.Screen name="Profile"     component={ProfileScreen}     options={DARK_HEADER("My Profile")}     />
             </>
           )}
         </Stack.Navigator>

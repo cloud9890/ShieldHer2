@@ -23,8 +23,7 @@ import ProfileModal from "../components/home/ProfileModal";
 import GuardianBadge from "../components/home/GuardianBadge";
 
 const EMERGENCY_CONTACTS = [
-  { name: "Mom",         phone: process.env.EXPO_PUBLIC_TWILIO_VERIFIED_NUMBER || "+918310661631" },
-  { name: "Sister Riya", phone: "+91-91234-56789" },
+  { name: "My Contact", phone: process.env.EXPO_PUBLIC_TWILIO_VERIFIED_NUMBER || "+918310661631" },
 ];
 
 const COMMUNITY_ALERTS = [
