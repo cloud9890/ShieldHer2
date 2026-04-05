@@ -1,7 +1,7 @@
 // src/components/home/SOSButton.js
 import React from "react";
 import { View, Text, TouchableOpacity, Animated, StyleSheet } from "react-native";
-import { COLORS } from "../../theme/colors";
+import { DANGER } from "../../theme/colors";
 
 export default function SOSButton({ 
   onPressIn, 
@@ -50,10 +50,10 @@ const s = StyleSheet.create({
   sosRingOuter:     { width: 200, height: 200, alignItems: "center", justifyContent: "center" },
   sosRingMid:       { position: "absolute", width: 196, height: 196, borderRadius: 98, backgroundColor: "rgba(239,68,68,0.06)", borderWidth: 2, borderColor: "rgba(239,68,68,0.2)" },
   sosRing:          { width: 164, height: 164, borderRadius: 82, borderWidth: 3, borderColor: "rgba(239,68,68,0.3)", alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  sosBtn:           { width: 148, height: 148, borderRadius: 74, backgroundColor: COLORS.DANGER || "#dc2626", alignItems: "center", justifyContent: "center" },
+  sosBtn:           { width: 148, height: 148, borderRadius: 74, backgroundColor: DANGER, alignItems: "center", justifyContent: "center" },
   sosBtnLabel:      { color: "white", fontSize: 32, fontWeight: "900" },
   sosBtnSub:        { color: "rgba(255,255,255,0.6)", fontSize: 11, marginTop: 2 },
   sosProgressTrack: { width: 220, height: 4, backgroundColor: "rgba(239,68,68,0.1)", borderRadius: 2, marginTop: 14 },
-  sosProgressFill:  { height: 4, backgroundColor: COLORS.DANGER || "#ef4444", borderRadius: 2 },
+  sosProgressFill:  { height: 4, backgroundColor: DANGER, borderRadius: 2 },
   sosHint:          { fontSize: 12, color: "#9ca3af", textAlign: "center", marginTop: 10 },
 });

@@ -1,63 +1,84 @@
-// screens/MoreScreen.js
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+// src/screens/MoreScreen.js
+import { ScrollView, View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import { supabase } from "../api/supabase";
+import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, WARNING, TEAL, DANGER } from "../theme/colors";
 
-const BG     = "#0f0a1e";
-const CARD   = "#1a1130";
-const BORDER = "rgba(139,92,246,0.18)";
-const TEXT   = "#f1f0f5";
-const SUBTEXT = "#9ca3af";
-
-const ITEMS = [
-  { label: "Safe Route",   sub: "AI-powered route safety analysis",   icon: "map",           color: "#8b5cf6", screen: "Route"       },
-  { label: "AI Shield",    sub: "Harassment detection & safety chat",  icon: "sparkles",      color: "#ec4899", screen: "AI"          },
-  { label: "Safety Laws",  sub: "Know your rights under Indian law",   icon: "library",       color: "#f59e0b", screen: "Laws"        },
-  { label: "Self Defense", sub: "Video guides for self-protection",    icon: "fitness",       color: "#ef4444", screen: "SelfDefense" },
-  { label: "My Profile",   sub: "Settings, preferences & quick dials", icon: "person-circle", color: "#34d399", screen: "Profile"     },
+const FEATURES = [
+  {
+    icon: "navigate",       label: "Safe Route",    subtitle: "Plan the safest path",
+    color: PRIMARY, screen: "Route",
+  },
+  {
+    icon: "sparkles",      label: "AI Shield",     subtitle: "AI-powered safety analysis",
+    color: PINK, screen: "AI",
+  },
+  {
+    icon: "book",          label: "Safety Laws",   subtitle: "Know your legal rights",
+    color: SUCCESS, screen: "Laws",
+  },
+  {
+    icon: "fitness",       label: "Self Defense",  subtitle: "Techniques & tips",
+    color: WARNING, screen: "SelfDefense",
+  },
+  {
+    icon: "person-circle", label: "My Profile",    subtitle: "Edit your account & settings",
+    color: TEAL, screen: "Profile",
+  },
 ];
 
-export default function MoreScreen({ navigation }) {
+export default function MoreScreen() {
+  const navigation = useNavigation();
+
+  const signOut = () => {
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Sign Out", style: "destructive", onPress: () => supabase.auth.signOut() },
+    ]);
+  };
+
   return (
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
       <View style={s.header}>
-        <Text style={s.title}>More</Text>
-        <Text style={s.subtitle}>All ShieldHer features</Text>
+        <Ionicons name="grid" size={18} color={PRIMARY} />
+        <Text style={s.title}>MORE FEATURES</Text>
       </View>
 
-      <View style={s.list}>
-        {ITEMS.map(item => (
-          <TouchableOpacity
-            key={item.screen}
-            style={s.card}
-            onPress={() => navigation.navigate(item.screen)}
-            activeOpacity={0.8}
-          >
-            <View style={[s.iconBox, { backgroundColor: item.color + "18" }]}>
-              <Ionicons name={item.icon} size={24} color={item.color} />
+      <View style={s.grid}>
+        {FEATURES.map(f => (
+          <TouchableOpacity key={f.label} style={s.card} onPress={() => navigation.navigate(f.screen)} activeOpacity={0.7}>
+            <View style={[s.iconBox, { backgroundColor: f.color + "18", borderColor: f.color + "30" }]}>
+              <Ionicons name={f.icon} size={24} color={f.color} />
             </View>
-            <View style={s.cardText}>
-              <Text style={s.cardLabel}>{item.label}</Text>
-              <Text style={s.cardSub}>{item.sub}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={s.cardLabel}>{f.label}</Text>
+              <Text style={s.cardSub}>{f.subtitle}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#4b5563" />
+            <Ionicons name="chevron-forward" size={16} color={SUBTEXT} />
           </TouchableOpacity>
         ))}
       </View>
 
-      <View style={{ height: 40 }} />
+      <TouchableOpacity style={s.signOutBtn} onPress={signOut}>
+        <Ionicons name="log-out-outline" size={18} color={DANGER} />
+        <Text style={s.signOutText}>Sign Out</Text>
+      </TouchableOpacity>
+
+      <View style={{ height: 50 }} />
     </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
-  header:    { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 16 },
-  title:     { fontSize: 28, fontWeight: "800", color: TEXT },
-  subtitle:  { fontSize: 12, color: "#8b5cf6", marginTop: 4, fontWeight: "600" },
-  list:      { paddingHorizontal: 16, gap: 10 },
-  card:      { flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: CARD, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: BORDER },
-  iconBox:   { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  cardText:  { flex: 1 },
-  cardLabel: { fontSize: 15, fontWeight: "700", color: TEXT },
-  cardSub:   { fontSize: 12, color: SUBTEXT, marginTop: 2 },
+  container:    { flex: 1, backgroundColor: BG },
+  header:       { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 56, paddingHorizontal: 20, paddingBottom: 20 },
+  title:        { fontSize: 18, fontWeight: "800", color: "#f0f6fc", letterSpacing: 1.5 },
+  grid:         { paddingHorizontal: 16, gap: 10 },
+  card:         { backgroundColor: CARD, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 14, borderWidth: 1, borderColor: BORDER },
+  iconBox:      { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  cardLabel:    { fontSize: 15, fontWeight: "700", color: TEXT },
+  cardSub:      { fontSize: 12, color: SUBTEXT, marginTop: 2 },
+  signOutBtn:   { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginTop: 20, backgroundColor: "rgba(239,68,68,0.08)", borderRadius: 14, paddingVertical: 14, borderWidth: 1, borderColor: "rgba(239,68,68,0.2)" },
+  signOutText:  { color: DANGER, fontWeight: "700", fontSize: 14 },
 });
