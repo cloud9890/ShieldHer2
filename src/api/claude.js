@@ -21,7 +21,7 @@ export async function callClaude(system, messages, maxTokens = 800) {
   }));
 
   const payload = {
-    systemInstruction: { parts: [{ text: system }] },
+    system_instruction: { parts: [{ text: system }] },
     contents: geminiContents,
     generationConfig: { maxOutputTokens: maxTokens }
   };
