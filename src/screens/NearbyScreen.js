@@ -7,6 +7,7 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
+import { BG as BG_THEME, CARD as CARD_THEME, PRIMARY as PRIMARY_THEME, SUBTEXT as SUBTEXT_THEME, TEXT as TEXT_THEME } from "../theme/colors";
 
 let MapView, Marker, PROVIDER_GOOGLE, Circle;
 if (Platform.OS !== "web") {
@@ -18,13 +19,13 @@ if (Platform.OS !== "web") {
 }
 
 const { width, height } = Dimensions.get("window");
-const SHEET_PEEK    = 220; // how many px the bottom sheet peeks up above the fold
-const BG            = "#0d0520";
-const CARD          = "#1a1130";
-const TEXT          = "#f1f0f5";
-const SUBTEXT       = "#9ca3af";
-const PRIMARY       = "#8b5cf6";
-const BORDER        = "rgba(139,92,246,0.2)";
+const SHEET_PEEK    = 220;
+const BG            = "#0d1117";
+const CARD          = "#161b22";
+const TEXT          = TEXT_THEME;
+const SUBTEXT       = SUBTEXT_THEME;
+const PRIMARY       = PRIMARY_THEME;
+const BORDER        = "rgba(255,255,255,0.06)";
 const GOOGLE_KEY    = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
 
 // ── Incident categories (for safety alerts on map) ──────────────────────────

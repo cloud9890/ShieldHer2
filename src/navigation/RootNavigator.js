@@ -22,7 +22,9 @@ import ProfileScreen     from "../screens/ProfileScreen";
 
 // API
 import { supabase } from "../api/supabase";
-import { COLORS } from "../theme/colors";
+import { BG, CARD, PRIMARY, BORDER, TEXT, SUBTEXT, MUTED } from "../theme/colors";
+
+const DARK_BG = "#0d1117";
 
 const Stack = createNativeStackNavigator();
 const navigationRef = createNavigationContainerRef();
@@ -31,19 +33,19 @@ const TAB_ORDER = ["Home", "Nearby", "Circle", "Vault", "More"];
 const DARK_HEADER = (title) => ({
   headerShown: true,
   title,
-  headerStyle: { backgroundColor: COLORS.BG },
-  headerTintColor: COLORS.SECONDARY,
-  headerTitleStyle: { color: COLORS.TEXT, fontWeight: "700", fontSize: 17 },
+  headerStyle: { backgroundColor: DARK_BG },
+  headerTintColor: PRIMARY,
+  headerTitleStyle: { color: TEXT, fontWeight: "700", fontSize: 17 },
   headerShadowVisible: false,
   headerBackTitle: "More",
 });
 
 const TABS = [
-  { name: "Home",   component: HomeScreen,      icon: "shield-outline",   activeIcon: "shield"    },
-  { name: "Nearby", component: NearbyScreen,    icon: "location-outline", activeIcon: "location"  },
-  { name: "Circle", component: SafeCircleScreen,icon: "people-outline",   activeIcon: "people"    },
-  { name: "Vault",  component: VaultScreen,     icon: "folder-outline",   activeIcon: "folder"    },
-  { name: "More",   component: MoreScreen,      icon: "grid-outline",     activeIcon: "grid"      },
+  { name: "Home",   component: HomeScreen,       icon: "shield-outline",   activeIcon: "shield"    },
+  { name: "Nearby", component: NearbyScreen,     icon: "location-outline", activeIcon: "location"  },
+  { name: "Circle", component: SafeCircleScreen, icon: "people-outline",   activeIcon: "people"    },
+  { name: "Vault",  component: VaultScreen,      icon: "folder-outline",   activeIcon: "folder"    },
+  { name: "More",   component: MoreScreen,       icon: "grid-outline",     activeIcon: "grid"      },
 ];
 
 function AuthStack() {
@@ -59,14 +61,14 @@ function TabNavigator() {
   return (
     <Tab.Navigator
       tabBarPosition="bottom"
-      sceneContainerStyle={{ backgroundColor: COLORS.BG }}
+      sceneContainerStyle={{ backgroundColor: DARK_BG }}
       detachInactiveScreens={false}
       screenOptions={({ route }) => ({
-        tabBarActiveTintColor:   COLORS.SECONDARY,
-        tabBarInactiveTintColor: COLORS.MUTED,
+        tabBarActiveTintColor:   PRIMARY,
+        tabBarInactiveTintColor: MUTED,
         tabBarStyle: {
-          backgroundColor: COLORS.DARK,
-          borderTopColor:  COLORS.BORDER,
+          backgroundColor: CARD,
+          borderTopColor:  BORDER,
           borderTopWidth:  1,
           height:          65,
           paddingBottom:   10,
@@ -135,8 +137,8 @@ export default function RootNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: COLORS.BG, justifyContent: "center" }}>
-        <ActivityIndicator color={COLORS.PRIMARY} size="large" />
+      <View style={{ flex: 1, backgroundColor: DARK_BG, justifyContent: "center" }}>
+        <ActivityIndicator color={PRIMARY} size="large" />
       </View>
     );
   }

@@ -3,14 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { analyzeHarassment, safetyChat } from "../api/claude";
-
-const BG      = "#0f0a1e";
-const CARD    = "#1a1130";
-const BORDER  = "rgba(139,92,246,0.18)";
-const PRIMARY = "#8b5cf6";
-const PINK    = "#ec4899";
-const TEXT    = "#f1f0f5";
-const SUBTEXT = "#9ca3af";
+import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT } from "../theme/colors";
 
 const SEV_CONFIG = {
   none:     { bg: "rgba(52,211,153,0.08)",  border: "rgba(52,211,153,0.25)",  color: "#34d399", icon: "checkmark-circle", label: "NONE"     },

@@ -2,26 +2,24 @@
 import { useState, useEffect, useRef } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated,
-  Alert, Vibration, ScrollView, Platform, Image
+  Alert, Vibration, ScrollView, Image, Platform
 } from "react-native";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 
-// API & Theme
 import { supabase } from "../api/supabase";
-import { COLORS } from "../theme/colors";
+import { BG, CARD, BORDER, PRIMARY, PINK, DANGER, SUCCESS, WARNING, TEXT, SUBTEXT, MUTED } from "../theme/colors";
 import {
   sendSOSAlert, startEvidenceRecording, registerForPushNotifications,
   startShakeDetection, stopShakeDetection, startBackgroundGuardian,
-  stopBackgroundGuardian, setGlobalShakeCallback
+  stopBackgroundGuardian, setGlobalShakeCallback,
+  startAutoDangerDetection, stopAutoDangerDetection, cancelAutoSOS,
 } from "../api/sos";
 
-// Components
-import SOSButton        from "../components/home/SOSButton";
-import ProfileModal     from "../components/home/ProfileModal";
-import GuardianBadge    from "../components/home/GuardianBadge";
-import FakeCallScreen   from "../components/home/FakeCallScreen";
+import SOSButton      from "../components/home/SOSButton";
+import FakeCallScreen from "../components/home/FakeCallScreen";
 
 const EMERGENCY_CONTACTS = [
   { name: "My Contact", phone: process.env.EXPO_PUBLIC_TWILIO_VERIFIED_NUMBER || "+918310661631" },
@@ -34,280 +32,351 @@ const COMMUNITY_ALERTS = [
 
 const AVATAR_COLORS = ["#7c3aed","#0ea5e9","#ec4899","#f59e0b","#10b981"];
 
+const DANGER_REASONS = {
+  impact:             "Sudden impact detected! Are you okay?",
+  panic_run:          "Rapid movement detected! Are you safe?",
+  forced_vehicle:     "High-speed movement at night detected!",
+  impact_confirmed:   "Auto-SOS triggered by impact detection.",
+  panic_run_confirmed:"Auto-SOS triggered by panic detection.",
+  forced_vehicle_confirmed: "Auto-SOS triggered by speed detection.",
+};
+
 export default function HomeScreen() {
-  const [sosActive, setSosActive]   = useState(false);
-  const [fakeCall, setFakeCall]     = useState(false);
-  const [guardianOn, setGuardianOn] = useState(true);
-  const [location, setLocation]     = useState(null);
-  
-  // Profile State
-  const [showProfile, setShowProfile] = useState(false);
-  const [profile, setProfile] = useState({ name: "User", phone: "" });
-  const [imageUri, setImageUri] = useState(null);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState({ name: "", phone: "" });
-  const [uploading, setUploading] = useState(false);
+  const navigation = useNavigation();
+  const [sosActive, setSosActive]     = useState(false);
+  const [fakeCall, setFakeCall]       = useState(false);
+  const [guardianOn, setGuardianOn]   = useState(true);
+  const [location, setLocation]       = useState(null);
+  const [profile, setProfile]         = useState({ name: "User", phone: "" });
+  const [imageUri, setImageUri]       = useState(null);
+  const [dangerAlert, setDangerAlert] = useState(null); // auto-danger warning modal
+  const [autoSOSCountdown, setAutoSOSCountdown] = useState(10);
 
   const pressProgress = useRef(new Animated.Value(0)).current;
   const pressAnim     = useRef(null);
-  const pulseAnim     = useRef(new Animated.Value(1)).current;
   const glowAnim      = useRef(new Animated.Value(0.4)).current;
+  // 3 concentric ring anims
+  const ring1 = useRef(new Animated.Value(1)).current;
+  const ring2 = useRef(new Animated.Value(1)).current;
+  const ring3 = useRef(new Animated.Value(1)).current;
+  const ringOpacity1 = useRef(new Animated.Value(0.6)).current;
+  const ringOpacity2 = useRef(new Animated.Value(0.4)).current;
+  const ringOpacity3 = useRef(new Animated.Value(0.2)).current;
+  const countdownRef = useRef(null);
 
   useEffect(() => {
     loadProfile();
     registerForPushNotifications().catch(() => {});
-    
-    // Global Animations
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.12, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1,    duration: 900, useNativeDriver: true }),
-      ])
-    );
-    const glow = Animated.loop(
+    startRingAnimations();
+    startGlowAnim();
+    return () => {
+      ring1.stopAnimation(); ring2.stopAnimation(); ring3.stopAnimation();
+      glowAnim.stopAnimation();
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, []);
+
+  const startRingAnimations = () => {
+    const makeRing = (scale, opacity, delay, duration) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.parallel([
+            Animated.timing(scale,   { toValue: 1.8, duration, useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 0,   duration, useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(scale,   { toValue: 1, duration: 0, useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 0.6 - delay / 5000, duration: 0, useNativeDriver: true }),
+          ]),
+        ])
+      );
+    makeRing(ring1, ringOpacity1, 0,    1600).start();
+    makeRing(ring2, ringOpacity2, 500,  1600).start();
+    makeRing(ring3, ringOpacity3, 1000, 1600).start();
+  };
+
+  const startGlowAnim = () => {
+    Animated.loop(
       Animated.sequence([
         Animated.timing(glowAnim, { toValue: 1,   duration: 1200, useNativeDriver: true }),
         Animated.timing(glowAnim, { toValue: 0.4, duration: 1200, useNativeDriver: true }),
       ])
-    );
-    pulse.start();
-    glow.start();
-    return () => { pulse.stop(); glow.stop(); };
-  }, []);
+    ).start();
+  };
 
-  // Shake detection sync
+  // Shake + auto-danger detection wiring
   useEffect(() => {
     const onShake = () => { Vibration.vibrate(200); activateSOS(); };
+    const onDanger = (reason, cancelFn) => {
+      if (reason.endsWith("_confirmed")) {
+        // Auto-SOS fires
+        activateSOS();
+        setDangerAlert(null);
+      } else {
+        // Show 10s countdown warning
+        setDangerAlert({ reason, cancelFn });
+        setAutoSOSCountdown(10);
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        countdownRef.current = setInterval(() => {
+          setAutoSOSCountdown(c => {
+            if (c <= 1) { clearInterval(countdownRef.current); return 0; }
+            return c - 1;
+          });
+        }, 1000);
+      }
+    };
+
     if (guardianOn) {
       setGlobalShakeCallback(onShake);
       startShakeDetection(onShake);
       startBackgroundGuardian(onShake);
+      startAutoDangerDetection(onDanger);
     } else {
       stopShakeDetection();
       stopBackgroundGuardian();
+      stopAutoDangerDetection();
+      setDangerAlert(null);
     }
+    return () => {
+      stopShakeDetection();
+      stopAutoDangerDetection();
+    };
   }, [guardianOn]);
 
   const loadProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-    if (data) {
-      setProfile({ name: data.name || "User", phone: data.phone || "" });
-      if (data.avatar_url) setImageUri(data.avatar_url);
-    }
-  };
-
-  const saveProfile = async () => {
-    if (!draft.name.trim()) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const u = { name: draft.name.trim(), phone: draft.phone.trim() };
-    const { error } = await supabase.from("profiles").upsert({ id: user.id, ...u, updated_at: new Date() });
-    if (!error) { setProfile(u); setEditing(false); }
-    else { Alert.alert("Error", error.message); }
-  };
-
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.5, allowsEditing: true, aspect: [1, 1] });
-    if (result.canceled || !result.assets?.length) return;
-    
-    setUploading(true);
     try {
-      const asset = result.assets[0];
       const { data: { user } } = await supabase.auth.getUser();
-      const ext = asset.uri.split(".").pop();
-      const filePath = `${user.id}/avatar.${ext}`;
-      const res = await fetch(asset.uri);
-      const buffer = await res.arrayBuffer();
-      
-      const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, buffer, { upsert: true });
-      if (uploadError) throw uploadError;
-
-      const { data: pubData } = supabase.storage.from("avatars").getPublicUrl(filePath);
-      await supabase.from("profiles").upsert({ id: user.id, avatar_url: pubData.publicUrl });
-      setImageUri(pubData.publicUrl + "?t=" + Date.now());
-    } catch (err) {
-      Alert.alert("Upload Failed", err.message);
-    } finally {
-      setUploading(false);
-    }
+      if (!user) return;
+      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+      if (data) {
+        setProfile({ name: data.name || "User", phone: data.phone || "" });
+        if (data.avatar_url) setImageUri(data.avatar_url);
+      }
+    } catch (_) {}
   };
 
   const activateSOS = async () => {
     Vibration.vibrate([0, 200, 100, 200]);
     let coords = null;
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status === "granted") {
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      coords = loc.coords;
-      setLocation(coords);
-    }
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === "granted") {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        coords = loc.coords;
+        setLocation(coords);
+      }
+    } catch (_) {}
     setSosActive(true);
-    // Pass coords directly so the SMS includes the actual live location
     sendSOSAlert(EMERGENCY_CONTACTS, "sos", coords).catch(e => console.error("SOS:", e));
     startEvidenceRecording().catch(() => {});
   };
 
+  const cancelDangerAlert = () => {
+    dangerAlert?.cancelFn?.();
+    cancelAutoSOS();
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setDangerAlert(null);
+  };
+
   const avatarColor = AVATAR_COLORS[(profile.name?.charCodeAt(0) || 0) % AVATAR_COLORS.length];
-  const initials = profile.name?.trim().split(" ").map(w => w[0] || "").join("").slice(0, 2).toUpperCase() || "SH";
+  const initials    = profile.name?.trim().split(" ").map(w => w[0] || "").join("").slice(0, 2).toUpperCase() || "SH";
+  const timeGreeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "GOOD MORNING,";
+    if (h < 17) return "GOOD AFTERNOON,";
+    return "GOOD EVENING,";
+  })();
 
-  // ── Render Helpers ────────────────────────────────────────
-
-  // Replace inline fake call with the premium component
+  // ── Render: Fake Call overlay ──────────────────────────────
   if (fakeCall) return (
-    <FakeCallScreen
-      callerName="Mom 💜"
-      onEnd={() => setFakeCall(false)}
-    />
+    <FakeCallScreen callerName="Mom 💜" onEnd={() => setFakeCall(false)} />
   );
 
+  // ── Render: SOS Active screen ──────────────────────────────
   if (sosActive) return (
     <View style={s.sosBg}>
       <Animated.View style={[s.sosGlow, { opacity: glowAnim }]} />
-      <Ionicons name="alert-circle" size={72} color={COLORS.DANGER} />
+      <Ionicons name="alert-circle" size={72} color={DANGER} />
       <Text style={s.sosActiveTitle}>SOS ACTIVATED</Text>
       <View style={s.sosActiveCard}>
-        {["Live location sent to contacts", "SMS alert dispatched", "Recording started", "Nearest police notified"]
+        {["Live location sent to contacts", "SMS alert dispatched", "Recording started", "Emergency services notified"]
           .map((t, i) => (
             <View key={i} style={s.sosItem}>
-              <Ionicons name="checkmark-circle" size={16} color={COLORS.SUCCESS} />
+              <Ionicons name="checkmark-circle" size={16} color={SUCCESS} />
               <Text style={s.sosItemText}>{t}</Text>
             </View>
           ))}
       </View>
-      {location && <Text style={s.sosCoords}><Ionicons name="location" size={12} color={COLORS.ACCENT} /> {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}</Text>}
+      {location && (
+        <Text style={s.sosCoords}>📍 {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}</Text>
+      )}
       <TouchableOpacity style={s.cancelSosBtn} onPress={() => { setSosActive(false); pressProgress.setValue(0); }}>
         <Text style={s.cancelSosBtnText}>I'm Safe — Cancel SOS</Text>
       </TouchableOpacity>
     </View>
   );
 
+  // ── Render: Auto-danger warning overlay ───────────────────
+  if (dangerAlert) return (
+    <View style={s.dangerBg}>
+      <View style={s.dangerCard}>
+        <Text style={s.dangerEmoji}>⚠️</Text>
+        <Text style={s.dangerTitle}>Danger Detected!</Text>
+        <Text style={s.dangerBody}>{DANGER_REASONS[dangerAlert.reason] || "Possible danger detected."}</Text>
+        <Text style={s.dangerCountdown}>Auto-SOS in {autoSOSCountdown}s</Text>
+        <TouchableOpacity style={s.dangerCancelBtn} onPress={cancelDangerAlert}>
+          <Text style={s.dangerCancelText}>I'm Safe — Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.dangerSOSBtn} onPress={() => { cancelDangerAlert(); activateSOS(); }}>
+          <Text style={s.dangerSOSText}>Activate SOS Now</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  // ── Main Screen ────────────────────────────────────────────
   return (
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={s.header}>
         <View style={s.headerInner}>
-          <View>
-            <Text style={s.greeting}>Good evening, {profile.name.split(" ")[0]}</Text>
-            <Text style={s.headerTitle}>Stay Safe <Ionicons name="heart" size={18} color={COLORS.PINK} /></Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.greeting}>{timeGreeting}</Text>
+            <Text style={s.headerTitle}>Stay Safe, {profile.name.split(" ")[0]} 💜</Text>
           </View>
-          <View style={s.headerRight}>
-            <View style={s.notifBtn}><Ionicons name="notifications" size={18} color={COLORS.PRIMARY} /></View>
-            <TouchableOpacity style={s.profileThumb} onPress={() => setShowProfile(true)}>
-              {imageUri ? (
-                <Image source={{ uri: imageUri }} style={s.thumbImg} />
-              ) : (
-                <View style={[s.thumbInitials, { backgroundColor: avatarColor + "22" }]}>
-                  <Text style={[s.thumbText, { color: avatarColor }]}>{initials}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={s.profileThumb}
+            onPress={() => navigation.navigate("Profile")}
+            activeOpacity={0.8}
+          >
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={s.thumbImg} />
+            ) : (
+              <View style={[s.thumbInitials, { backgroundColor: avatarColor + "22" }]}>
+                <Text style={[s.thumbText, { color: avatarColor }]}>{initials}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
-      <GuardianBadge 
-        guardianOn={guardianOn} 
-        onPress={() => setGuardianOn(!guardianOn)} 
-        pulseAnim={pulseAnim} 
-      />
-
-      <SOSButton 
-        onPressIn={() => {
-          pressAnim.current = Animated.timing(pressProgress, { toValue: 1, duration: 3000, useNativeDriver: false });
-          pressAnim.current.start(({ finished }) => { if (finished) activateSOS(); });
-        }}
-        onPressOut={() => {
-          pressAnim.current?.stop();
-          Animated.timing(pressProgress, { toValue: 0, duration: 200, useNativeDriver: false }).start();
-        }}
-        glowAnim={glowAnim}
-        pressProgress={pressProgress}
-      />
-
-      {/* Fake Call Button */}
-      <TouchableOpacity
-        style={s.fakeCallBtn}
-        onPress={() => setFakeCall(true)}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="call-outline" size={18} color="#34d399" />
-        <Text style={s.fakeCallBtnText}>Fake Call</Text>
+      {/* Guardian Mode Card */}
+      <TouchableOpacity style={[s.guardianCard, guardianOn && s.guardianCardActive]} onPress={() => setGuardianOn(g => !g)}>
+        <View style={s.guardianLeft}>
+          <View style={[s.guardianDot, { backgroundColor: guardianOn ? SUCCESS : SUBTEXT }]} />
+          <View>
+            <Text style={s.guardianTitle}>Guardian Mode</Text>
+            <Text style={s.guardianSub}>{guardianOn ? "Active & Monitoring" : "Tap to activate"}</Text>
+          </View>
+        </View>
+        {/* Toggle */}
+        <View style={[s.toggle, guardianOn && s.toggleActive]}>
+          <View style={[s.toggleThumb, guardianOn && s.toggleThumbActive]} />
+        </View>
       </TouchableOpacity>
 
-      {/* Alerts */}
-      <Text style={s.sectionLabel}>Community Alerts Nearby</Text>
+      {/* SOS Section */}
+      <View style={s.sosSection}>
+        {/* 3 concentric glow rings */}
+        <Animated.View style={[s.ring, s.ring3, { transform: [{ scale: ring3 }], opacity: ringOpacity3 }]} />
+        <Animated.View style={[s.ring, s.ring2, { transform: [{ scale: ring2 }], opacity: ringOpacity2 }]} />
+        <Animated.View style={[s.ring, s.ring1, { transform: [{ scale: ring1 }], opacity: ringOpacity1 }]} />
+
+        <SOSButton
+          onPressIn={() => {
+            pressAnim.current = Animated.timing(pressProgress, { toValue: 1, duration: 3000, useNativeDriver: false });
+            pressAnim.current.start(({ finished }) => { if (finished) activateSOS(); });
+          }}
+          onPressOut={() => {
+            pressAnim.current?.stop();
+            Animated.timing(pressProgress, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+          }}
+          glowAnim={glowAnim}
+          pressProgress={pressProgress}
+        />
+      </View>
+
+      {/* Fake Call Button */}
+      <TouchableOpacity style={s.fakeCallBtn} onPress={() => setFakeCall(true)} activeOpacity={0.8}>
+        <Ionicons name="call-outline" size={16} color={SUBTEXT} />
+        <Text style={s.fakeCallBtnText}>Trigger Fake Call</Text>
+      </TouchableOpacity>
+
+      {/* Community Alerts */}
+      <Text style={s.sectionLabel}>COMMUNITY ALERTS NEARBY</Text>
       {COMMUNITY_ALERTS.map((a, i) => (
-        <View key={i} style={s.alertCard}>
-          <View style={[s.alertDot, { backgroundColor: a.level === "red" ? COLORS.DANGER : COLORS.WARNING }]} />
+        <TouchableOpacity key={i} style={s.alertCard} activeOpacity={0.7}>
+          <View style={[s.alertDot, { backgroundColor: a.level === "red" ? DANGER : WARNING }]} />
           <View style={{ flex: 1 }}>
             <Text style={s.alertText}>{a.text}</Text>
             <Text style={s.alertTime}>{a.time}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={14} color={COLORS.MUTED} />
-        </View>
+          <Ionicons name="chevron-forward" size={14} color={MUTED} />
+        </TouchableOpacity>
       ))}
 
-      <ProfileModal 
-        visible={showProfile}
-        onClose={() => setShowProfile(false)}
-        profile={profile}
-        editing={editing}
-        setEditing={setEditing}
-        draft={draft}
-        setDraft={setDraft}
-        saveProfile={saveProfile}
-        imageUri={imageUri}
-        pickImage={pickImage}
-        uploading={uploading}
-        onSignOut={() => supabase.auth.signOut()}
-        avatarColor={avatarColor}
-        initials={initials}
-      />
-
-      <View style={{ height: 40 }} />
+      <View style={{ height: 50 }} />
     </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  container:        { flex: 1, backgroundColor: COLORS.BG },
-  header:           { backgroundColor: COLORS.HEADER, paddingTop: 56, paddingBottom: 24, paddingHorizontal: 20 },
-  headerInner:      { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  headerRight:      { flexDirection: "row", alignItems: "center", gap: 12 },
-  greeting:         { color: COLORS.PRIMARY, fontSize: 13, fontWeight: "700", textTransform: "uppercase" },
-  headerTitle:      { color: COLORS.TEXT, fontSize: 26, fontWeight: "800", marginTop: 2 },
-  notifBtn:         { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(139,92,246,0.1)", borderWidth: 1, borderColor: COLORS.BORDER, alignItems: "center", justifyContent: "center" },
-  profileThumb:     { width: 38, height: 38, borderRadius: 12, overflow: "hidden", borderWidth: 1.5, borderColor: COLORS.PRIMARY },
-  thumbImg:         { width: "100%", height: "100%" },
-  thumbInitials:    { width: "100%", height: "100%", alignItems: "center", justifyContent: "center" },
-  thumbText:        { fontSize: 14, fontWeight: "800" },
-
-  sectionLabel:     { fontSize: 10, color: COLORS.MUTED, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1.2, marginHorizontal: 20, marginBottom: 10, marginTop: 10 },
-  alertCard:        { backgroundColor: COLORS.CARD, marginHorizontal: 16, marginBottom: 8, borderRadius: 16, padding: 14, flexDirection: "row", gap: 12, alignItems: "center", borderWidth: 1, borderColor: COLORS.BORDER },
-  alertDot:         { width: 8, height: 8, borderRadius: 4 },
-  alertText:        { fontSize: 13, color: COLORS.TEXT },
-  alertTime:        { fontSize: 11, color: COLORS.SUBTEXT, marginTop: 2 },
-
-  sosBg:            { flex: 1, backgroundColor: "#1a0505", alignItems: "center", justifyContent: "center", padding: 24 },
-  sosGlow:          { position: "absolute", width: 300, height: 300, borderRadius: 150, backgroundColor: "rgba(220,38,38,0.15)", top: "25%" },
-  sosActiveTitle:   { color: "#fca5a5", fontSize: 26, fontWeight: "900", letterSpacing: 2, marginVertical: 20 },
-  sosActiveCard:    { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 18, padding: 20, width: "100%", gap: 12 },
-  sosItem:          { flexDirection: "row", alignItems: "center", gap: 10 },
-  sosItemText:      { color: "white", fontSize: 14 },
-  sosCoords:        { color: "#fca5a5", fontSize: 11, marginTop: 20 },
-  cancelSosBtn:     { backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 30, paddingVertical: 14, paddingHorizontal: 40, marginTop: 30, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
-  cancelSosBtnText: { color: "white", fontWeight: "700" },
-
-  fcBg:      { flex: 1, backgroundColor: "#080c10", alignItems: "center", justifyContent: "space-between", paddingVertical: 80 },
-  fcTop:     { alignItems: "center", gap: 12 },
-  fcAvatar:  { width: 100, height: 100, borderRadius: 50, backgroundColor: "#1a2332", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: COLORS.PRIMARY },
-  fcName:    { color: COLORS.TEXT, fontSize: 28, fontWeight: "700" },
-  fcSub:     { color: "#34d399", fontSize: 14 },
-  fcBtns:    { flexDirection: "row", gap: 60 },
-  fcBtn:     { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
-
-  fakeCallBtn:     { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginBottom: 6, marginTop: 2, backgroundColor: "rgba(52,211,153,0.08)", borderRadius: 16, paddingVertical: 12, borderWidth: 1, borderColor: "rgba(52,211,153,0.2)" },
-  fakeCallBtnText: { color: "#34d399", fontSize: 14, fontWeight: "700" },
+  container:          { flex: 1, backgroundColor: BG },
+  // Header
+  header:             { paddingTop: 54, paddingBottom: 20, paddingHorizontal: 20, backgroundColor: BG },
+  headerInner:        { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  greeting:           { fontSize: 11, color: SUBTEXT, fontWeight: "700", letterSpacing: 1.2 },
+  headerTitle:        { fontSize: 24, fontWeight: "800", color: TEXT, marginTop: 2 },
+  profileThumb:       { width: 42, height: 42, borderRadius: 14, overflow: "hidden", borderWidth: 1.5, borderColor: PRIMARY },
+  thumbImg:           { width: "100%", height: "100%" },
+  thumbInitials:      { width: "100%", height: "100%", alignItems: "center", justifyContent: "center" },
+  thumbText:          { fontSize: 15, fontWeight: "800" },
+  // Guardian card
+  guardianCard:       { marginHorizontal: 16, marginBottom: 8, backgroundColor: CARD, borderRadius: 18, paddingVertical: 14, paddingHorizontal: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: BORDER },
+  guardianCardActive: { borderColor: "rgba(34,197,94,0.3)" },
+  guardianLeft:       { flexDirection: "row", alignItems: "center", gap: 10 },
+  guardianDot:        { width: 10, height: 10, borderRadius: 5 },
+  guardianTitle:      { fontSize: 14, fontWeight: "700", color: TEXT },
+  guardianSub:        { fontSize: 11, color: SUBTEXT, marginTop: 1 },
+  toggle:             { width: 46, height: 26, borderRadius: 13, backgroundColor: MUTED, justifyContent: "center", paddingHorizontal: 3 },
+  toggleActive:       { backgroundColor: SUCCESS },
+  toggleThumb:        { width: 20, height: 20, borderRadius: 10, backgroundColor: "white", alignSelf: "flex-start" },
+  toggleThumbActive:  { alignSelf: "flex-end" },
+  // SOS section
+  sosSection:         { alignItems: "center", justifyContent: "center", paddingVertical: 20, position: "relative" },
+  ring:               { position: "absolute", borderRadius: 999, borderWidth: 1, borderColor: DANGER },
+  ring1:              { width: 200, height: 200 },
+  ring2:              { width: 250, height: 250 },
+  ring3:              { width: 300, height: 300 },
+  // Fake call btn
+  fakeCallBtn:        { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginTop: 4, marginBottom: 20, backgroundColor: CARD, borderRadius: 50, paddingVertical: 10, borderWidth: 1, borderColor: BORDER },
+  fakeCallBtnText:    { color: SUBTEXT, fontSize: 13, fontWeight: "600" },
+  // Alerts
+  sectionLabel:       { fontSize: 10, color: SUBTEXT, fontWeight: "700", letterSpacing: 1.2, marginHorizontal: 20, marginBottom: 8 },
+  alertCard:          { backgroundColor: CARD, marginHorizontal: 16, marginBottom: 8, borderRadius: 16, padding: 14, flexDirection: "row", gap: 12, alignItems: "center", borderWidth: 1, borderColor: BORDER },
+  alertDot:           { width: 8, height: 8, borderRadius: 4 },
+  alertText:          { fontSize: 13, color: TEXT, fontWeight: "500" },
+  alertTime:          { fontSize: 11, color: SUBTEXT, marginTop: 2 },
+  // SOS active screen
+  sosBg:              { flex: 1, backgroundColor: "#1a0505", alignItems: "center", justifyContent: "center", padding: 24 },
+  sosGlow:            { position: "absolute", width: 300, height: 300, borderRadius: 150, backgroundColor: "rgba(220,38,38,0.15)", top: "25%" },
+  sosActiveTitle:     { color: "#fca5a5", fontSize: 26, fontWeight: "900", letterSpacing: 2, marginVertical: 20 },
+  sosActiveCard:      { backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 18, padding: 20, width: "100%", gap: 12 },
+  sosItem:            { flexDirection: "row", alignItems: "center", gap: 10 },
+  sosItemText:        { color: "white", fontSize: 14 },
+  sosCoords:          { color: "#fca5a5", fontSize: 11, marginTop: 20 },
+  cancelSosBtn:       { backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 30, paddingVertical: 14, paddingHorizontal: 40, marginTop: 30, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
+  cancelSosBtnText:   { color: "white", fontWeight: "700" },
+  // Auto-danger overlay
+  dangerBg:           { flex: 1, backgroundColor: "rgba(13,11,23,0.97)", alignItems: "center", justifyContent: "center", padding: 24 },
+  dangerCard:         { backgroundColor: CARD, borderRadius: 24, padding: 28, width: "100%", alignItems: "center", borderWidth: 1, borderColor: "rgba(251,191,36,0.3)" },
+  dangerEmoji:        { fontSize: 48, marginBottom: 12 },
+  dangerTitle:        { fontSize: 22, fontWeight: "800", color: WARNING, marginBottom: 8 },
+  dangerBody:         { fontSize: 14, color: TEXT, textAlign: "center", lineHeight: 22, marginBottom: 16 },
+  dangerCountdown:    { fontSize: 32, fontWeight: "900", color: DANGER, marginBottom: 20 },
+  dangerCancelBtn:    { backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 14, paddingVertical: 13, paddingHorizontal: 30, marginBottom: 10, borderWidth: 1, borderColor: BORDER, width: "100%", alignItems: "center" },
+  dangerCancelText:   { color: TEXT, fontWeight: "700" },
+  dangerSOSBtn:       { backgroundColor: DANGER, borderRadius: 14, paddingVertical: 13, width: "100%", alignItems: "center" },
+  dangerSOSText:      { color: "white", fontWeight: "700", fontSize: 14 },
 });

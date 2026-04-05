@@ -6,7 +6,7 @@ import {
   Vibration, Dimensions, StatusBar, Platform
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+
 
 const { width, height } = Dimensions.get("window");
 
