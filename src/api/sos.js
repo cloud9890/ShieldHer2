@@ -353,10 +353,22 @@ export async function sendEscortSOS(contacts, sessionId, preFetchedCoords = null
 }
 
 export async function getCurrentLocation() {
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== "granted") throw new Error("Location permission denied");
-  const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-  return loc.coords;
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") throw new Error("Permission denied");
+    
+    let loc = await Location.getLastKnownPositionAsync({ maxAge: 15000 });
+    if (!loc) {
+      loc = await Location.getCurrentPositionAsync({ 
+        accuracy: Location.Accuracy.Balanced, 
+        timeout: 4000 
+      });
+    }
+    return loc.coords;
+  } catch (e) {
+    console.warn("GPS lock failed, sending SOS without exact location.", e.message);
+    return { latitude: 0, longitude: 0 }; // Fallback so SMS still sends!
+  }
 }
 
 function buildMessage(type, coords) {
