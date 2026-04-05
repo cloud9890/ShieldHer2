@@ -7,11 +7,6 @@ import { supabase } from "./supabase";
 
 const GUARDIAN_BG_TASK = "shieldher-guardian-bg";
 
-TaskManager.defineTask(GUARDIAN_BG_TASK, ({ data, error }) => {
-  if (error) return;
-  // This headless task keeps the JS thread alive natively so _shakeSub continues to receive hardware accelerometer events!
-});
-
 // Lazy-load Accelerometer only on native (web doesn't support it)
 const getAccelerometer = () => {
   if (Platform.OS === "web") return null;
