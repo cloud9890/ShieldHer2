@@ -18,9 +18,10 @@ import {
 } from "../api/sos";
 
 // Components
-import SOSButton from "../components/home/SOSButton";
-import ProfileModal from "../components/home/ProfileModal";
-import GuardianBadge from "../components/home/GuardianBadge";
+import SOSButton        from "../components/home/SOSButton";
+import ProfileModal     from "../components/home/ProfileModal";
+import GuardianBadge    from "../components/home/GuardianBadge";
+import FakeCallScreen   from "../components/home/FakeCallScreen";
 
 const EMERGENCY_CONTACTS = [
   { name: "My Contact", phone: process.env.EXPO_PUBLIC_TWILIO_VERIFIED_NUMBER || "+918310661631" },
@@ -135,13 +136,16 @@ export default function HomeScreen() {
 
   const activateSOS = async () => {
     Vibration.vibrate([0, 200, 100, 200]);
+    let coords = null;
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status === "granted") {
-      const loc = await Location.getCurrentPositionAsync({});
-      setLocation(loc.coords);
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      coords = loc.coords;
+      setLocation(coords);
     }
     setSosActive(true);
-    sendSOSAlert(EMERGENCY_CONTACTS, "sos").catch(e => console.error("SOS:", e));
+    // Pass coords directly so the SMS includes the actual live location
+    sendSOSAlert(EMERGENCY_CONTACTS, "sos", coords).catch(e => console.error("SOS:", e));
     startEvidenceRecording().catch(() => {});
   };
 
@@ -150,22 +154,12 @@ export default function HomeScreen() {
 
   // ── Render Helpers ────────────────────────────────────────
 
+  // Replace inline fake call with the premium component
   if (fakeCall) return (
-    <View style={s.fcBg}>
-      <View style={s.fcTop}>
-        <View style={s.fcAvatar}><Ionicons name="person-circle" size={72} color={COLORS.PRIMARY} /></View>
-        <Text style={s.fcName}>Mom</Text>
-        <Text style={s.fcSub}>Incoming Call…</Text>
-      </View>
-      <View style={s.fcBtns}>
-        <TouchableOpacity style={[s.fcBtn, { backgroundColor: COLORS.DANGER }]} onPress={() => setFakeCall(false)}>
-          <Ionicons name="call" size={28} color="white" style={{ transform: [{ rotate: "135deg" }] }} />
-        </TouchableOpacity>
-        <TouchableOpacity style={[s.fcBtn, { backgroundColor: COLORS.SUCCESS }]} onPress={() => setFakeCall(false)}>
-          <Ionicons name="call" size={28} color="white" />
-        </TouchableOpacity>
-      </View>
-    </View>
+    <FakeCallScreen
+      callerName="Mom 💜"
+      onEnd={() => setFakeCall(false)}
+    />
   );
 
   if (sosActive) return (
@@ -231,6 +225,16 @@ export default function HomeScreen() {
         glowAnim={glowAnim}
         pressProgress={pressProgress}
       />
+
+      {/* Fake Call Button */}
+      <TouchableOpacity
+        style={s.fakeCallBtn}
+        onPress={() => setFakeCall(true)}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="call-outline" size={18} color="#34d399" />
+        <Text style={s.fakeCallBtnText}>Fake Call</Text>
+      </TouchableOpacity>
 
       {/* Alerts */}
       <Text style={s.sectionLabel}>Community Alerts Nearby</Text>
@@ -303,4 +307,7 @@ const s = StyleSheet.create({
   fcSub:     { color: "#34d399", fontSize: 14 },
   fcBtns:    { flexDirection: "row", gap: 60 },
   fcBtn:     { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
+
+  fakeCallBtn:     { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginBottom: 6, marginTop: 2, backgroundColor: "rgba(52,211,153,0.08)", borderRadius: 16, paddingVertical: 12, borderWidth: 1, borderColor: "rgba(52,211,153,0.2)" },
+  fakeCallBtnText: { color: "#34d399", fontSize: 14, fontWeight: "700" },
 });
