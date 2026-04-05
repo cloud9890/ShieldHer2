@@ -38,8 +38,10 @@ export default function SafeCircleScreen() {
   const [selectedCat, setSelectedCat]   = useState(null);
   const [reportArea, setReportArea]     = useState("");
   const [location, setLocation]         = useState(null);
-  const timerRef  = useRef(null);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const timerRef    = useRef(null);
+  const watchRef    = useRef(null); // live location watcher during escort
+  const liveLocRef  = useRef(null); // latest live coords
+  const pulseAnim   = useRef(new Animated.Value(1)).current;
 
   // Load persisted data
   useEffect(() => {
@@ -65,6 +67,12 @@ export default function SafeCircleScreen() {
     setReports(newReports);
     await AsyncStorage.setItem("shieldher_reports", JSON.stringify(newReports));
   };
+
+  // Cleanup on unmount — stop live watcher if still active
+  useEffect(() => () => {
+    watchRef.current?.remove();
+    clearInterval(timerRef.current);
+  }, []);
 
   useEffect(() => {
     if (escortActive) {
@@ -93,8 +101,15 @@ export default function SafeCircleScreen() {
     Alert.alert("🚨 Trigger Emergency SOS?", "This will immediately SMS your live location map link to all saved contacts.", [
       { text: "Cancel", style: "cancel" },
       { text: "SEND SOS", style: "destructive", onPress: async () => {
-          Alert.alert("Processing", "Gathering location and dispatching...");
-          const res = await sendSOSAlert(contacts, "sos");
+          Alert.alert("Processing", "Gathering live location and dispatching...");
+          // Get fresh HIGH-accuracy GPS fix before sending
+          let coords = liveLocRef.current || null;
+          try {
+            const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+            coords = loc.coords;
+            setLocation(coords);
+          } catch {}
+          const res = await sendSOSAlert(contacts, "sos", coords);
           if (res.success) Alert.alert("SOS Dispatched", `Sent to ${res.sent} contacts.`);
           else Alert.alert("Error", res.error);
         }
@@ -110,22 +125,36 @@ export default function SafeCircleScreen() {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") { Alert.alert("Permission needed", "Location access is required."); return; }
     try {
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      // Get initial fix at HIGH accuracy
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      liveLocRef.current = loc.coords;
       setLocation(loc.coords);
       setEscortActive(true);
-      // Pass pre-fetched coords so sendSOSAlert doesn't fetch location a second time
+
+      // Send escort_start SMS with live coords
       const res = await sendSOSAlert(contacts, "escort_start", loc.coords);
-      if (!res.success) {
-        Alert.alert("SMS Error", `Could not notify contacts: ${res.error || "Unknown error"}`);
-      }
+      if (!res.success) Alert.alert("SMS Error", `Could not notify contacts: ${res.error || "Unknown error"}`);
+
+      // Start watchPositionAsync — keeps tracking live location throughout escort
+      watchRef.current = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 20 },
+        (newLoc) => {
+          liveLocRef.current = newLoc.coords;
+          setLocation(newLoc.coords);
+        }
+      );
     } catch (e) {
       Alert.alert("Error", e.message || "Could not start escort.");
     }
   };
 
   const endEscort = async () => {
+    // Stop live location watcher
+    watchRef.current?.remove();
+    watchRef.current = null;
     setEscortActive(false);
-    const res = await sendSOSAlert(contacts, "checkin");
+    // Send final check-in with the last known live coords
+    const res = await sendSOSAlert(contacts, "escort_end", liveLocRef.current);
     if (res.success) {
       Alert.alert("Safe Check-in Sent", `Notified ${res.sent} contact${res.sent !== 1 ? "s" : ""} that you arrived safely.`);
     } else {
