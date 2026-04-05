@@ -49,7 +49,11 @@ export async function callClaude(system, messages, maxTokens = 800) {
 
 export async function draftComplaint(incidentDetails) {
   const system = `You are an expert Indian pro-bono Lawyer specializing in Women's Rights (IPC & BNS). Draft a highly formal, strictly objective, and legally sound initial police complaint letter (FIR draft) based strictly on the provided details. Output ONLY the raw letter format starting with "To," and ending with the victim's placeholder signature block. Do not add conversational intro/outro text.`;
-  const messages = [{ role: "user", content: `Incident Details: ${incidentDetails}` }];
+  // Serialize object or string cleanly for the AI prompt
+  const details = typeof incidentDetails === "object"
+    ? Object.entries(incidentDetails).map(([k, v]) => `${k}: ${v}`).join("\n")
+    : incidentDetails;
+  const messages = [{ role: "user", content: `Incident Details:\n${details}` }];
   return await callClaude(system, messages, 600);
 }
 
