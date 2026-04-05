@@ -16,7 +16,9 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "ShieldHer needs your location to share it with your safety circle and analyze safe routes.",
-          "locationAlwaysAndWhenInUsePermission": "ShieldHer needs your location to share it with your safety circle and analyze safe routes."
+          "locationAlwaysAndWhenInUsePermission": "ShieldHer needs your location to share it with your safety circle and analyze safe routes.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       [
@@ -72,23 +74,8 @@
         "CAMERA",
         "VIBRATE",
         "RECEIVE_BOOT_COMPLETED",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "INTERNET",
-        "ACCESS_NETWORK_STATE",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "RECORD_AUDIO",
-        "CAMERA",
-        "VIBRATE",
-        "RECEIVE_BOOT_COMPLETED",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
       ],
       "runtimeVersion": "1.0.0"
     },
