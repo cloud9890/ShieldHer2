@@ -10,8 +10,9 @@ import { supabase } from "./supabase";
 const GUARDIAN_BG_TASK = "shieldher-guardian-bg";
 const BG_CHANNEL_ID    = "shieldher-guardian";
 const SOS_CATEGORY_ID  = "sos_guardian";
-const SUPABASE_URL     = process.env.EXPO_PUBLIC_SUPABASE_URL || "https://fklkcolgqaglrzukoslz.supabase.co";
-const SUPABASE_ANON_KEY= process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZrbGtjb2xncWFnbHJ6dWtvc2x6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NjE2MjIsImV4cCI6MjA5MDMzNzYyMn0.tqDS0SXcxNFaCN3jyV--tNlL9ptuiCLvk6ZiYJQuIg4";
+// Read credentials from env only — never hard-code secrets
+const SUPABASE_URL      = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 // ── Accelerometer lazy-loader ──────────────────────────────────────────────
 const getAccelerometer = () => {
@@ -100,6 +101,18 @@ export function startAutoDangerDetection(onDangerDetected) {
   _startNightSpeedWatch(onDangerDetected);
 }
 
+// 3. FORCED VEHICLE: GPS speed + night + sustained duration + acceleration anomaly
+// Anti-false-positive measures:
+//   • Must see high speed for FORCED_VEHICLE_CONSECUTIVE_READINGS consecutive updates (~3 min at 10s interval)
+//   • Must also detect an acceleration spike, ruling out smooth legitimate travel
+//   • Minimum 2-minute cooldown between triggers so alerts don’t cascade
+const FORCED_VEHICLE_COOLDOWN_MS = 2 * 60 * 1000;  // 2 minutes
+const FORCED_VEHICLE_CONSECUTIVE = 3;               // readings at high speed needed
+const FORCED_VEHICLE_ACCEL_SPIKE = 1.5;             // m/s² speed-change between GPS fixes
+let _forcedVehicleCount     = 0;
+let _forcedVehicleLastSpeed = 0;
+let _forcedVehicleLastAlert = 0;
+
 async function _startNightSpeedWatch(onDangerDetected) {
   try {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -108,12 +121,32 @@ async function _startNightSpeedWatch(onDangerDetected) {
       { accuracy: Location.Accuracy.Balanced, timeInterval: 10000, distanceInterval: 50 },
       (loc) => {
         const speed = loc.coords.speed || 0; // m/s
-        const kmh = speed * 3.6;
-        const hour = new Date().getHours();
-        // Night + moving > 80kmh = possible forced vehicle
-        if (kmh > 80 && (hour >= 23 || hour < 4)) {
-          triggerAutoSOS("forced_vehicle");
-        }
+        const kmh   = speed * 3.6;
+        const hour  = new Date().getHours();
+        const now   = Date.now();
+
+        // Gate 1: Night hours only (23:00 – 03:59)
+        const isNight = hour >= 23 || hour < 4;
+        if (!isNight) { _forcedVehicleCount = 0; return; }
+
+        // Gate 2: Speed threshold
+        if (kmh < 80) { _forcedVehicleCount = 0; _forcedVehicleLastSpeed = speed; return; }
+
+        // Gate 3: Acceleration anomaly — sudden jerky speed change rules out smooth Uber travel
+        const accelDelta = Math.abs(speed - _forcedVehicleLastSpeed); // m/s change since last fix
+        _forcedVehicleLastSpeed = speed;
+        if (accelDelta < FORCED_VEHICLE_ACCEL_SPIKE) return; // smooth travel — ignore
+
+        // Gate 4: Must sustain for multiple consecutive readings
+        _forcedVehicleCount++;
+        if (_forcedVehicleCount < FORCED_VEHICLE_CONSECUTIVE) return;
+
+        // Gate 5: Cooldown between alerts (prevent cascading triggers)
+        if (now - _forcedVehicleLastAlert < FORCED_VEHICLE_COOLDOWN_MS) return;
+
+        _forcedVehicleCount     = 0;
+        _forcedVehicleLastAlert = now;
+        triggerAutoSOS("forced_vehicle");
       }
     );
   } catch (_) {}
@@ -142,8 +175,12 @@ export function stopAutoDangerDetection() {
   _locationWatchForDanger?.remove();
   _locationWatchForDanger = null;
   cancelAutoSOS();
-  _panicStartTime = null;
-  _dangerCallback = null;
+  _panicStartTime          = null;
+  _dangerCallback          = null;
+  // Reset forced-vehicle counters so a fresh start is clean
+  _forcedVehicleCount      = 0;
+  _forcedVehicleLastSpeed  = 0;
+  _forcedVehicleLastAlert  = 0;
 }
 
 // ── Background Guardian ────────────────────────────────────────────────────
@@ -280,7 +317,7 @@ export async function startLocationWatch(onUpdate) {
   _locationSub = await Location.watchPositionAsync(
     {
       accuracy: Location.Accuracy.BestForNavigation,
-      timeInterval: 1000,       // every 1 second
+      timeInterval: 2000,       // every 2 seconds (matches escort SMS "Map updates every 2 seconds")
       distanceInterval: 1,      // or every 1 metre
     },
     async (loc) => {

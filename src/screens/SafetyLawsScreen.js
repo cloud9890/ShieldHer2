@@ -5,13 +5,7 @@ import {
   TextInput, Linking, Alert
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-
-const BG      = "#0f0a1e";
-const CARD    = "#1a1130";
-const BORDER  = "rgba(139,92,246,0.18)";
-const PRIMARY = "#8b5cf6";
-const TEXT    = "#f1f0f5";
-const SUBTEXT = "#9ca3af";
+import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT } from "../theme/colors";
 
 const LAWS = [
   {

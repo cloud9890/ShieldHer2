@@ -1,34 +1,30 @@
 // src/screens/HomeScreen.js
-import { useState, useEffect, useRef } from "react";
+// Main dashboard — SOS, Guardian Mode, Community Alerts, Quick Actions
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated,
   Alert, Vibration, ScrollView, Image, Platform
 } from "react-native";
 import * as Location from "expo-location";
-import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { supabase } from "../api/supabase";
 import { BG, CARD, BORDER, PRIMARY, PINK, DANGER, SUCCESS, WARNING, TEXT, SUBTEXT, MUTED } from "../theme/colors";
+import useAuth from "../hooks/useAuth";
+import useContacts from "../hooks/useContacts";
+import useCommunityReports from "../hooks/useCommunityReports";
 import {
-  sendSOSAlert, startEvidenceRecording, registerForPushNotifications,
+  sendSOSAlert, startEvidenceRecording, stopEvidenceRecording,
+  registerForPushNotifications,
   startShakeDetection, stopShakeDetection, startBackgroundGuardian,
   stopBackgroundGuardian, setGlobalShakeCallback,
   startAutoDangerDetection, stopAutoDangerDetection, cancelAutoSOS,
 } from "../api/sos";
 
-import SOSButton      from "../components/home/SOSButton";
-import FakeCallScreen from "../components/home/FakeCallScreen";
-
-const EMERGENCY_CONTACTS = [
-  { name: "My Contact", phone: process.env.EXPO_PUBLIC_TWILIO_VERIFIED_NUMBER || "+918310661631" },
-];
-
-const COMMUNITY_ALERTS = [
-  { text: "Poorly lit street on MG Road",           time: "12 min ago", level: "orange" },
-  { text: "Suspicious activity near Sector 14 park", time: "1 hr ago",  level: "red"    },
-];
+import SOSButton       from "../components/home/SOSButton";
+import GuardianBadge   from "../components/home/GuardianBadge";
+import FakeCallScreen  from "../components/home/FakeCallScreen";
 
 const AVATAR_COLORS = ["#7c3aed","#0ea5e9","#ec4899","#f59e0b","#10b981"];
 
@@ -41,21 +37,41 @@ const DANGER_REASONS = {
   forced_vehicle_confirmed: "Auto-SOS triggered by speed detection.",
 };
 
+const REPORT_CATEGORIES = {
+  "Suspicious Person": { icon: "eye-outline", color: "#f87171" },
+  "Poor Lighting":     { icon: "flashlight-outline", color: "#fbbf24" },
+  "Unsafe Area":       { icon: "warning-outline", color: "#fb923c" },
+  "Harassment":        { icon: "megaphone-outline", color: "#f472b6" },
+  "Other":             { icon: "alert-circle-outline", color: "#a78bfa" },
+};
+
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+
+  // ✅ Data hooks (replace inline Supabase + AsyncStorage calls)
+  const { profile: authProfile, user }  = useAuth();
+  const { contacts: circleContacts }    = useContacts();
+  const { reports: communityAlerts }    = useCommunityReports(5);
+
   const [sosActive, setSosActive]     = useState(false);
   const [fakeCall, setFakeCall]       = useState(false);
   const [guardianOn, setGuardianOn]   = useState(true);
   const [location, setLocation]       = useState(null);
   const [profile, setProfile]         = useState({ name: "User", phone: "" });
   const [imageUri, setImageUri]       = useState(null);
-  const [dangerAlert, setDangerAlert] = useState(null); // auto-danger warning modal
+  const [dangerAlert, setDangerAlert] = useState(null);
   const [autoSOSCountdown, setAutoSOSCountdown] = useState(10);
+
+  // Derive SOS contacts from Supabase-backed circle (falls back to env)
+  const sosContacts = circleContacts.length > 0
+    ? circleContacts.map(c => ({ name: c.name, phone: c.phone }))
+    : [{ name: "Emergency", phone: process.env.EXPO_PUBLIC_TWILIO_VERIFIED_NUMBER || "+918310661631" }];
 
   const pressProgress = useRef(new Animated.Value(0)).current;
   const pressAnim     = useRef(null);
   const glowAnim      = useRef(new Animated.Value(0.4)).current;
-  // 3 concentric ring anims
+  const pulseAnim     = useRef(new Animated.Value(1)).current;
   const ring1 = useRef(new Animated.Value(1)).current;
   const ring2 = useRef(new Animated.Value(1)).current;
   const ring3 = useRef(new Animated.Value(1)).current;
@@ -64,17 +80,27 @@ export default function HomeScreen() {
   const ringOpacity3 = useRef(new Animated.Value(0.2)).current;
   const countdownRef = useRef(null);
 
+  // Sync profile data from auth hook
   useEffect(() => {
-    loadProfile();
+    if (authProfile) {
+      setProfile({ name: authProfile.name || "User", phone: authProfile.phone || "" });
+      if (authProfile.avatar_url) setImageUri(authProfile.avatar_url);
+      setGuardianOn(authProfile.guard_on ?? true);
+    }
+  }, [authProfile]);
+
+  useEffect(() => {
     registerForPushNotifications().catch(() => {});
     startRingAnimations();
     startGlowAnim();
+    startPulseAnim();
     return () => {
       ring1.stopAnimation(); ring2.stopAnimation(); ring3.stopAnimation();
-      glowAnim.stopAnimation();
+      glowAnim.stopAnimation(); pulseAnim.stopAnimation();
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
   }, []);
+
 
   const startRingAnimations = () => {
     const makeRing = (scale, opacity, delay, duration) =>
@@ -105,16 +131,23 @@ export default function HomeScreen() {
     ).start();
   };
 
-  // Shake + auto-danger detection wiring
+  const startPulseAnim = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.3, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1,   duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  };
+
+  // ── Shake + auto-danger detection wiring ────────────────────────────────
   useEffect(() => {
     const onShake = () => { Vibration.vibrate(200); activateSOS(); };
     const onDanger = (reason, cancelFn) => {
       if (reason.endsWith("_confirmed")) {
-        // Auto-SOS fires
         activateSOS();
         setDangerAlert(null);
       } else {
-        // Show 10s countdown warning
         setDangerAlert({ reason, cancelFn });
         setAutoSOSCountdown(10);
         if (countdownRef.current) clearInterval(countdownRef.current);
@@ -144,18 +177,7 @@ export default function HomeScreen() {
     };
   }, [guardianOn]);
 
-  const loadProfile = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-      if (data) {
-        setProfile({ name: data.name || "User", phone: data.phone || "" });
-        if (data.avatar_url) setImageUri(data.avatar_url);
-      }
-    } catch (_) {}
-  };
-
+  // ── SOS Activation ──────────────────────────────────────────────────────
   const activateSOS = async () => {
     Vibration.vibrate([0, 200, 100, 200]);
     let coords = null;
@@ -168,8 +190,48 @@ export default function HomeScreen() {
       }
     } catch (_) {}
     setSosActive(true);
-    sendSOSAlert(EMERGENCY_CONTACTS, "sos", coords).catch(e => console.error("SOS:", e));
+    sendSOSAlert(sosContacts, "sos", coords).catch(e => console.error("SOS:", e));
     startEvidenceRecording().catch(() => {});
+  };
+
+  // ── Cancel SOS + auto-save recording to Vault ───────────────────────────
+  const cancelSOS = async () => {
+    setSosActive(false);
+    pressProgress.setValue(0);
+    // Try to stop recording and save to Vault
+    try {
+      const recordingUri = await stopEvidenceRecording();
+      if (recordingUri) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Upload audio to evidence bucket
+          const fileName = `${user.id}/sos_audio_${Date.now()}.m4a`;
+          const res = await fetch(recordingUri);
+          const buffer = await res.arrayBuffer();
+          const { error: upErr } = await supabase.storage
+            .from("evidence")
+            .upload(fileName, buffer, { contentType: "audio/mp4", upsert: false });
+
+          let mediaUrl = null;
+          if (!upErr) {
+            const { data: urlData } = supabase.storage.from("evidence").getPublicUrl(fileName);
+            mediaUrl = urlData?.publicUrl || null;
+          }
+
+          // Create incident record
+          await supabase.from("incidents").insert({
+            user_id: user.id,
+            type: "SOS Recording",
+            description: "Auto-saved audio recording from SOS activation.",
+            location: location ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}` : null,
+            media_url: mediaUrl,
+          });
+          Alert.alert("📁 Recording Saved", "The SOS audio recording has been saved to your Evidence Vault.");
+        }
+      }
+    } catch (e) {
+      console.warn("Auto-save recording:", e.message);
+    }
   };
 
   const cancelDangerAlert = () => {
@@ -179,6 +241,19 @@ export default function HomeScreen() {
     setDangerAlert(null);
   };
 
+  // ── Toggle guardian + persist ───────────────────────────────────────────
+  const toggleGuardian = async () => {
+    const next = !guardianOn;
+    setGuardianOn(next);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("profiles").upsert({ id: user.id, guard_on: next, updated_at: new Date() });
+      }
+    } catch (_) {}
+  };
+
+  // ── Derived values ──────────────────────────────────────────────────────
   const avatarColor = AVATAR_COLORS[(profile.name?.charCodeAt(0) || 0) % AVATAR_COLORS.length];
   const initials    = profile.name?.trim().split(" ").map(w => w[0] || "").join("").slice(0, 2).toUpperCase() || "SH";
   const timeGreeting = (() => {
@@ -187,6 +262,18 @@ export default function HomeScreen() {
     if (h < 17) return "GOOD AFTERNOON,";
     return "GOOD EVENING,";
   })();
+
+  const formatTimeAgo = (iso) => {
+    try {
+      const diff = Date.now() - new Date(iso).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return "Just now";
+      if (mins < 60) return `${mins} min ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs} hr ago`;
+      return `${Math.floor(hrs / 24)}d ago`;
+    } catch { return ""; }
+  };
 
   // ── Render: Fake Call overlay ──────────────────────────────
   if (fakeCall) return (
@@ -211,7 +298,7 @@ export default function HomeScreen() {
       {location && (
         <Text style={s.sosCoords}>📍 {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}</Text>
       )}
-      <TouchableOpacity style={s.cancelSosBtn} onPress={() => { setSosActive(false); pressProgress.setValue(0); }}>
+      <TouchableOpacity style={s.cancelSosBtn} onPress={cancelSOS}>
         <Text style={s.cancelSosBtnText}>I'm Safe — Cancel SOS</Text>
       </TouchableOpacity>
     </View>
@@ -238,8 +325,8 @@ export default function HomeScreen() {
   // ── Main Screen ────────────────────────────────────────────
   return (
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      <View style={s.header}>
+      {/* Header — paddingTop from safe area insets (notch-safe) */}
+      <View style={[s.header, { paddingTop: insets.top + 10 }]}>
         <View style={s.headerInner}>
           <View style={{ flex: 1 }}>
             <Text style={s.greeting}>{timeGreeting}</Text>
@@ -261,24 +348,15 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Guardian Mode Card */}
-      <TouchableOpacity style={[s.guardianCard, guardianOn && s.guardianCardActive]} onPress={() => setGuardianOn(g => !g)}>
-        <View style={s.guardianLeft}>
-          <View style={[s.guardianDot, { backgroundColor: guardianOn ? SUCCESS : SUBTEXT }]} />
-          <View>
-            <Text style={s.guardianTitle}>Guardian Mode</Text>
-            <Text style={s.guardianSub}>{guardianOn ? "Active & Monitoring" : "Tap to activate"}</Text>
-          </View>
-        </View>
-        {/* Toggle */}
-        <View style={[s.toggle, guardianOn && s.toggleActive]}>
-          <View style={[s.toggleThumb, guardianOn && s.toggleThumbActive]} />
-        </View>
-      </TouchableOpacity>
+      {/* Guardian Mode — now uses extracted component */}
+      <GuardianBadge
+        guardianOn={guardianOn}
+        onPress={toggleGuardian}
+        pulseAnim={pulseAnim}
+      />
 
       {/* SOS Section */}
       <View style={s.sosSection}>
-        {/* 3 concentric glow rings */}
         <Animated.View style={[s.ring, s.ring3, { transform: [{ scale: ring3 }], opacity: ringOpacity3 }]} />
         <Animated.View style={[s.ring, s.ring2, { transform: [{ scale: ring2 }], opacity: ringOpacity2 }]} />
         <Animated.View style={[s.ring, s.ring1, { transform: [{ scale: ring1 }], opacity: ringOpacity1 }]} />
@@ -303,18 +381,28 @@ export default function HomeScreen() {
         <Text style={s.fakeCallBtnText}>Trigger Fake Call</Text>
       </TouchableOpacity>
 
-      {/* Community Alerts */}
+      {/* Community Alerts — now from Supabase */}
       <Text style={s.sectionLabel}>COMMUNITY ALERTS NEARBY</Text>
-      {COMMUNITY_ALERTS.map((a, i) => (
-        <TouchableOpacity key={i} style={s.alertCard} activeOpacity={0.7}>
-          <View style={[s.alertDot, { backgroundColor: a.level === "red" ? DANGER : WARNING }]} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.alertText}>{a.text}</Text>
-            <Text style={s.alertTime}>{a.time}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={14} color={MUTED} />
-        </TouchableOpacity>
-      ))}
+      {communityAlerts.length === 0 ? (
+        <View style={s.alertCard}>
+          <Ionicons name="shield-checkmark-outline" size={18} color={SUBTEXT} />
+          <Text style={[s.alertText, { color: SUBTEXT }]}>No reports nearby — all clear!</Text>
+        </View>
+      ) : (
+        communityAlerts.map((a, i) => {
+          const cat = REPORT_CATEGORIES[a.category] || REPORT_CATEGORIES["Other"];
+          return (
+            <TouchableOpacity key={a.id || i} style={s.alertCard} activeOpacity={0.7}>
+              <View style={[s.alertDot, { backgroundColor: cat.color }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.alertText}>{a.category}{a.note ? ` — ${a.note}` : ""}</Text>
+                <Text style={s.alertTime}>{formatTimeAgo(a.created_at)}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color={MUTED} />
+            </TouchableOpacity>
+          );
+        })
+      )}
 
       <View style={{ height: 50 }} />
     </ScrollView>
@@ -323,8 +411,8 @@ export default function HomeScreen() {
 
 const s = StyleSheet.create({
   container:          { flex: 1, backgroundColor: BG },
-  // Header
-  header:             { paddingTop: 54, paddingBottom: 20, paddingHorizontal: 20, backgroundColor: BG },
+  // Header — paddingTop uses safe area insets set dynamically in component
+  header:             { paddingBottom: 20, paddingHorizontal: 20, backgroundColor: BG },
   headerInner:        { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   greeting:           { fontSize: 11, color: SUBTEXT, fontWeight: "700", letterSpacing: 1.2 },
   headerTitle:        { fontSize: 24, fontWeight: "800", color: TEXT, marginTop: 2 },
@@ -332,17 +420,6 @@ const s = StyleSheet.create({
   thumbImg:           { width: "100%", height: "100%" },
   thumbInitials:      { width: "100%", height: "100%", alignItems: "center", justifyContent: "center" },
   thumbText:          { fontSize: 15, fontWeight: "800" },
-  // Guardian card
-  guardianCard:       { marginHorizontal: 16, marginBottom: 8, backgroundColor: CARD, borderRadius: 18, paddingVertical: 14, paddingHorizontal: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: BORDER },
-  guardianCardActive: { borderColor: "rgba(34,197,94,0.3)" },
-  guardianLeft:       { flexDirection: "row", alignItems: "center", gap: 10 },
-  guardianDot:        { width: 10, height: 10, borderRadius: 5 },
-  guardianTitle:      { fontSize: 14, fontWeight: "700", color: TEXT },
-  guardianSub:        { fontSize: 11, color: SUBTEXT, marginTop: 1 },
-  toggle:             { width: 46, height: 26, borderRadius: 13, backgroundColor: MUTED, justifyContent: "center", paddingHorizontal: 3 },
-  toggleActive:       { backgroundColor: SUCCESS },
-  toggleThumb:        { width: 20, height: 20, borderRadius: 10, backgroundColor: "white", alignSelf: "flex-start" },
-  toggleThumbActive:  { alignSelf: "flex-end" },
   // SOS section
   sosSection:         { alignItems: "center", justifyContent: "center", paddingVertical: 20, position: "relative" },
   ring:               { position: "absolute", borderRadius: 999, borderWidth: 1, borderColor: DANGER },

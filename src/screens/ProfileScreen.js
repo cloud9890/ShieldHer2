@@ -8,13 +8,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../api/supabase";
+import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT } from "../theme/colors";
+import useToast from "../hooks/useToast";
 
-const BG      = "#0f0a1e";
-const CARD    = "#1a1130";
-const BORDER  = "rgba(139,92,246,0.18)";
-const PRIMARY = "#8b5cf6";
-const TEXT    = "#f1f0f5";
-const SUBTEXT = "#9ca3af";
 const VERSION = "1.0.0";
 const AVATAR_COLORS = ["#7c3aed","#0ea5e9","#ec4899","#f59e0b","#10b981"];
 
@@ -26,59 +22,75 @@ export default function ProfileScreen() {
   const [shakeOn,  setShakeOn]  = useState(true);
   const [notifOn,  setNotifOn]  = useState(true);
   const [guardOn,  setGuardOn]  = useState(true);
+  const [biometricOn, setBiometricOn] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const { showToast, ToastComponent } = useToast();
 
   useEffect(() => {
     loadProfile();
   }, []);
 
   const loadProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    if (data) {
-      setProfile({ name: data.name || "Your Name", phone: data.phone || "+91-" });
-      setShakeOn(data.shake_on ?? true);
-      setNotifOn(data.notif_on ?? true);
-      setGuardOn(data.guard_on ?? true);
-      if (data.avatar_url) setImageUri(data.avatar_url);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      if (error && error.code !== "PGRST116") throw error; // PGRST116 = no row (new user)
+      if (data) {
+        setProfile({ name: data.name || "Your Name", phone: data.phone || "+91-" });
+        setShakeOn(data.shake_on ?? true);
+        setNotifOn(data.notif_on ?? true);
+        setGuardOn(data.guard_on ?? true);
+        setBiometricOn(data.biometric_on ?? false);
+        if (data.avatar_url) setImageUri(data.avatar_url);
+      }
+    } catch (e) {
+      console.error("loadProfile:", e.message);
+      showToast("Could not load profile. Pull down to retry.", "error");
     }
   };
 
   // ── Profile save ─────────────────────────────────────────────────────────
   const save = async () => {
-    if (!draft.name.trim()) { Alert.alert("Name cannot be empty."); return; }
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const u = { name: draft.name.trim(), phone: draft.phone.trim() };
-    
-    const { error } = await supabase
-      .from("profiles")
-      .upsert({ id: user.id, ...u, updated_at: new Date() });
-
-    if (error) {
-      Alert.alert("Error saving profile", error.message);
-    } else {
+    if (!draft.name.trim()) { showToast("Name cannot be empty.", "warning"); return; }
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not signed in.");
+      const u = { name: draft.name.trim(), phone: draft.phone.trim() };
+      const { error } = await supabase
+        .from("profiles")
+        .upsert({ id: user.id, ...u, updated_at: new Date() });
+      if (error) throw error;
       setProfile(u);
       setEditing(false);
+      showToast("Profile saved to cloud ✓", "success");
+    } catch (e) {
+      showToast(e.message || "Could not save profile.", "error");
+    } finally {
+      setSaving(false);
     }
   };
 
   const saveSetting = async (key, val) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    
-    await supabase
-      .from("profiles")
-      .upsert({ id: user.id, [key]: val, updated_at: new Date() });
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase
+        .from("profiles")
+        .upsert({ id: user.id, [key]: val, updated_at: new Date() });
+      if (error) throw error;
+    } catch (e) {
+      // Toggle failure: revert the switch state by reloading settings
+      console.error("saveSetting:", e.message);
+      showToast("Setting could not be saved. Check your connection.", "warning");
+      loadProfile(); // revert UI to persisted state
+    }
   };
 
   // ── Photo upload (Supabase Storage) ──────────────────────────────────────
@@ -151,14 +163,32 @@ export default function ProfileScreen() {
   };
 
   const removePhoto = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from("profiles").upsert({ id: user.id, avatar_url: null });
-    setImageUri(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase.from("profiles").upsert({ id: user.id, avatar_url: null });
+      if (error) throw error;
+      setImageUri(null);
+      showToast("Profile photo removed.", "info");
+    } catch (e) {
+      showToast(e.message || "Could not remove photo.", "error");
+    }
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
+  const signOut = () => {
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Sign Out", style: "destructive",
+        onPress: async () => {
+          try {
+            await supabase.auth.signOut();
+          } catch (e) {
+            showToast("Sign out failed. Try again.", "error");
+          }
+        },
+      },
+    ]);
   };
 
   // ── Derived ──────────────────────────────────────────────────────────────
@@ -222,9 +252,11 @@ export default function ProfileScreen() {
               <Ionicons name="call-outline" size={15} color={SUBTEXT} />
               <TextInput style={s.input} value={draft.phone} onChangeText={v => setDraft(d => ({ ...d, phone: v }))} placeholder="+91-XXXXXXXXXX" placeholderTextColor="#4b5563" keyboardType="phone-pad" />
             </View>
-            <TouchableOpacity style={s.saveBtn} onPress={save}>
-              <Ionicons name="cloud-done" size={16} color="white" />
-              <Text style={s.saveBtnText}>Save to Cloud</Text>
+            <TouchableOpacity style={[s.saveBtn, saving && { opacity: 0.6 }]} onPress={save} disabled={saving}>
+              {saving
+                ? <ActivityIndicator color="white" size="small" />
+                : <><Ionicons name="cloud-done" size={16} color="white" /><Text style={s.saveBtnText}>Save to Cloud</Text></>
+              }
             </TouchableOpacity>
           </View>
         ) : (
@@ -246,8 +278,11 @@ export default function ProfileScreen() {
         <Row icon="notifications-outline" color="#f59e0b" label="Push Notifications" right={
             <Switch value={notifOn} onValueChange={v => { setNotifOn(v); saveSetting("notif_on", v); }} trackColor={{ true: PRIMARY + "80" }} thumbColor={notifOn ? PRIMARY : "#6b7280"} />
           } />
-        <Row icon="eye-outline" color="#34d399" label="Guardian Mode" last right={
+        <Row icon="eye-outline" color="#34d399" label="Guardian Mode" right={
             <Switch value={guardOn} onValueChange={v => { setGuardOn(v); saveSetting("guard_on", v); }} trackColor={{ true: "#34d39980" }} thumbColor={guardOn ? "#34d399" : "#6b7280"} />
+          } />
+        <Row icon="finger-print" color="#8b5cf6" label="Biometric Vault Lock" sub="Require fingerprint to open Vault" last right={
+            <Switch value={biometricOn} onValueChange={v => { setBiometricOn(v); saveSetting("biometric_on", v); }} trackColor={{ true: PRIMARY + "80" }} thumbColor={biometricOn ? PRIMARY : "#6b7280"} />
           } />
       </Card>
 
@@ -256,6 +291,7 @@ export default function ProfileScreen() {
       </Card>
 
       <View style={{ height: 40 }} />
+      <ToastComponent />
     </ScrollView>
   );
 }

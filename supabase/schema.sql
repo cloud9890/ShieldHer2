@@ -6,14 +6,15 @@
 -- 1. PROFILES
 -- ─────────────────────────────────────────────────────────────────────────────
 create table if not exists public.profiles (
-  id          uuid references auth.users not null primary key,
-  name        text,
-  phone       text,
-  shake_on    boolean default true,
-  notif_on    boolean default true,
-  guard_on    boolean default true,
-  avatar_url  text,
-  updated_at  timestamptz default now()
+  id           uuid references auth.users not null primary key,
+  name         text,
+  phone        text,
+  shake_on     boolean default true,
+  notif_on     boolean default true,
+  guard_on     boolean default true,
+  biometric_on boolean default false,   -- ✅ ADDED: vault biometric lock toggle
+  avatar_url   text,
+  updated_at   timestamptz default now()
 );
 
 alter table public.profiles enable row level security;
@@ -23,6 +24,9 @@ create policy "Users insert own profile" on profiles for insert with check (auth
 create policy "Users update own profile" on profiles for update using (auth.uid() = id);
 
 alter publication supabase_realtime add table profiles;
+
+-- Migration for existing databases: add biometric_on if missing
+alter table public.profiles add column if not exists biometric_on boolean default false;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -48,7 +52,26 @@ create policy "Users delete own incidents" on incidents for delete  using (auth.
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 3. LIVE SESSIONS (Real-time escort location tracking)
+-- 3. CONTACTS (SafeCircle — replaces AsyncStorage, survives reinstalls)
+-- ─────────────────────────────────────────────────────────────────────────────
+create table if not exists public.contacts (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid references auth.users not null,
+  name       text not null,
+  phone      text not null,
+  relation   text,
+  created_at timestamptz default now()
+);
+
+alter table public.contacts enable row level security;
+
+create policy "Users see own contacts"    on contacts for select  using (auth.uid() = user_id);
+create policy "Users insert own contacts" on contacts for insert  with check (auth.uid() = user_id);
+create policy "Users delete own contacts" on contacts for delete  using (auth.uid() = user_id);
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 4. LIVE SESSIONS (Real-time escort location tracking)
 -- ─────────────────────────────────────────────────────────────────────────────
 create table if not exists public.live_sessions (
   id          uuid primary key default gen_random_uuid(),
@@ -70,9 +93,24 @@ create policy "Owner update live session"    on live_sessions for update  using 
 -- Enable realtime so the track web page gets instant updates without polling
 alter publication supabase_realtime add table live_sessions;
 
+-- TODO: Add a pg_cron job or Edge Function to purge sessions where
+--       is_active = false AND updated_at < now() - interval '24 hours'
+
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 4. STORAGE BUCKETS
+-- 5. COMMUNITY REPORTS
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (Created by community_reports_migration.sql — reproduced here for completeness)
+-- create table if not exists public.community_reports ( ... );
+
+-- ✅ Performance index — speeds up the common "latest reports" query used
+--    by HomeScreen, NearbyScreen, and SafeCircleScreen
+create index if not exists idx_community_reports_created
+  on public.community_reports (created_at desc);
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 6. STORAGE BUCKETS
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- Avatar bucket (public — profile pictures)
@@ -108,3 +146,5 @@ create policy "Authenticated users can upload evidence"
 create policy "Owner can delete evidence"
   on storage.objects for delete
   using (bucket_id = 'evidence' and auth.uid()::text = (storage.foldername(name))[1]);
+
+

@@ -2,6 +2,7 @@
 import "react-native-gesture-handler"; 
 import React from "react";
 import RootNavigator from "./src/navigation/RootNavigator";
+import ErrorBoundary from "./src/components/common/ErrorBoundary";
 
 /**
  * ShieldHer: Modular Architecture Root
@@ -9,5 +10,9 @@ import RootNavigator from "./src/navigation/RootNavigator";
  * for better maintainability and professional codebase presentation.
  */
 export default function App() {
-  return <RootNavigator />;
+  return (
+    <ErrorBoundary>
+      <RootNavigator />
+    </ErrorBoundary>
+  );
 }

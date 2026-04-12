@@ -16,13 +16,11 @@ if (Platform.OS !== "web") {
   Polyline = Maps.Polyline;
 }
 
+import { PRIMARY, TEXT, SUBTEXT, PINK } from "../theme/colors";
+
 const BG      = "#0f0a1e";
 const CARD    = "#1a1130";
 const BORDER  = "rgba(139,92,246,0.18)";
-const PRIMARY = "#8b5cf6";
-const TEXT    = "#f1f0f5";
-const SUBTEXT = "#9ca3af";
-const PINK    = "#ec4899";
 
 const GOOGLE_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
 const SAFE_SPOT_ICONS = { police: "shield-half-outline", hospital: "medkit-outline", store: "cart-outline" };

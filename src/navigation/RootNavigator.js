@@ -1,11 +1,11 @@
 // src/navigation/RootNavigator.js
-import React, { useState, useEffect, useRef } from "react";
-import { View, PanResponder, ActivityIndicator } from "react-native";
-import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
+import React, { useState, useEffect } from "react";
+import { View, ActivityIndicator } from "react-native";
+import { NavigationContainer } from "@react-navigation/native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
-import { createNativeStackNavigator }   from "@react-navigation/native-stack";
-import { Ionicons }                     from "@expo/vector-icons";
-import { StatusBar }                    from "expo-status-bar";
+import { createNativeStackNavigator }    from "@react-navigation/native-stack";
+import { Ionicons }                      from "@expo/vector-icons";
+import { StatusBar }                     from "expo-status-bar";
 
 // Screens
 import HomeScreen        from "../screens/HomeScreen";
@@ -19,16 +19,19 @@ import SelfDefenseScreen from "../screens/SelfDefenseScreen";
 import MoreScreen        from "../screens/MoreScreen";
 import LoginScreen       from "../screens/LoginScreen";
 import ProfileScreen     from "../screens/ProfileScreen";
+import SupportScreen     from "../screens/SupportScreen";
+import PrivacyScreen     from "../screens/PrivacyScreen";
+import TermsScreen       from "../screens/TermsScreen";
+import IncidentDetailScreen from "../screens/IncidentDetailScreen";
+import OfflineBanner     from "../components/common/OfflineBanner";
 
 // API
 import { supabase } from "../api/supabase";
-import { BG, CARD, PRIMARY, BORDER, TEXT, SUBTEXT, MUTED } from "../theme/colors";
+import { BG, CARD, PRIMARY, BORDER, TEXT, MUTED } from "../theme/colors";
 
 const DARK_BG = "#0d1117";
 
 const Stack = createNativeStackNavigator();
-const navigationRef = createNavigationContainerRef();
-const TAB_ORDER = ["Home", "Nearby", "Circle", "Vault", "More"];
 
 const DARK_HEADER = (title) => ({
   headerShown: true,
@@ -62,7 +65,7 @@ function TabNavigator() {
     <Tab.Navigator
       tabBarPosition="bottom"
       sceneContainerStyle={{ backgroundColor: DARK_BG }}
-      detachInactiveScreens={false}
+      // detachInactiveScreens defaults to true — inactive tabs are properly unmounted
       screenOptions={({ route }) => ({
         tabBarActiveTintColor:   PRIMARY,
         tabBarInactiveTintColor: MUTED,
@@ -94,6 +97,7 @@ function TabNavigator() {
         },
         animationEnabled: true,
         lazy: true,
+        swipeEnabled: true,
       })}
     >
       {TABS.map(t => (
@@ -104,38 +108,19 @@ function TabNavigator() {
 }
 
 export default function RootNavigator() {
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const currentTabRef = useRef("Home");
+  const [session, setSession] = useState(undefined); // undefined = loading
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    // Fix: Use onAuthStateChange as the ONLY source of truth to avoid race conditions.
+    // The INITIAL_SESSION event fires synchronously with the stored session on mount.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s); // null = logged out, Session object = logged in
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  const swipePan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gs) =>
-        Math.abs(gs.dx) > 15 && Math.abs(gs.dx) > Math.abs(gs.dy) * 2.5 && Math.abs(gs.vx) > 0.3,
-      onPanResponderRelease: (_, gs) => {
-        const idx = TAB_ORDER.indexOf(currentTabRef.current);
-        if (idx === -1) return;
-        if (gs.dx < -60 && idx < TAB_ORDER.length - 1) {
-          navigationRef.current?.navigate(TAB_ORDER[idx + 1]);
-        } else if (gs.dx > 60 && idx > 0) {
-          navigationRef.current?.navigate(TAB_ORDER[idx - 1]);
-        }
-      },
-    })
-  ).current;
-
-  if (loading) {
+  // Still loading initial auth state
+  if (session === undefined) {
     return (
       <View style={{ flex: 1, backgroundColor: DARK_BG, justifyContent: "center" }}>
         <ActivityIndicator color={PRIMARY} size="large" />
@@ -144,35 +129,35 @@ export default function RootNavigator() {
   }
 
   return (
-    <View style={{ flex: 1 }} {...swipePan.panHandlers}>
-      <NavigationContainer
-        ref={navigationRef}
-        onStateChange={() => {
-          if (!session) return;
-          if (navigationRef.isReady()) {
-            const name = navigationRef.getCurrentRoute()?.name;
-            if (name && TAB_ORDER.includes(name)) {
-              currentTabRef.current = name;
-            }
-          }
-        }}
-      >
-        <StatusBar style="light" />
+    <NavigationContainer>
+      <StatusBar style="light" />
+      {/* NavigationContainer must have exactly one child — wrap stack + banner together */}
+      <View style={{ flex: 1 }}>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {!session ? (
             <Stack.Screen name="Auth" component={AuthStack} />
           ) : (
             <>
               <Stack.Screen name="MainTabs"    component={TabNavigator} />
-              <Stack.Screen name="Route"       component={SafeRouteScreen}   options={DARK_HEADER("Safe Route")}     />
-              <Stack.Screen name="AI"          component={AIShieldScreen}    options={DARK_HEADER("AI Shield")}      />
-              <Stack.Screen name="Laws"        component={SafetyLawsScreen}  options={DARK_HEADER("Safety Laws")}    />
-              <Stack.Screen name="SelfDefense" component={SelfDefenseScreen} options={DARK_HEADER("Self Defense")}   />
-              <Stack.Screen name="Profile"     component={ProfileScreen}     options={DARK_HEADER("My Profile")}     />
+              <Stack.Screen name="Route"       component={SafeRouteScreen}   options={DARK_HEADER("Safe Route")}   />
+              <Stack.Screen name="AI"          component={AIShieldScreen}    options={DARK_HEADER("AI Shield")}    />
+              <Stack.Screen name="Laws"        component={SafetyLawsScreen}  options={DARK_HEADER("Safety Laws")}  />
+              <Stack.Screen name="SelfDefense" component={SelfDefenseScreen} options={DARK_HEADER("Self Defense")} />
+              <Stack.Screen name="Profile"     component={ProfileScreen}     options={DARK_HEADER("My Profile")}   />
+              <Stack.Screen name="Support"     component={SupportScreen}     options={DARK_HEADER("Support")}      />
+              <Stack.Screen name="Privacy"     component={PrivacyScreen}     options={DARK_HEADER("Privacy")}      />
+              <Stack.Screen name="Terms"       component={TermsScreen}       options={DARK_HEADER("Terms")}        />
+              <Stack.Screen
+                name="IncidentDetail"
+                component={IncidentDetailScreen}
+                options={{ headerShown: false, presentation: "card" }}
+              />
             </>
           )}
         </Stack.Navigator>
-      </NavigationContainer>
-    </View>
+        {/* Offline banner sits over the navigator using position:absolute inside the same View */}
+        <OfflineBanner />
+      </View>
+    </NavigationContainer>
   );
 }

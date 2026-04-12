@@ -7,11 +7,14 @@ import {
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   sendSOSAlert, sendEscortSOS, startLocationWatch, stopLocationWatch,
   createLiveSession, endLiveSession, getCurrentLocation
 } from "../api/sos";
 import { BG, CARD, BORDER, PRIMARY, DANGER, SUCCESS, TEXT, SUBTEXT, MUTED, WARNING } from "../theme/colors";
+import { supabase } from "../api/supabase";
+import useContacts from "../hooks/useContacts";
 
 const REPORT_CATEGORIES = [
   { label: "Poor Lighting",     icon: "bulb-outline" },
@@ -23,7 +26,9 @@ const REPORT_CATEGORIES = [
 ];
 
 export default function SafeCircleScreen() {
-  const [contacts, setContacts]       = useState([]);
+  const insets = useSafeAreaInsets();
+  // ✅ Use Supabase-backed contacts hook (survives reinstalls)
+  const { contacts, addContact: addContactToSupabase, removeContact: removeContactFromSupabase } = useContacts();
   const [escortActive, setEscortActive] = useState(false);
   const [escortTime, setEscortTime]   = useState(0);
   const [trackUrl, setTrackUrl]       = useState(null);
@@ -41,8 +46,6 @@ export default function SafeCircleScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const c = await AsyncStorage.getItem("shieldher_contacts");
-        if (c) setContacts(JSON.parse(c));
         const r = await AsyncStorage.getItem("shieldher_reports");
         if (r) setReports(JSON.parse(r));
       } catch (_) {}
@@ -72,10 +75,6 @@ export default function SafeCircleScreen() {
     return () => clearInterval(timerRef.current);
   }, [escortActive]);
 
-  const saveContacts = async (c) => {
-    setContacts(c);
-    await AsyncStorage.setItem("shieldher_contacts", JSON.stringify(c));
-  };
   const saveReports = async (r) => {
     setReports(r);
     await AsyncStorage.setItem("shieldher_reports", JSON.stringify(r));
@@ -159,12 +158,13 @@ export default function SafeCircleScreen() {
     }
   };
 
-  const addContact = () => {
+  const addContact = async () => {
     if (!newContact.name.trim() || !newContact.phone.trim()) {
       Alert.alert("Required", "Please fill name and phone.");
       return;
     }
-    saveContacts([...contacts, { ...newContact, id: Date.now().toString() }]);
+    const saved = await addContactToSupabase(newContact);
+    if (!saved) Alert.alert("Error", "Could not save contact. Check your connection.");
     setNewContact({ name: "", phone: "", relation: "" });
     setAddModal(false);
   };
@@ -172,15 +172,50 @@ export default function SafeCircleScreen() {
   const removeContact = (id) =>
     Alert.alert("Remove Contact", "Remove from your SafeCircle?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Remove", style: "destructive", onPress: () => saveContacts(contacts.filter(x => x.id !== id)) },
+      { text: "Remove", style: "destructive", onPress: () => removeContactFromSupabase(id) },
     ]);
 
   const submitReport = async () => {
     if (!selectedCat) { Alert.alert("Required", "Select a category."); return; }
     let area = reportArea;
     if (!area && location) area = `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
-    if (!area) area = "Pinned Location";
-    saveReports([{ id: Date.now().toString(), cat: selectedCat, area, time: "Just now", upvotes: 0 }, ...reports]);
+    if (!area) area = "Current location";
+
+    // Get current coords for the Supabase record
+    let lat = location?.latitude || null;
+    let lng = location?.longitude || null;
+    if (!lat) {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          lat = loc.coords.latitude;
+          lng = loc.coords.longitude;
+          area = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        }
+      } catch (_) {}
+    }
+
+    const optimistic = { id: Date.now().toString(), cat: selectedCat, area, time: "Just now", upvotes: 0 };
+    // Optimistic local update
+    saveReports([optimistic, ...reports]);
+
+    // Write to Supabase community_reports (for the map + HomeScreen)
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("community_reports").insert({
+          user_id: user.id,
+          category: selectedCat,
+          note: area,
+          lat,
+          lng,
+        });
+      }
+    } catch (e) {
+      console.warn("Supabase report:", e.message);
+    }
+
     setSelectedCat(null); setReportArea(""); setReportModal(false);
   };
 
@@ -188,8 +223,8 @@ export default function SafeCircleScreen() {
 
   return (
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      <View style={s.header}>
+      {/* Header — notch-safe */}
+      <View style={[s.header, { paddingTop: insets.top + 12 }]}>
         <Ionicons name="shield-checkmark" size={20} color={PRIMARY} />
         <Text style={s.title}>SAFE CIRCLE</Text>
       </View>
@@ -382,7 +417,7 @@ export default function SafeCircleScreen() {
 
 const s = StyleSheet.create({
   container:        { flex: 1, backgroundColor: BG },
-  header:           { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 56, paddingHorizontal: 20, paddingBottom: 16 },
+  header:           { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 20, paddingBottom: 16 },
   title:            { fontSize: 18, fontWeight: "800", color: TEXT, letterSpacing: 1.5 },
   sosHeroBtn:       { marginHorizontal: 16, marginBottom: 12, backgroundColor: "rgba(239,68,68,0.12)", borderRadius: 18, paddingVertical: 16, paddingHorizontal: 18, flexDirection: "row", gap: 14, alignItems: "center", borderWidth: 1, borderColor: "rgba(239,68,68,0.3)" },
   sosHeroText:      { color: DANGER, fontSize: 16, fontWeight: "800" },

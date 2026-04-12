@@ -1,9 +1,9 @@
 // src/screens/VaultScreen.js
-// Evidence Vault — fully backed by Supabase (incidents table + evidence storage bucket)
+// Evidence Vault — Supabase-backed, biometric-locked, PDF export
 import { useState, useEffect, useCallback } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator, Alert, Image, RefreshControl
+  ScrollView, ActivityIndicator, Alert, Image, RefreshControl, Platform
 } from "react-native";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
@@ -12,6 +12,16 @@ import { draftComplaint, analyzeEvidence } from "../api/claude";
 import { supabase } from "../api/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, WARNING } from "../theme/colors";
+import useBiometric from "../hooks/useBiometric";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import useToast from "../hooks/useToast";
+
+// PDF export (optional — graceful if not installed)
+let Print = null;
+let Sharing = null;
+try { Print = require("expo-print"); } catch (_) {}
+try { Sharing = require("expo-sharing"); } catch (_) {}
 
 const INCIDENT_TYPES = [
   "Verbal Harassment", "Physical Harassment",
@@ -19,6 +29,9 @@ const INCIDENT_TYPES = [
 ];
 
 export default function VaultScreen() {
+  const insets     = useSafeAreaInsets();
+  const navigation = useNavigation();
+  const { showToast, ToastComponent } = useToast();
   const [incidents, setIncidents]       = useState([]);
   const [showForm, setShowForm]         = useState(false);
   const [form, setForm]                 = useState({ type: "Verbal Harassment", desc: "", location: "" });
@@ -29,6 +42,25 @@ export default function VaultScreen() {
   const [fetchingRecords, setFetchingRecords] = useState(true);
   const [refreshing, setRefreshing]     = useState(false);
   const [userId, setUserId]             = useState(null);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+
+  // Biometric lock
+  const { supported: bioSupported, authenticated, checking: bioChecking, authenticate } = useBiometric();
+
+  // Check if user has biometric_on enabled in profile
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data } = await supabase.from("profiles").select("biometric_on").eq("id", user.id).single();
+        if (data?.biometric_on && bioSupported) {
+          setBiometricEnabled(true);
+          authenticate();
+        }
+      } catch (_) {}
+    })();
+  }, [bioSupported]);
 
   // ── Load incidents from Supabase ──────────────────────────────────────────
   const loadIncidents = useCallback(async (showRefresh = false) => {
@@ -59,7 +91,7 @@ export default function VaultScreen() {
   const saveIncident = async (incidentData) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
+      if (!user) { showToast("Not signed in. Please log in again.", "error"); return null; }
       const { data, error } = await supabase
         .from("incidents")
         .insert({ user_id: user.id, ...incidentData })
@@ -69,6 +101,7 @@ export default function VaultScreen() {
       return data;
     } catch (e) {
       console.error("Save incident:", e.message);
+      showToast("Record could not be saved: " + (e.message || "unknown error"), "error");
       return null;
     }
   };
@@ -160,11 +193,9 @@ export default function VaultScreen() {
       });
       setComplaint(complaintText);
 
-      // Upload image if any
       let mediaUrl = null;
       if (evidenceImage) mediaUrl = await uploadEvidence(evidenceImage);
 
-      // Save to Supabase incidents table
       const saved = await saveIncident({
         type: form.type,
         description: form.desc,
@@ -175,13 +206,20 @@ export default function VaultScreen() {
 
       if (saved) {
         setIncidents(prev => [saved, ...prev]);
-        Alert.alert("✅ Saved", "Complaint generated and encrypted record saved.");
+        showToast("Complaint generated and record saved ✓", "success");
       }
       setShowForm(false);
       setEvidenceImage(null);
       setForm({ type: "Verbal Harassment", desc: "", location: "" });
-    } catch {
-      Alert.alert("Error", "Could not generate complaint. Please try again.");
+    } catch (e) {
+      const msg = e?.message || "";
+      if (msg.includes("network") || msg.includes("fetch") || msg.includes("Failed to fetch")) {
+        showToast("No internet. Connect and try again.", "error");
+      } else if (msg.includes("API key") || msg.includes("KEY")) {
+        showToast("Gemini API key missing. Check your .env file.", "error");
+      } else {
+        showToast("Could not generate complaint. Please try again.", "error");
+      }
     }
     setLoading(false);
   };
@@ -193,8 +231,14 @@ export default function VaultScreen() {
       {
         text: "Delete", style: "destructive",
         onPress: async () => {
-          await supabase.from("incidents").delete().eq("id", id);
-          setIncidents(prev => prev.filter(i => i.id !== id));
+          try {
+            const { error } = await supabase.from("incidents").delete().eq("id", id);
+            if (error) throw error;
+            setIncidents(prev => prev.filter(i => i.id !== id));
+            showToast("Record deleted.", "info");
+          } catch (e) {
+            showToast("Could not delete record: " + (e.message || "unknown error"), "error");
+          }
         },
       },
     ]);
@@ -205,14 +249,40 @@ export default function VaultScreen() {
     catch { return iso; }
   };
 
+  // ── Biometric lock gate ────────────────────────────────────────────────────
+  if (biometricEnabled && !bioChecking && !authenticated) {
+    return (
+      <View style={{ flex: 1, backgroundColor: BG, alignItems: "center", justifyContent: "center", padding: 32 }}>
+        <View style={{ backgroundColor: CARD, borderRadius: 28, padding: 32, alignItems: "center", borderWidth: 1, borderColor: BORDER, gap: 16, width: "100%" }}>
+          <View style={{ width: 80, height: 80, borderRadius: 24, backgroundColor: `${PRIMARY}25`, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: `${PRIMARY}50` }}>
+            <Ionicons name="lock-closed" size={36} color={PRIMARY} />
+          </View>
+          <Text style={{ fontSize: 22, fontWeight: "800", color: TEXT }}>Evidence Vault</Text>
+          <Text style={{ fontSize: 14, color: SUBTEXT, textAlign: "center", lineHeight: 22 }}>
+            This vault is protected by biometric authentication.{"\n"}Authenticate to access your records.
+          </Text>
+          <TouchableOpacity
+            style={{ backgroundColor: PRIMARY, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 32, flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4, width: "100%", justifyContent: "center" }}
+            onPress={() => authenticate("Authenticate to access Evidence Vault")}
+          >
+            <Ionicons name="finger-print" size={20} color="white" />
+            <Text style={{ color: "white", fontWeight: "700", fontSize: 15 }}>Unlock Vault</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+
   return (
-    <ScrollView
-      style={s.container}
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        style={s.container}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadIncidents(true)} tintColor={PRIMARY} />}
     >
-      {/* Header */}
-      <View style={s.header}>
+      {/* Header — notch-safe paddingTop */}
+      <View style={[s.header, { paddingTop: insets.top + 12 }]}>
         <View style={s.headerRow}>
           <View>
             <View style={s.headerTitleRow}>
@@ -330,7 +400,57 @@ export default function VaultScreen() {
             <Text style={s.complaintText}>{complaint}</Text>
           </ScrollView>
           <TouchableOpacity style={s.exportBtn}
-            onPress={() => Alert.alert("Export", "PDF export is coming soon!")}>
+            onPress={async () => {
+              if (!Print || !Sharing) {
+                Alert.alert("Not Available", "PDF export requires expo-print and expo-sharing.");
+                return;
+              }
+              try {
+                const html = `
+                  <html><head><meta charset="utf-8">
+                  <style>
+                    body { font-family: 'Helvetica Neue', sans-serif; padding: 40px; color: #1a1a2e; }
+                    .header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; border-bottom: 2px solid #8b5cf6; padding-bottom: 16px; }
+                    .logo { width: 48px; height: 48px; background: #8b5cf6; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: 900; }
+                    h1 { color: #8b5cf6; font-size: 22px; margin: 0; }
+                    .subtitle { color: #6b7280; font-size: 12px; margin-top: 4px; }
+                    .section { margin-top: 20px; }
+                    .label { font-size: 10px; color: #8b5cf6; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; }
+                    .content { font-size: 14px; line-height: 1.8; color: #374151; white-space: pre-wrap; background: #f9fafb; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb; }
+                    .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #9ca3af; text-align: center; }
+                    .badge { display: inline-block; background: #ede9fe; color: #7c3aed; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+                  </style></head><body>
+                    <div class="header">
+                      <div class="logo">S</div>
+                      <div><h1>ShieldHer — Complaint Document</h1>
+                      <div class="subtitle">Auto-generated by ShieldHer AI</div></div>
+                    </div>
+                    <div class="section">
+                      <div class="label">Date</div>
+                      <p>${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</p>
+                    </div>
+                    <div class="section">
+                      <div class="label">Document Status</div>
+                      <span class="badge">AI-Generated Draft</span>
+                    </div>
+                    <div class="section">
+                      <div class="label">Complaint</div>
+                      <div class="content">${complaint.replace(/\n/g, '<br>')}</div>
+                    </div>
+                    <div class="footer">
+                      Generated by ShieldHer Safety App &bull; This is an AI-drafted document for reference purposes.
+                    </div>
+                  </body></html>`;
+                const { uri } = await Print.printToFileAsync({ html, base64: false });
+                if (await Sharing.isAvailableAsync()) {
+                  await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "Share Complaint PDF" });
+                } else {
+                  Alert.alert("PDF Saved", `File saved to: ${uri}`);
+                }
+              } catch (e) {
+                Alert.alert("Export Failed", e.message);
+              }
+            }}>
             <Ionicons name="share-outline" size={16} color="white" />
             <Text style={s.exportBtnText}>Export as PDF</Text>
           </TouchableOpacity>
@@ -355,40 +475,62 @@ export default function VaultScreen() {
             <Text style={s.emptyText}>No records yet</Text>
             <Text style={s.emptySubText}>Your encrypted incident records will appear here</Text>
           </View>
-        ) : incidents.map(inc => (
-          <View key={inc.id} style={s.recordRow}>
-            {inc.media_url ? (
-              <Image source={{ uri: inc.media_url }} style={s.recordThumb} />
-            ) : (
-              <View style={s.recordIcon}>
-                <Ionicons name="lock-closed" size={14} color={WARNING} />
+        ) : incidents.map(inc => {
+          // React Native touch events don't have stopPropagation.
+          // Use a flag ref to suppress the outer onPress when delete is tapped.
+          let _deletePressed = false;
+          return (
+            <TouchableOpacity
+              key={inc.id}
+              style={s.recordRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                if (_deletePressed) { _deletePressed = false; return; }
+                navigation.navigate("IncidentDetail", { incident: inc });
+              }}
+            >
+              {inc.media_url ? (
+                <Image source={{ uri: inc.media_url }} style={s.recordThumb} />
+              ) : (
+                <View style={s.recordIcon}>
+                  <Ionicons name="lock-closed" size={14} color={WARNING} />
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={s.recordType}>{inc.type}</Text>
+                <Text style={s.recordMeta}>{formatDate(inc.created_at)}</Text>
+                {inc.location ? <Text style={s.recordLoc} numberOfLines={1}>📍 {inc.location}</Text> : null}
               </View>
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={s.recordType}>{inc.type}</Text>
-              <Text style={s.recordMeta}>{formatDate(inc.created_at)}</Text>
-              {inc.location ? <Text style={s.recordLoc} numberOfLines={1}>📍 {inc.location}</Text> : null}
-            </View>
-            <View style={s.recordRight}>
-              <View style={s.encChip}>
-                <Text style={s.encChipText}>Encrypted</Text>
+              <View style={s.recordRight}>
+                <View style={s.encChip}>
+                  <Text style={s.encChipText}>Encrypted</Text>
+                </View>
+                <View style={{ flexDirection: "row", gap: 4 }}>
+                  <Ionicons name="chevron-forward" size={14} color={SUBTEXT} />
+                  <TouchableOpacity
+                    onPress={() => { _deletePressed = true; deleteIncident(inc.id); }}
+                    style={s.deleteBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="trash-outline" size={15} color={SUBTEXT} />
+                  </TouchableOpacity>
+                </View>
               </View>
-              <TouchableOpacity onPress={() => deleteIncident(inc.id)} style={s.deleteBtn}>
-                <Ionicons name="trash-outline" size={15} color={SUBTEXT} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
+            </TouchableOpacity>
+          );
+        })}
+
       </View>
 
       <View style={{ height: 50 }} />
     </ScrollView>
-  );
+    <ToastComponent />
+  </View>
 }
 
 const s = StyleSheet.create({
   container:          { flex: 1, backgroundColor: BG },
-  header:             { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 16 },
+  header:             { paddingHorizontal: 20, paddingBottom: 16 },
   headerRow:          { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   headerTitleRow:     { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
   title:              { fontSize: 18, fontWeight: "800", color: TEXT, letterSpacing: 1.5 },

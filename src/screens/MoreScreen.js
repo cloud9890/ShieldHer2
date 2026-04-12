@@ -60,6 +60,34 @@ export default function MoreScreen() {
         ))}
       </View>
 
+      <View style={s.sectionHeader}>
+        <Text style={s.sectionTitle}>APP & SUPPORT</Text>
+      </View>
+
+      <View style={s.listContainer}>
+        <TouchableOpacity style={s.listItem} onPress={() => navigation.navigate("Support")} activeOpacity={0.7}>
+          <Ionicons name="help-circle-outline" size={20} color={SUBTEXT} style={s.listIcon} />
+          <Text style={s.listText}>Help & Support</Text>
+          <Ionicons name="chevron-forward" size={16} color={SUBTEXT} />
+        </TouchableOpacity>
+        
+        <View style={s.listDivider} />
+
+        <TouchableOpacity style={s.listItem} onPress={() => navigation.navigate("Privacy")} activeOpacity={0.7}>
+          <Ionicons name="shield-checkmark-outline" size={20} color={SUBTEXT} style={s.listIcon} />
+          <Text style={s.listText}>Privacy Policy</Text>
+          <Ionicons name="chevron-forward" size={16} color={SUBTEXT} />
+        </TouchableOpacity>
+
+        <View style={s.listDivider} />
+
+        <TouchableOpacity style={s.listItem} onPress={() => navigation.navigate("Terms")} activeOpacity={0.7}>
+          <Ionicons name="document-text-outline" size={20} color={SUBTEXT} style={s.listIcon} />
+          <Text style={s.listText}>Terms of Service</Text>
+          <Ionicons name="chevron-forward" size={16} color={SUBTEXT} />
+        </TouchableOpacity>
+      </View>
+
       <TouchableOpacity style={s.signOutBtn} onPress={signOut}>
         <Ionicons name="log-out-outline" size={18} color={DANGER} />
         <Text style={s.signOutText}>Sign Out</Text>
@@ -79,6 +107,13 @@ const s = StyleSheet.create({
   iconBox:      { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   cardLabel:    { fontSize: 15, fontWeight: "700", color: TEXT },
   cardSub:      { fontSize: 12, color: SUBTEXT, marginTop: 2 },
-  signOutBtn:   { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginTop: 20, backgroundColor: "rgba(239,68,68,0.08)", borderRadius: 14, paddingVertical: 14, borderWidth: 1, borderColor: "rgba(239,68,68,0.2)" },
+  sectionHeader:{ paddingTop: 28, paddingHorizontal: 20, paddingBottom: 10 },
+  sectionTitle: { fontSize: 13, fontWeight: "700", color: SUBTEXT, letterSpacing: 1.2 },
+  listContainer:{ backgroundColor: CARD, marginHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: BORDER, overflow: "hidden" },
+  listItem:     { flexDirection: "row", alignItems: "center", paddingVertical: 16, paddingHorizontal: 16 },
+  listIcon:     { marginRight: 12 },
+  listText:     { flex: 1, fontSize: 15, color: TEXT, fontWeight: "500" },
+  listDivider:  { height: 1, backgroundColor: BORDER, marginLeft: 48 },
+  signOutBtn:   { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginTop: 24, backgroundColor: "rgba(239,68,68,0.08)", borderRadius: 14, paddingVertical: 14, borderWidth: 1, borderColor: "rgba(239,68,68,0.2)" },
   signOutText:  { color: DANGER, fontWeight: "700", fontSize: 14 },
 });

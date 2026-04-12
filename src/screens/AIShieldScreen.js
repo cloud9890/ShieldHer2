@@ -4,6 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Activi
 import { Ionicons } from "@expo/vector-icons";
 import { analyzeHarassment, safetyChat } from "../api/claude";
 import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT } from "../theme/colors";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SEV_CONFIG = {
   none:     { bg: "rgba(52,211,153,0.08)",  border: "rgba(52,211,153,0.25)",  color: "#34d399", icon: "checkmark-circle", label: "NONE"     },
@@ -13,10 +14,13 @@ const SEV_CONFIG = {
 };
 
 export default function AIShieldScreen() {
-  const [text, setText]           = useState("");
-  const [result, setResult]       = useState(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [messages, setMessages]   = useState([
+  const insets = useSafeAreaInsets();
+  const [text, setText]             = useState("");
+  const [result, setResult]         = useState(null);
+  const [analyzing, setAnalyzing]   = useState(false);
+  const [analyzeError, setAnalyzeError] = useState(null);
+  const [messages, setMessages]     = useState([
+
     { id: "0", role: "assistant", text: "Hi! I'm your ShieldHer AI 💜 Ask me anything about safety, legal rights, or how to use the app." },
   ]);
   const [chatInput, setChatInput] = useState("");
@@ -26,11 +30,18 @@ export default function AIShieldScreen() {
   const analyze = async () => {
     if (!text.trim()) return;
     setAnalyzing(true);
+    setAnalyzeError(null);    // clear any previous error
+    setResult(null);          // clear stale result
     try {
       const data = await analyzeHarassment(text);
       setResult(data);
-    } catch {
-      setResult({ severity: "moderate", categories: ["threatening language"], summary: "Contains potentially threatening content.", action: "Document and report to platform immediately.", reportTemplate: "Reporting this message for threatening and harassing content." });
+    } catch (err) {
+      // Show the real error — never fabricate a severity level
+      setAnalyzeError(
+        err?.message?.includes("network") || err?.message?.includes("fetch")
+          ? "No internet connection. Please check your network and try again."
+          : "Analysis failed. The AI service may be temporarily unavailable."
+      );
     }
     setAnalyzing(false);
   };
@@ -61,8 +72,8 @@ export default function AIShieldScreen() {
   return (
     <KeyboardAvoidingView style={a.container} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* Header */}
-        <View style={a.header}>
+        {/* Header — notch-safe */}
+        <View style={[a.header, { paddingTop: insets.top + 10 }]}>
           <Text style={a.title}>AI Shield</Text>
           <Text style={a.subtitle}>Powered by Google Gemini AI</Text>
         </View>
@@ -100,6 +111,17 @@ export default function AIShieldScreen() {
               </>
             )}
           </TouchableOpacity>
+
+          {/* Analysis error card */}
+          {analyzeError && (
+            <View style={a.errorBox}>
+              <Ionicons name="cloud-offline-outline" size={18} color="#f87171" />
+              <Text style={a.errorText}>{analyzeError}</Text>
+              <TouchableOpacity onPress={() => setAnalyzeError(null)} style={a.errorDismiss}>
+                <Ionicons name="close" size={14} color="#f87171" />
+              </TouchableOpacity>
+            </View>
+          )}
 
           {result && sev && (
             <View style={[a.resultBox, { backgroundColor: sev.bg, borderColor: sev.border }]}>
@@ -204,7 +226,7 @@ export default function AIShieldScreen() {
 
 const a = StyleSheet.create({
   container:     { flex: 1, backgroundColor: BG },
-  header:        { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 16 },
+  header:        { paddingHorizontal: 20, paddingBottom: 16 },
   title:         { fontSize: 24, fontWeight: "800", color: TEXT },
   subtitle:      { fontSize: 12, color: PRIMARY, marginTop: 4, fontWeight: "600" },
   card:          { backgroundColor: CARD, borderRadius: 20, padding: 18, marginHorizontal: 16, marginBottom: 14, borderWidth: 1, borderColor: BORDER },
@@ -245,4 +267,8 @@ const a = StyleSheet.create({
   chatInputRow:  { flexDirection: "row", gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: BORDER },
   chatInput:     { flex: 1, borderWidth: 1, borderColor: BORDER, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, fontSize: 13, color: TEXT, backgroundColor: "rgba(255,255,255,0.03)" },
   sendBtn:       { backgroundColor: PRIMARY, borderRadius: 14, paddingHorizontal: 16, justifyContent: "center" },
+  // Analyze error card
+  errorBox:      { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(248,113,113,0.08)", borderRadius: 14, borderWidth: 1, borderColor: "rgba(248,113,113,0.25)", padding: 12, marginTop: 12 },
+  errorText:     { flex: 1, fontSize: 13, color: "#f87171", lineHeight: 18 },
+  errorDismiss:  { padding: 4 },
 });

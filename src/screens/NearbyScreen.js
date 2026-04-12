@@ -3,60 +3,49 @@ import { useState, useEffect, useRef } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
   TextInput, Animated, Dimensions, ActivityIndicator,
-  Linking, Platform, Modal, Alert
+  Linking, Platform, Modal
 } from "react-native";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
-import { BG as BG_THEME, CARD as CARD_THEME, PRIMARY as PRIMARY_THEME, SUBTEXT as SUBTEXT_THEME, TEXT as TEXT_THEME } from "../theme/colors";
+// ✅ Import directly from theme — no local redeclarations
+import { BG, CARD, PRIMARY, SUBTEXT, TEXT, BORDER } from "../theme/colors";
+// ✅ Use shared hook — handles Realtime subscription + cleanup automatically
+import useCommunityReports from "../hooks/useCommunityReports";
 
 let MapView, Marker, PROVIDER_GOOGLE, Circle;
 if (Platform.OS !== "web") {
-  const Maps   = require("react-native-maps");
+  const Maps    = require("react-native-maps");
   MapView       = Maps.default;
   Marker        = Maps.Marker;
   Circle        = Maps.Circle;
   PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
 }
 
-const { width, height } = Dimensions.get("window");
-const SHEET_PEEK    = 220;
-const BG            = "#0d1117";
-const CARD          = "#161b22";
-const TEXT          = TEXT_THEME;
-const SUBTEXT       = SUBTEXT_THEME;
-const PRIMARY       = PRIMARY_THEME;
-const BORDER        = "rgba(255,255,255,0.06)";
-const GOOGLE_KEY    = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
+const { height } = Dimensions.get("window");
+const GOOGLE_KEY  = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
 
-// ── Incident categories (for safety alerts on map) ──────────────────────────
+// ── Incident categories ───────────────────────────────────────────────────────
 const INCIDENT_TYPES = [
-  { key: "suspicious",  label: "Suspicious activity", color: "#ef4444", icon: "alert-circle",       bg: "rgba(239,68,68,0.12)"  },
-  { key: "lighting",    label: "Poor lighting",        color: "#f59e0b", icon: "bulb-outline",       bg: "rgba(245,158,11,0.12)" },
-  { key: "police",      label: "Police presence",      color: "#3b82f6", icon: "shield",             bg: "rgba(59,130,246,0.12)" },
-  { key: "hospital",    label: "Hospital",             color: "#ec4899", icon: "medical",            bg: "rgba(236,72,153,0.12)" },
-  { key: "safe",        label: "Safe zone",            color: "#22c55e", icon: "checkmark-circle",   bg: "rgba(34,197,94,0.12)"  },
+  { key: "suspicious", label: "Suspicious activity", color: "#ef4444", icon: "alert-circle",     bg: "rgba(239,68,68,0.12)"  },
+  { key: "lighting",   label: "Poor lighting",        color: "#f59e0b", icon: "bulb-outline",     bg: "rgba(245,158,11,0.12)" },
+  { key: "police",     label: "Police presence",      color: "#3b82f6", icon: "shield",           bg: "rgba(59,130,246,0.12)" },
+  { key: "hospital",   label: "Hospital",             color: "#ec4899", icon: "medical",          bg: "rgba(236,72,153,0.12)" },
+  { key: "safe",       label: "Safe zone",            color: "#22c55e", icon: "checkmark-circle", bg: "rgba(34,197,94,0.12)"  },
 ];
 
-// Emergency fallback contacts
+// Emergency fallback when location / Google Maps key not available
 const EMERGENCY = [
-  { id: "e1", name: "Police Control Room",  type: "police",   phone: "100", address: "National Emergency",   dist: null },
-  { id: "e2", name: "Women Helpline",       type: "police",   phone: "181", address: "24×7 Toll-Free",        dist: null },
-  { id: "e3", name: "National Emergency",   type: "police",   phone: "112", address: "All Emergencies",       dist: null },
-  { id: "e4", name: "Ambulance",            type: "hospital", phone: "108", address: "National Ambulance",    dist: null },
-];
-
-// Demo map incidents to match the UI from the design reference
-const DEMO_INCIDENTS = [
-  { id: "i1", type: "suspicious", label: "Suspicious activity", dist: "200m", ago: "5m",  lat: null, lng: null },
-  { id: "i2", type: "lighting",   label: "Poor lighting",       dist: "450m", ago: "12m", lat: null, lng: null },
-  { id: "i3", type: "police",     label: "Police presence",     dist: "300m", ago: "2m",  lat: null, lng: null },
+  { id: "e1", name: "Police Control Room", type: "police",   phone: "100", address: "National Emergency"  },
+  { id: "e2", name: "Women Helpline",      type: "police",   phone: "181", address: "24×7 Toll-Free"      },
+  { id: "e3", name: "National Emergency",  type: "police",   phone: "112", address: "All Emergencies"     },
+  { id: "e4", name: "Ambulance",           type: "hospital", phone: "108", address: "National Ambulance"  },
 ];
 
 function getTypeMeta(type) {
   return INCIDENT_TYPES.find(t => t.key === type) || INCIDENT_TYPES[0];
 }
 
-// ── Custom map marker (colored teardrop with icon) ──────────────────────────
+// ── Custom map marker (colored teardrop with icon) ────────────────────────────
 function MarkerBubble({ type, size = 44 }) {
   const meta = getTypeMeta(type);
   return (
@@ -68,7 +57,6 @@ function MarkerBubble({ type, size = 44 }) {
       }}>
         <Ionicons name={meta.icon} size={size * 0.42} color="white" />
       </View>
-      {/* teardrop tail */}
       <View style={{
         width: 0, height: 0, borderLeftWidth: 5, borderRightWidth: 5,
         borderTopWidth: 8, borderLeftColor: "transparent",
@@ -79,7 +67,7 @@ function MarkerBubble({ type, size = 44 }) {
   );
 }
 
-// ── Incident card (horizontal row) ───────────────────────────────────────────
+// ── Incident card (horizontal row) ────────────────────────────────────────────
 function IncidentCard({ item, onPress }) {
   const meta = getTypeMeta(item.type);
   return (
@@ -88,7 +76,7 @@ function IncidentCard({ item, onPress }) {
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <View style={[s.incCardHeader]}>
+      <View style={s.incCardHeader}>
         <Ionicons name={meta.icon} size={14} color={meta.color} />
         <Text style={[s.incCardCategory, { color: meta.color }]}>{meta.label}</Text>
       </View>
@@ -104,9 +92,9 @@ function IncidentCard({ item, onPress }) {
   );
 }
 
-// ── Place card (vertical list) ───────────────────────────────────────────────
+// ── Place card (vertical list) ────────────────────────────────────────────────
 function PlaceCard({ place, onCall, onNavigate }) {
-  const meta   = getTypeMeta(place.type);
+  const meta = getTypeMeta(place.type);
   return (
     <View style={[s.placeCard, { borderLeftColor: meta.color, borderLeftWidth: 3 }]}>
       <View style={[s.placeIconWrap, { backgroundColor: meta.color + "18" }]}>
@@ -142,20 +130,22 @@ function PlaceCard({ place, onCall, onNavigate }) {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function NearbyScreen() {
-  const [location,    setLocation]    = useState(null);
-  const [places,      setPlaces]      = useState([]);
-  const [incidents,   setIncidents]   = useState(DEMO_INCIDENTS);
-  const [loading,     setLoading]     = useState(true);
-  const [noKey,       setNoKey]       = useState(false);
-  const [search,      setSearch]      = useState("");
-  const [filter,      setFilter]      = useState("all");
+  const [location,  setLocation]  = useState(null);
+  const [places,    setPlaces]    = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [noKey,     setNoKey]     = useState(false);
+  const [search,    setSearch]    = useState("");
+  const [filter,    setFilter]    = useState("all");
   const [reportModal, setReportModal] = useState(false);
-  const [repType,     setRepType]     = useState("suspicious");
-  const [repNote,     setRepNote]     = useState("");
-  const [region,      setRegion]      = useState({
+  const [repType,   setRepType]   = useState("suspicious");
+  const [repNote,   setRepNote]   = useState("");
+  const [region,    setRegion]    = useState({
     latitude: 28.6139, longitude: 77.2090,
     latitudeDelta: 0.025, longitudeDelta: 0.025,
   });
+
+  // ✅ Hook manages Realtime subscription + cleanup — no manual channel leak
+  const { reports: communityReports, submitReport } = useCommunityReports(40);
 
   const sheetAnim = useRef(new Animated.Value(0)).current;
 
@@ -175,13 +165,6 @@ export default function NearbyScreen() {
       const { latitude, longitude } = loc.coords;
       setLocation({ latitude, longitude });
       setRegion({ latitude, longitude, latitudeDelta: 0.025, longitudeDelta: 0.025 });
-
-      // Place demo incidents around user
-      setIncidents(prev => prev.map((inc, i) => ({
-        ...inc,
-        lat: latitude  + (i % 2 === 0 ? 0.004 : -0.003) * (i + 1),
-        lng: longitude + (i % 2 === 0 ? -0.003 : 0.005) * (i + 1),
-      })));
 
       if (!GOOGLE_KEY) { setNoKey(true); setLoading(false); return; }
 
@@ -220,27 +203,35 @@ export default function NearbyScreen() {
   };
   const callPlace = (phone) => Linking.openURL(`tel:${phone}`);
 
-  const submitReport = () => {
-    const meta  = getTypeMeta(repType);
-    const newInc = {
-      id:   "u" + Date.now(),
-      type: repType,
-      label: meta.label,
-      name:  repNote || meta.label,
-      dist:  "~here",
-      ago:   "just now",
-      lat:   location?.latitude  ? location.latitude  + (Math.random() - 0.5) * 0.004 : null,
-      lng:   location?.longitude ? location.longitude + (Math.random() - 0.5) * 0.004 : null,
-    };
-    setIncidents(prev => [newInc, ...prev]);
+  // ✅ submitReport comes from useCommunityReports — saves to Supabase + broadcasts Realtime
+  const handleSubmitReport = async () => {
+    const meta = getTypeMeta(repType);
+    await submitReport({
+      category: meta.label,
+      note: repNote,
+      lat: location?.latitude  ?? null,
+      lng: location?.longitude ?? null,
+    });
     setReportModal(false);
     setRepNote("");
   };
 
-  const listSource  = noKey ? EMERGENCY : places;
-  const filtered    = filter === "all"
+  const listSource = noKey ? EMERGENCY : places;
+  const filtered   = filter === "all"
     ? listSource
     : listSource.filter(p => p.type === filter);
+
+  // Community report cards for horizontal scroll (from Supabase, not demo data)
+  const reportCards = communityReports
+    .filter(r => r.lat && r.lng)
+    .slice(0, 10)
+    .map(r => ({
+      id:   r.id,
+      type: INCIDENT_TYPES.find(t => t.label === r.category)?.key || "suspicious",
+      label: r.category,
+      name:  r.note || r.category,
+      ago:   formatAgo(r.created_at),
+    }));
 
   const mapStyle = [
     { elementType: "geometry",            stylers: [{ color: "#1a0a2e" }] },
@@ -255,7 +246,7 @@ export default function NearbyScreen() {
   return (
     <View style={s.root}>
 
-      {/* ── Full-screen Map ─────────────────────────────────────────────────── */}
+      {/* ── Full-screen Map ──────────────────────────────────────────────── */}
       <View style={s.mapContainer}>
         {Platform.OS !== "web" && MapView ? (
           <MapView
@@ -267,30 +258,38 @@ export default function NearbyScreen() {
             customMapStyle={mapStyle}
             provider={PROVIDER_GOOGLE}
           >
-            {/* Safety incident markers */}
-            {incidents.filter(i => typeof i.lat === "number" && typeof i.lng === "number").map(inc => (
-              <Marker
-                key={inc.id}
-                coordinate={{ latitude: inc.lat, longitude: inc.lng }}
-                title={inc.label}
-              >
-                <MarkerBubble type={inc.type} />
-              </Marker>
-            ))}
+            {/* Real community report markers from Supabase */}
+            {communityReports
+              .filter(r => typeof r.lat === "number" && typeof r.lng === "number")
+              .map(rep => {
+                const incType = INCIDENT_TYPES.find(t => t.label === rep.category);
+                return (
+                  <Marker
+                    key={rep.id}
+                    coordinate={{ latitude: rep.lat, longitude: rep.lng }}
+                    title={rep.category}
+                    description={rep.note || ""}
+                  >
+                    <MarkerBubble type={incType?.key || "suspicious"} size={40} />
+                  </Marker>
+                );
+              })}
 
-            {/* Nearby place markers */}
-            {!noKey && places.filter(p => typeof p.lat === "number" && typeof p.lng === "number").map(p => (
-              <Marker
-                key={p.id}
-                coordinate={{ latitude: p.lat, longitude: p.lng }}
-                title={p.name}
-              >
-                <MarkerBubble type={p.type} size={36} />
-              </Marker>
-            ))}
+            {/* Nearby place markers (police stations, hospitals) */}
+            {!noKey && places
+              .filter(p => typeof p.lat === "number" && typeof p.lng === "number")
+              .map(p => (
+                <Marker
+                  key={p.id}
+                  coordinate={{ latitude: p.lat, longitude: p.lng }}
+                  title={p.name}
+                >
+                  <MarkerBubble type={p.type} size={36} />
+                </Marker>
+              ))}
 
             {/* User location pulse ring */}
-            {location && typeof location.latitude === "number" && typeof location.longitude === "number" && (
+            {location && typeof location.latitude === "number" && (
               <Circle
                 center={location}
                 radius={80}
@@ -330,9 +329,8 @@ export default function NearbyScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Bottom Sheet ────────────────────────────────────────────────────── */}
+      {/* ── Bottom Sheet ─────────────────────────────────────────────────── */}
       <View style={s.sheet}>
-        {/* Drag handle */}
         <View style={s.sheetHandle} />
 
         {loading ? (
@@ -342,27 +340,28 @@ export default function NearbyScreen() {
           </View>
         ) : (
           <>
-            {/* ── Incident Cards horizontal scroll ─────────────────────── */}
-            {incidents.length > 0 && (
+            {/* Community report cards (horizontal scroll) — real data only */}
+            {reportCards.length > 0 && (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={s.incRow}
                 style={s.incScroll}
               >
-                {incidents.map(inc => (
+                {reportCards.map(inc => (
                   <IncidentCard
                     key={inc.id}
                     item={inc}
                     onPress={() => {
-                      if (inc.lat) setRegion(r => ({ ...r, latitude: inc.lat, longitude: inc.lng }));
+                      const rep = communityReports.find(r => r.id === inc.id);
+                      if (rep?.lat) setRegion(r => ({ ...r, latitude: rep.lat, longitude: rep.lng }));
                     }}
                   />
                 ))}
               </ScrollView>
             )}
 
-            {/* ── Filter tabs ───────────────────────────────────────────── */}
+            {/* Filter tabs */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -380,7 +379,7 @@ export default function NearbyScreen() {
               ))}
             </ScrollView>
 
-            {/* noKey banner */}
+            {/* No-key banner */}
             {noKey && (
               <View style={s.alertBanner}>
                 <Ionicons name="information-circle" size={14} color="#fbbf24" />
@@ -388,7 +387,7 @@ export default function NearbyScreen() {
               </View>
             )}
 
-            {/* ── Place list ───────────────────────────────────────────── */}
+            {/* Place list */}
             <ScrollView showsVerticalScrollIndicator={false}>
               {filtered.length === 0 ? (
                 <View style={s.emptyBox}>
@@ -411,7 +410,7 @@ export default function NearbyScreen() {
         )}
       </View>
 
-      {/* ── FAB: Report an Incident ─────────────────────────────────────────── */}
+      {/* ── FAB: Report an Incident ─────────────────────────────────────── */}
       <View style={s.fabArea}>
         <Text style={s.fabLabel}>Report an Incident</Text>
         <TouchableOpacity style={s.fab} onPress={() => setReportModal(true)} activeOpacity={0.85}>
@@ -419,7 +418,7 @@ export default function NearbyScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Report Modal ─────────────────────────────────────────────────────── */}
+      {/* ── Report Modal ─────────────────────────────────────────────────── */}
       <Modal visible={reportModal} transparent animationType="slide">
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
@@ -458,7 +457,7 @@ export default function NearbyScreen() {
               textAlignVertical="top"
             />
 
-            <TouchableOpacity style={s.submitBtn} onPress={submitReport}>
+            <TouchableOpacity style={s.submitBtn} onPress={handleSubmitReport}>
               <Ionicons name="send" size={16} color="white" />
               <Text style={s.submitBtnText}>Submit Report</Text>
             </TouchableOpacity>
@@ -467,6 +466,18 @@ export default function NearbyScreen() {
       </Modal>
     </View>
   );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function formatAgo(iso) {
+  try {
+    const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  } catch { return ""; }
 }
 
 const s = StyleSheet.create({
@@ -479,7 +490,7 @@ const s = StyleSheet.create({
   mapFallbackSub: { color: "#4b5563", fontSize: 12 },
 
   // Search bar floating
-  searchBar:      {
+  searchBar: {
     position: "absolute", top: 52, left: 16, right: 16,
     flexDirection: "row", alignItems: "center", gap: 10,
     backgroundColor: "rgba(13,5,32,0.92)", borderRadius: 16,
@@ -490,7 +501,7 @@ const s = StyleSheet.create({
   searchInput:    { flex: 1, color: TEXT, fontSize: 15 },
 
   // My location button
-  myLocBtn:       {
+  myLocBtn: {
     position: "absolute", bottom: 240, right: 16,
     width: 44, height: 44, borderRadius: 14,
     backgroundColor: "rgba(13,5,32,0.9)", borderWidth: 1, borderColor: BORDER,
@@ -499,7 +510,7 @@ const s = StyleSheet.create({
   },
 
   // Bottom Sheet
-  sheet:          {
+  sheet: {
     position: "absolute", bottom: 0, left: 0, right: 0,
     height: height * 0.5,
     backgroundColor: "#0d0520",
@@ -513,11 +524,7 @@ const s = StyleSheet.create({
   // Incident horizontal cards
   incScroll:      { marginBottom: 12 },
   incRow:         { paddingHorizontal: 16, gap: 12, paddingRight: 24 },
-  incCard:        {
-    width: 180, borderRadius: 16, borderWidth: 1,
-    padding: 14, gap: 4,
-    backgroundColor: "rgba(26,17,48,0.8)",
-  },
+  incCard:        { width: 180, borderRadius: 16, borderWidth: 1, padding: 14, gap: 4, backgroundColor: "rgba(26,17,48,0.8)" },
   incCardHeader:  { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 },
   incCardCategory:{ fontSize: 11, fontWeight: "700" },
   incCardTitle:   { fontSize: 15, fontWeight: "800", color: TEXT },
@@ -536,7 +543,7 @@ const s = StyleSheet.create({
   alertBanner:    { flexDirection: "row", gap: 8, alignItems: "center", backgroundColor: "rgba(251,191,36,0.08)", borderRadius: 10, padding: 10, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: "rgba(251,191,36,0.2)" },
   alertBannerText:{ flex: 1, color: "#fbbf24", fontSize: 11, lineHeight: 16 },
 
-  // Loading
+  // Loading / empty
   loadingBox:     { alignItems: "center", paddingTop: 40, gap: 14 },
   loadingText:    { color: SUBTEXT, fontSize: 14 },
   emptyBox:       { alignItems: "center", paddingTop: 30, gap: 10 },
