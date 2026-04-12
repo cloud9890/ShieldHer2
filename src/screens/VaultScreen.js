@@ -526,6 +526,7 @@ export default function VaultScreen() {
     </ScrollView>
     <ToastComponent />
   </View>
+  );
 }
 
 const s = StyleSheet.create({
