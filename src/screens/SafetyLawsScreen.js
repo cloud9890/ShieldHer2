@@ -145,6 +145,9 @@ export default function SafetyLawsScreen() {
               <TouchableOpacity
                 style={[s.actionBtn, { borderColor: cat.color + "40", backgroundColor: cat.color + "10" }]}
                 onPress={() => handleAction(law.action, cat.id === "5")}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel={law.action.startsWith("tel:") ? `Call ${law.section}` : "How to file complaint"}
               >
                 <Ionicons
                   name={law.action.startsWith("tel:") ? "call" : "arrow-forward-circle"}

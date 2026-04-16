@@ -271,7 +271,6 @@ export async function stopBackgroundGuardian() {
     await Notifications.dismissNotificationAsync(_guardianNotifId).catch(() => {});
     _guardianNotifId = null;
   }
-  await Notifications.dismissAllNotificationsAsync().catch(() => {});
   try {
     const isReg = await TaskManager.isTaskRegisteredAsync(GUARDIAN_BG_TASK);
     if (isReg) await Location.stopLocationUpdatesAsync(GUARDIAN_BG_TASK);

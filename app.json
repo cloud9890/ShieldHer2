@@ -12,6 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "plugins": [
       [
         "expo-location",
@@ -49,9 +52,6 @@
         "NSLocationAlwaysUsageDescription": "ShieldHer needs background location for Guardian Mode.",
         "NSMicrophoneUsageDescription": "ShieldHer uses the microphone to record audio evidence when SOS is activated.",
         "NSCameraUsageDescription": "ShieldHer uses the camera to capture photo evidence in the Vault."
-      },
-      "runtimeVersion": {
-        "policy": "appVersion"
       }
     },
     "android": {
@@ -79,8 +79,7 @@
         "RECEIVE_BOOT_COMPLETED",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION"
-      ],
-      "runtimeVersion": "1.0.0"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

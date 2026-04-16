@@ -19,11 +19,21 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "Users view own profile" on profiles;
 create policy "Users view own profile"   on profiles for select using (auth.uid() = id);
+
+drop policy if exists "Users insert own profile" on profiles;
 create policy "Users insert own profile" on profiles for insert with check (auth.uid() = id);
+
+drop policy if exists "Users update own profile" on profiles;
 create policy "Users update own profile" on profiles for update using (auth.uid() = id);
 
-alter publication supabase_realtime add table profiles;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'profiles') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
+  END IF;
+END $$;
 
 -- Migration for existing databases: add biometric_on if missing
 alter table public.profiles add column if not exists biometric_on boolean default false;
@@ -141,7 +151,7 @@ create policy "Evidence is readable by owner"
 
 create policy "Authenticated users can upload evidence"
   on storage.objects for insert
-  with check (bucket_id = 'evidence' and auth.role() = 'authenticated');
+  with check (bucket_id = 'evidence' and auth.role() = 'authenticated' and auth.uid()::text = (storage.foldername(name))[1]);
 
 create policy "Owner can delete evidence"
   on storage.objects for delete

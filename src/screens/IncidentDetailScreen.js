@@ -29,10 +29,18 @@ export default function IncidentDetailScreen() {
   const insets     = useSafeAreaInsets();
   const navigation = useNavigation();
   const route      = useRoute();
-  const { incident } = route.params;
+  const incident   = route.params?.incident;
 
   const [deleting, setDeleting]   = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  if (!incident) {
+    return (
+      <View style={[s.root, { alignItems: "center", justifyContent: "center" }]}>
+        <ActivityIndicator color={PRIMARY} size="large" />
+      </View>
+    );
+  }
 
   const meta = TYPE_COLORS[incident.type] || TYPE_COLORS["Other"];
 

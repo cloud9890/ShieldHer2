@@ -38,7 +38,7 @@ export default function AIShieldScreen() {
     } catch (err) {
       // Show the real error — never fabricate a severity level
       setAnalyzeError(
-        err?.message?.includes("network") || err?.message?.includes("fetch")
+        (err?.message || "").toLowerCase().includes("network") || (err?.message || "").toLowerCase().includes("fetch")
           ? "No internet connection. Please check your network and try again."
           : "Analysis failed. The AI service may be temporarily unavailable."
       );
@@ -64,7 +64,8 @@ export default function AIShieldScreen() {
   };
 
   useEffect(() => {
-    setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+    const timer = setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+    return () => clearTimeout(timer);
   }, [messages]);
 
   const sev = result ? (SEV_CONFIG[result.severity] || SEV_CONFIG.moderate) : null;

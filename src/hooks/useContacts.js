@@ -48,33 +48,38 @@ export default function useContacts() {
 
       const { data, error } = await supabase
         .from("contacts")
-        .insert({ user_id: user.id, name: name.trim(), phone: phone.trim(), relation: relation.trim() })
+        .insert({ user_id: user.id, name: (name || "").trim(), phone: (phone || "").trim(), relation: (relation || "").trim() })
         .select()
         .single();
 
       if (error) throw error;
 
-      const updated = [...contacts, data];
-      setContacts(updated);
-      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(updated));
+      setContacts(prev => {
+        const updated = [...prev, data];
+        AsyncStorage.setItem(CACHE_KEY, JSON.stringify(updated)).catch(()=>{});
+        return updated;
+      });
       return data;
     } catch (e) {
       console.error("addContact:", e.message);
       return null;
     }
-  }, [contacts]);
+  }, []);
 
   // ── Remove a contact — deletes from Supabase + updates cache ────────────
   const removeContact = useCallback(async (id) => {
     try {
-      await supabase.from("contacts").delete().eq("id", id);
-      const updated = contacts.filter(c => c.id !== id);
-      setContacts(updated);
-      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(updated));
+      const { error } = await supabase.from("contacts").delete().eq("id", id);
+      if (error) throw error;
+      setContacts(prev => {
+        const updated = prev.filter(c => c.id !== id);
+        AsyncStorage.setItem(CACHE_KEY, JSON.stringify(updated)).catch(()=>{});
+        return updated;
+      });
     } catch (e) {
       console.error("removeContact:", e.message);
     }
-  }, [contacts]);
+  }, []);
 
   return { contacts, loading, addContact, removeContact, reload: load };
 }

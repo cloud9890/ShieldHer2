@@ -149,11 +149,12 @@ export default function VaultScreen() {
       if (uri.startsWith("data:")) base64 = uri.split(",")[1];
       else base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
       const analysis = await analyzeEvidence(base64);
-      setForm({
+      setForm(prev => ({
+        ...prev,
         type: analysis.incidentType || "Other",
         desc: analysis.summary || analysis.extractedText || "",
-        location: analysis.location !== "Unknown" ? analysis.location : form.location,
-      });
+        location: analysis.location !== "Unknown" ? analysis.location : prev.location,
+      }));
       Alert.alert("✅ Analysis Complete", "AI has extracted details from your evidence. Review and generate a complaint.");
     } catch (err) {
       console.error("AI Analysis:", err);

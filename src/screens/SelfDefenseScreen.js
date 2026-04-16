@@ -1,8 +1,7 @@
 // screens/SelfDefenseScreen.js
 import { useState } from "react";
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Image, Linking
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, Linking
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT } from "../theme/colors";

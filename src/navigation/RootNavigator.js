@@ -59,8 +59,9 @@ function AuthStack() {
   );
 }
 
+const Tab = createMaterialTopTabNavigator();
+
 function TabNavigator() {
-  const Tab = createMaterialTopTabNavigator();
   return (
     <Tab.Navigator
       tabBarPosition="bottom"
@@ -81,6 +82,7 @@ function TabNavigator() {
         tabBarIndicatorStyle: { height: 0 },
         tabBarIcon: ({ focused, color }) => {
           const tab = TABS.find(t => t.name === route.name);
+          if (!tab) return <Ionicons name="help-circle-outline" size={22} color={color} />;
           return (
             <View style={{
               alignItems: "center", justifyContent: "center",

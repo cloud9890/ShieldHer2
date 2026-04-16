@@ -190,8 +190,14 @@ export default function HomeScreen() {
       }
     } catch (_) {}
     setSosActive(true);
-    sendSOSAlert(sosContacts, "sos", coords).catch(e => console.error("SOS:", e));
-    startEvidenceRecording().catch(() => {});
+    sendSOSAlert(sosContacts, "sos", coords).catch(e => {
+      console.error("SOS:", e);
+      Alert.alert("SOS Protocol Failed", `Network layer rejected dispatch: ${e.message}\nPlease physically call emergency services immediately.`);
+    });
+    startEvidenceRecording().catch(e => {
+      console.error("Recording:", e);
+      Alert.alert("Evidence Fault", "Failed to boot microphone buffer. Please verify security permissions.");
+    });
   };
 
   // ── Cancel SOS + auto-save recording to Vault ───────────────────────────

@@ -99,7 +99,7 @@ Evaluate the text strictly and return ONLY a valid JSON object matching this sch
   "action": "<1 actionable step>",
   "reportTemplate": "<Formal 1-sentence draft to report this to a platform>"
 }`;
-  const messages = [{ role: "user", content: `Analyze this message: "${text}"` }];
+  const messages = [{ role: "user", content: "Analyze this message:\n" + JSON.stringify(text) }];
   const response = await callGemini(system, messages, 400);
   try {
     const cleanText = response.replace(/```json/g, "").replace(/```/g, "").trim();

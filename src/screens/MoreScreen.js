@@ -47,7 +47,7 @@ export default function MoreScreen() {
 
       <View style={s.grid}>
         {FEATURES.map(f => (
-          <TouchableOpacity key={f.label} style={s.card} onPress={() => navigation.navigate(f.screen)} activeOpacity={0.7}>
+          <TouchableOpacity key={f.label} style={s.card} onPress={() => navigation.navigate(f.screen)} activeOpacity={0.7} accessible={true} accessibilityRole="button" accessibilityLabel={`${f.label}, ${f.subtitle}`} accessibilityHint={`Opens ${f.label} screen`}>
             <View style={[s.iconBox, { backgroundColor: f.color + "18", borderColor: f.color + "30" }]}>
               <Ionicons name={f.icon} size={24} color={f.color} />
             </View>
