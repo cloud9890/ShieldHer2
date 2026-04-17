@@ -287,7 +287,13 @@ export async function createLiveSession() {
     if (!user) return null;
     const { data, error } = await supabase
       .from("live_sessions")
-      .insert({ user_id: user.id, lat: 0, lng: 0, is_active: true })
+      .insert({
+        user_id:    user.id,
+        lat:        0,
+        lng:        0,
+        is_active:  true,
+        started_at: new Date().toISOString(),   // ← was missing; track page crashed
+      })
       .select("id")
       .single();
     if (error) throw error;
@@ -310,32 +316,59 @@ export async function endLiveSession() {
 }
 
 // ── Location Watch (escort + live location sharing) ────────────────────────
-export async function startLocationWatch(onUpdate) {
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== "granted") return false;
-  _locationSub = await Location.watchPositionAsync(
-    {
-      accuracy: Location.Accuracy.BestForNavigation,
-      timeInterval: 2000,       // every 2 seconds (matches escort SMS "Map updates every 2 seconds")
-      distanceInterval: 1,      // or every 1 metre
-    },
-    async (loc) => {
-      const coords = loc.coords;
-      // Notify the UI immediately
-      onUpdate(coords);
-      // Write to Supabase live_session for real-time tracking
-      if (_liveSessionId) {
-        supabase.from("live_sessions").update({
-          lat: coords.latitude,
-          lng: coords.longitude,
-          updated_at: new Date().toISOString(),
-        }).eq("id", _liveSessionId).then(({ error }) => {
-          if (error) console.warn("live session update:", error.message);
-        });
-      }
+// Returns a Promise that resolves with the first coords once GPS lock is obtained.
+export function startLocationWatch(onUpdate) {
+  return new Promise(async (resolve) => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") { resolve(null); return; }
+
+      let firstResolved = false;
+
+      _locationSub = await Location.watchPositionAsync(
+        {
+          accuracy:         Location.Accuracy.BestForNavigation,
+          timeInterval:     2000,   // every 2 seconds
+          distanceInterval: 1,      // or every 1 metre
+        },
+        async (loc) => {
+          const coords = loc.coords;
+          // Notify the UI immediately on every update
+          onUpdate(coords);
+          // Write to Supabase live_session for real-time tracking
+          if (_liveSessionId) {
+            supabase.from("live_sessions").update({
+              lat:        coords.latitude,
+              lng:        coords.longitude,
+              updated_at: new Date().toISOString(),
+            }).eq("id", _liveSessionId).then(({ error }) => {
+              if (error) console.warn("live session update:", error.message);
+            });
+          }
+          // Resolve the promise on the FIRST real fix so the caller can use accurate coords
+          if (!firstResolved) {
+            firstResolved = true;
+            resolve(coords);
+          }
+        }
+      );
+
+      // Fallback: if GPS hasn't fired within 5s, resolve with last known position
+      setTimeout(async () => {
+        if (!firstResolved) {
+          firstResolved = true;
+          try {
+            const last = await Location.getLastKnownPositionAsync({ maxAge: 30000 });
+            resolve(last?.coords ?? null);
+          } catch { resolve(null); }
+        }
+      }, 5000);
+
+    } catch (e) {
+      console.error("startLocationWatch:", e.message);
+      resolve(null);
     }
-  );
-  return true;
+  });
 }
 
 export function stopLocationWatch() {
@@ -349,10 +382,10 @@ export function getLiveTrackingUrl(sessionId) {
 }
 
 // ── SOS Alert ─────────────────────────────────────────────────────────────
-export async function sendSOSAlert(contacts, alertType = "sos", preFetchedCoords = null) {
+export async function sendSOSAlert(contacts, alertType = "sos", preFetchedCoords = null, customMsg = null) {
   try {
     const coords = preFetchedCoords || await getCurrentLocation();
-    const msg    = buildMessage(alertType, coords);
+    const msg    = customMsg || buildMessage(alertType, coords);
     const results = await Promise.allSettled(contacts.map(c => sendSMS(c.phone, msg)));
     const sent   = results.filter(r => r.status === "fulfilled").length;
     const failed = results.filter(r => r.status === "rejected");
@@ -373,12 +406,13 @@ export async function sendSOSAlert(contacts, alertType = "sos", preFetchedCoords
   }
 }
 
-export async function sendEscortSOS(contacts, sessionId, preFetchedCoords = null) {
+export async function sendEscortSOS(contacts, sessionId, preFetchedCoords = null, customMsg = null) {
   try {
     const coords = preFetchedCoords || await getCurrentLocation();
     const trackUrl = getLiveTrackingUrl(sessionId);
     const time = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-    const msg = `🛡️ ShieldHer — Live Escort Started\n\nTrack my live location in real-time:\n${trackUrl}\n\n• Map updates every 2 seconds\n• Link expires when I arrive safely\n\nTime: ${time}`;
+    const fallbackMsg = `🛡️ ShieldHer — Live Escort Started\n\nTrack my live location in real-time:\n${trackUrl}\n\n• Map updates every 2 seconds\n• Link expires when I arrive safely\n\nTime: ${time}`;
+    const msg = customMsg ? `${customMsg}\n\nLive tracking: ${trackUrl}` : fallbackMsg;
     const results = await Promise.allSettled(contacts.map(c => sendSMS(c.phone, msg)));
     const sent = results.filter(r => r.status === "fulfilled").length;
     return { success: true, sent, trackUrl };
@@ -470,4 +504,28 @@ export async function registerForPushNotifications() {
     const token = await Notifications.getExpoPushTokenAsync();
     return token.data;
   } catch { return null; }
+}
+
+export async function scheduleDailySafetyBriefing() {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+    
+    await Notifications.cancelAllScheduledNotificationsAsync();
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "🛡️ Morning Safety Briefing",
+        body: "Tap to review community alerts and AI safety insights for your commute.",
+        data: { route: "Home" }
+      },
+      trigger: {
+        hour: 8,
+        minute: 0,
+        repeats: true,
+      },
+    });
+  } catch(e) {
+    console.warn("Failed to schedule daily briefing:", e);
+  }
 }

@@ -10,78 +10,66 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
-const PRIMARY    = "#8b5cf6";
-const PILL_BG    = "rgba(10, 10, 18, 0.92)";
+const PRIMARY = "#8b5cf6";
+const PILL_BG = "rgba(10, 10, 18, 0.92)";
 const PILL_BORDER = "rgba(139, 92, 246, 0.18)";
-const INACTIVE   = "#4b5563";
-const PILL_WIDTH = SCREEN_W - 48; // floating with 24px margin each side
+const INACTIVE = "#4b5563";
+const PILL_WIDTH = Math.min(SCREEN_W - 48, 500); // cap for web wide-screen
 
 const TABS = [
-  { name: "Home",   icon: "shield-outline",   activeIcon: "shield"    },
-  { name: "Nearby", icon: "location-outline", activeIcon: "location"  },
-  { name: "Circle", icon: "people-outline",   activeIcon: "people"    },
-  { name: "Vault",  icon: "folder-outline",   activeIcon: "folder"    },
-  { name: "More",   icon: "grid-outline",     activeIcon: "grid"      },
+  { name: "Home", icon: "shield-outline", activeIcon: "shield" },
+  { name: "Nearby", icon: "location-outline", activeIcon: "location" },
+  { name: "Circle", icon: "people-outline", activeIcon: "people" },
+  { name: "Vault", icon: "folder-outline", activeIcon: "folder" },
+  { name: "More", icon: "grid-outline", activeIcon: "grid" },
 ];
 
-const TAB_COUNT   = TABS.length;
-const TAB_W       = PILL_WIDTH / TAB_COUNT;
+const TAB_W = PILL_WIDTH / TABS.length;
 
 export default function FloatingTabBar({ state, descriptors, navigation }) {
-  const insets      = useSafeAreaInsets();
-  const slideAnim   = useRef(new Animated.Value(0)).current;
-  const scaleAnims  = useRef(TABS.map(() => new Animated.Value(1))).current;
-  const glowAnims   = useRef(TABS.map(() => new Animated.Value(0))).current;
+  const insets = useSafeAreaInsets();
+  // Indicator slide — JS driver (works on both native and web)
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  // Scale per tab — JS driver (useNativeDriver conflicts with some web envs)
+  const scaleAnims = useRef(TABS.map(() => new Animated.Value(1))).current;
 
-  // Slide the indicator when the active tab changes
   useEffect(() => {
+    // Slide the underline indicator to the active tab
     Animated.spring(slideAnim, {
       toValue: state.index * TAB_W,
-      useNativeDriver: true,
-      damping:   18,
+      useNativeDriver: false, // false = works on web AND native
+      damping: 18,
       stiffness: 200,
-      mass:       0.8,
+      mass: 0.8,
     }).start();
 
-    // Scale + glow the newly active tab
+    // Spring-scale the active icon up, rest down
     TABS.forEach((_, i) => {
       const isActive = i === state.index;
       Animated.spring(scaleAnims[i], {
         toValue: isActive ? 1.15 : 1,
-        useNativeDriver: true,
+        useNativeDriver: false,
         damping: 14,
         stiffness: 260,
-      }).start();
-      Animated.timing(glowAnims[i], {
-        toValue: isActive ? 1 : 0,
-        duration: 220,
-        useNativeDriver: false,
       }).start();
     });
   }, [state.index]);
 
   return (
     <View
-      style={[
-        s.outerWrap,
-        { bottom: insets.bottom + 12 },
-      ]}
+      style={[s.outerWrap, { bottom: (insets.bottom || 0) + 12 }]}
       pointerEvents="box-none"
     >
-      {/* The frosted pill shell */}
       <View style={s.pill}>
 
         {/* Sliding purple underline indicator */}
         <Animated.View
-          style={[
-            s.indicator,
-            { transform: [{ translateX: slideAnim }] },
-          ]}
+          style={[s.indicator, { left: slideAnim }]}
         />
 
         {/* Tab buttons */}
         {state.routes.map((route, index) => {
-          const tab       = TABS.find(t => t.name === route.name) || TABS[0];
+          const tab = TABS.find(t => t.name === route.name) || TABS[0];
           const isFocused = state.index === index;
           const { options } = descriptors[route.key];
           const label = options.title ?? route.name;
@@ -97,11 +85,6 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
             }
           };
 
-          const iconColor = glowAnims[index].interpolate({
-            inputRange:  [0, 1],
-            outputRange: [INACTIVE, PRIMARY],
-          });
-
           return (
             <TouchableOpacity
               key={route.key}
@@ -112,6 +95,7 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
               accessibilityLabel={label}
               accessibilityState={{ selected: isFocused }}
             >
+              {/* Icon wrapper with spring scale */}
               <Animated.View
                 style={[
                   s.iconWrap,
@@ -119,22 +103,19 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
                 ]}
               >
                 {/* Glow halo behind active icon */}
-                {isFocused && (
-                  <View style={s.glowHalo} />
-                )}
-                <Animated.Text style={{ color: iconColor }}>
-                  <Ionicons
-                    name={isFocused ? tab.activeIcon : tab.icon}
-                    size={22}
-                    color={isFocused ? PRIMARY : INACTIVE}
-                  />
-                </Animated.Text>
+                {isFocused && <View style={s.glowHalo} />}
+
+                {/* Icon — colour toggled by state, not Animated (avoids web crash) */}
+                <Ionicons
+                  name={isFocused ? tab.activeIcon : tab.icon}
+                  size={22}
+                  color={isFocused ? PRIMARY : INACTIVE}
+                />
               </Animated.View>
+
+              {/* Label */}
               <Text
-                style={[
-                  s.label,
-                  isFocused ? s.labelActive : s.labelInactive,
-                ]}
+                style={[s.label, isFocused ? s.labelActive : s.labelInactive]}
                 numberOfLines={1}
               >
                 {label}
@@ -153,7 +134,6 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: "center",
-    // Elevate visually above everything else
     zIndex: 999,
     elevation: 30,
   },
@@ -166,30 +146,23 @@ const s = StyleSheet.create({
     borderColor: PILL_BORDER,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
     overflow: "hidden",
-    // Soft purple shadow for depth/spatial feel
     shadowColor: PRIMARY,
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.28,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 8 },
-    // Android depth
-    ...(Platform.OS === "android" && {
-      elevation: 20,
-    }),
+    elevation: Platform.OS === "android" ? 20 : undefined,
   },
   indicator: {
     position: "absolute",
     bottom: 0,
-    left: 0,
     width: TAB_W,
-    height: 2,
+    height: 2.5,
     backgroundColor: PRIMARY,
     borderRadius: 2,
     shadowColor: PRIMARY,
     shadowOpacity: 0.9,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 8,
   },
   tabBtn: {
     flex: 1,
@@ -201,24 +174,21 @@ const s = StyleSheet.create({
   iconWrap: {
     alignItems: "center",
     justifyContent: "center",
-    position: "relative",
+    width: 36,
+    height: 36,
   },
   glowHalo: {
     position: "absolute",
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(139, 92, 246, 0.15)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(139, 92, 246, 0.14)",
   },
   label: {
     fontSize: 9.5,
     fontWeight: "600",
     letterSpacing: 0.3,
   },
-  labelActive: {
-    color: PRIMARY,
-  },
-  labelInactive: {
-    color: INACTIVE,
-  },
+  labelActive: { color: PRIMARY },
+  labelInactive: { color: INACTIVE },
 });

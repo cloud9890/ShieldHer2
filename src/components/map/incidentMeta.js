@@ -10,3 +10,10 @@ export const INCIDENT_TYPES = [
 export function getTypeMeta(type) {
   return INCIDENT_TYPES.find(t => t.key === type) || INCIDENT_TYPES[0];
 }
+
+export const EMERGENCY_NUMBERS = [
+  { label: "Police", number: "100", icon: "shield-checkmark", color: "#3b82f6" },
+  { label: "Emergency", number: "112", icon: "warning", color: "#ef4444" },
+  { label: "Ambulance", number: "108", icon: "medkit", color: "#ec4899" },
+  { label: "Women", number: "181", icon: "woman", color: "#8b5cf6" },
+];

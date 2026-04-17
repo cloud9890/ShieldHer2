@@ -1,466 +1,434 @@
-// screens/NearbyScreen.js — Map-First Premium Redesign
+// src/screens/NearbyScreen.js
+// Map-First Premium Redesign - Phase 3 & 5
+
 import { useState, useEffect, useRef } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
   TextInput, Animated, Dimensions, ActivityIndicator,
-  Linking, Platform, Modal
+  Linking, Platform, Modal, PanResponder
 } from "react-native";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
-// ✅ Import directly from theme — no local redeclarations
-import { BG, CARD, PRIMARY, SUBTEXT, TEXT, BORDER } from "../theme/colors";
-// ✅ Use shared hook — handles Realtime subscription + cleanup automatically
+import { BG, PRIMARY, SUBTEXT, TEXT, BORDER, CARD, WARNING, DANGER, SUCCESS } from "../theme/colors";
 import useCommunityReports from "../hooks/useCommunityReports";
+import { getTypeMeta, EMERGENCY_NUMBERS } from "../components/map/incidentMeta";
+import { summariseReport, getEscapeAdvice } from "../api/gemini";
 
 let MapView, Marker, PROVIDER_GOOGLE, Circle;
 if (Platform.OS !== "web") {
-  const Maps    = require("react-native-maps");
-  MapView       = Maps.default;
-  Marker        = Maps.Marker;
-  Circle        = Maps.Circle;
+  const Maps = require("react-native-maps");
+  MapView = Maps.default;
+  Marker = Maps.Marker;
+  Circle = Maps.Circle;
   PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
 }
 
 const { height } = Dimensions.get("window");
-const GOOGLE_KEY  = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
+const GOOGLE_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
 
-// ── Incident categories ───────────────────────────────────────────────────────
-const INCIDENT_TYPES = [
-  { key: "suspicious", label: "Suspicious activity", color: "#ef4444", icon: "alert-circle",     bg: "rgba(239,68,68,0.12)"  },
-  { key: "lighting",   label: "Poor lighting",        color: "#f59e0b", icon: "bulb-outline",     bg: "rgba(245,158,11,0.12)" },
-  { key: "police",     label: "Police presence",      color: "#3b82f6", icon: "shield",           bg: "rgba(59,130,246,0.12)" },
-  { key: "hospital",   label: "Hospital",             color: "#ec4899", icon: "medical",          bg: "rgba(236,72,153,0.12)" },
-  { key: "safe",       label: "Safe zone",            color: "#22c55e", icon: "checkmark-circle", bg: "rgba(34,197,94,0.12)"  },
+// ── Helpers ─────────────────────────────────────────────────────────────────
+const darkMapStyle = [
+  {"elementType":"geometry","stylers":[{"color":"#242f3e"}]},
+  {"elementType":"labels.text.fill","stylers":[{"color":"#746855"}]},
+  {"elementType":"labels.text.stroke","stylers":[{"color":"#242f3e"}]},
+  {"featureType":"administrative.locality","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},
+  {"featureType":"poi","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},
+  {"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#263c3f"}]},
+  {"featureType":"poi.park","elementType":"labels.text.fill","stylers":[{"color":"#6b9a76"}]},
+  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#38414e"}]},
+  {"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#212a37"}]},
+  {"featureType":"road","elementType":"labels.text.fill","stylers":[{"color":"#9ca5b3"}]},
+  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#746855"}]},
+  {"featureType":"road.highway","elementType":"geometry.stroke","stylers":[{"color":"#1f2835"}]},
+  {"featureType":"road.highway","elementType":"labels.text.fill","stylers":[{"color":"#f3d19c"}]},
+  {"featureType":"transit","elementType":"geometry","stylers":[{"color":"#2f3948"}]},
+  {"featureType":"transit.station","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},
+  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#17263c"}]},
+  {"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#515c6d"}]},
+  {"featureType":"water","elementType":"labels.text.stroke","stylers":[{"color":"#17263c"}]}
 ];
 
-// Emergency fallback when location / Google Maps key not available
-const EMERGENCY = [
-  { id: "e1", name: "Police Control Room", type: "police",   phone: "100", address: "National Emergency"  },
-  { id: "e2", name: "Women Helpline",      type: "police",   phone: "181", address: "24×7 Toll-Free"      },
-  { id: "e3", name: "National Emergency",  type: "police",   phone: "112", address: "All Emergencies"     },
-  { id: "e4", name: "Ambulance",           type: "hospital", phone: "108", address: "National Ambulance"  },
-];
-
-function getTypeMeta(type) {
-  return INCIDENT_TYPES.find(t => t.key === type) || INCIDENT_TYPES[0];
+function haversineDistStr(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return "";
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon1 - lon2) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c;
+  return d < 1 ? (d * 1000).toFixed(0) + " m" : d.toFixed(1) + " km";
 }
 
-// ── Custom map marker (colored teardrop with icon) ────────────────────────────
+// ── Components ──────────────────────────────────────────────────────────────
+
 function MarkerBubble({ type, size = 44 }) {
   const meta = getTypeMeta(type);
   return (
     <View style={{ alignItems: "center" }}>
       <View style={{
-        width: size, height: size, borderRadius: size / 2,
-        backgroundColor: meta.color, alignItems: "center", justifyContent: "center",
-        shadowColor: meta.color, shadowOpacity: 0.6, shadowRadius: 8, elevation: 6,
+        width: size, height: size, borderRadius: size / 2, backgroundColor: meta.color,
+        alignItems: "center", justifyContent: "center", shadowColor: meta.color,
+        shadowOpacity: 0.6, shadowRadius: 8, elevation: 6,
       }}>
         <Ionicons name={meta.icon} size={size * 0.42} color="white" />
       </View>
       <View style={{
         width: 0, height: 0, borderLeftWidth: 5, borderRightWidth: 5,
-        borderTopWidth: 8, borderLeftColor: "transparent",
-        borderRightColor: "transparent", borderTopColor: meta.color,
-        marginTop: -1,
+        borderTopWidth: 8, borderLeftColor: "transparent", borderRightColor: "transparent",
+        borderTopColor: meta.color, marginTop: -1,
       }} />
     </View>
   );
 }
 
-// ── Incident card (horizontal row) ────────────────────────────────────────────
-function IncidentCard({ item, onPress }) {
-  const meta = getTypeMeta(item.type);
-  return (
-    <TouchableOpacity
-      style={[s.incCard, { borderColor: meta.color + "50", backgroundColor: meta.bg }]}
-      onPress={onPress}
-      activeOpacity={0.85}
-    >
-      <View style={s.incCardHeader}>
-        <Ionicons name={meta.icon} size={14} color={meta.color} />
-        <Text style={[s.incCardCategory, { color: meta.color }]}>{meta.label}</Text>
-      </View>
-      <Text style={s.incCardTitle}>{item.name || item.label}</Text>
-      {item.dist && <Text style={s.incCardDist}>{item.dist} away</Text>}
-      <View style={s.incCardFooter}>
-        <Text style={s.incCardAgo}>Reported {item.ago || "just now"}</Text>
-        <TouchableOpacity style={[s.viewBtn, { borderColor: meta.color + "60" }]}>
-          <Text style={[s.viewBtnText, { color: meta.color }]}>View</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-// ── Place card (vertical list) ────────────────────────────────────────────────
-function PlaceCard({ place, onCall, onNavigate }) {
-  const meta = getTypeMeta(place.type);
-  return (
-    <View style={[s.placeCard, { borderLeftColor: meta.color, borderLeftWidth: 3 }]}>
-      <View style={[s.placeIconWrap, { backgroundColor: meta.color + "18" }]}>
-        <Ionicons name={meta.icon} size={20} color={meta.color} />
-      </View>
-      <View style={s.placeInfo}>
-        <Text style={s.placeName} numberOfLines={1}>{place.name}</Text>
-        <Text style={s.placeAddr} numberOfLines={1}>{place.address || "Emergency service"}</Text>
-        {place.rating && (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-            <Ionicons name="star" size={11} color="#fbbf24" />
-            <Text style={s.placeRating}>{place.rating}</Text>
-            {place.open === true  && <Text style={[s.placeRating, { color: "#4ade80" }]}>· Open</Text>}
-            {place.open === false && <Text style={[s.placeRating, { color: "#ef4444" }]}>· Closed</Text>}
-          </View>
-        )}
-      </View>
-      <View style={s.placeActions}>
-        {place.phone && (
-          <TouchableOpacity style={[s.actionBtn, { backgroundColor: "#22c55e18", borderColor: "#22c55e30" }]}
-            onPress={() => onCall(place.phone)}>
-            <Ionicons name="call" size={14} color="#22c55e" />
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity style={[s.actionBtn, { backgroundColor: PRIMARY + "18", borderColor: BORDER }]}
-          onPress={() => onNavigate(place)}>
-          <Ionicons name="navigate" size={14} color={PRIMARY} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
-// ── Main screen ───────────────────────────────────────────────────────────────
+// ── Main Screen ─────────────────────────────────────────────────────────────
 export default function NearbyScreen() {
-  const [location,  setLocation]  = useState(null);
-  const [places,    setPlaces]    = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [noKey,     setNoKey]     = useState(false);
-  const [search,    setSearch]    = useState("");
-  const [filter,    setFilter]    = useState("all");
-  const [reportModal, setReportModal] = useState(false);
-  const [repType,   setRepType]   = useState("suspicious");
-  const [repNote,   setRepNote]   = useState("");
-  const [region,    setRegion]    = useState({
-    latitude: 28.6139, longitude: 77.2090,
-    latitudeDelta: 0.025, longitudeDelta: 0.025,
-  });
+  const [location, setLocation] = useState(null);
+  const [places, setPlaces]     = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [search, setSearch]     = useState("");
+  const [filter, setFilter]     = useState("all");
+  const [radiusKm, setRadiusKm] = useState(5);
+  
+  // Sheet drag state
+  const sheetY     = useRef(new Animated.Value(height * 0.55)).current; // Start partially open
+  const mapRef     = useRef(null);
+  const listRef    = useRef(null);
 
-  // ✅ Hook manages Realtime subscription + cleanup — no manual channel leak
-  const { reports: communityReports, submitReport } = useCommunityReports(40);
+  const [selectedPlace, setSelectedPlace] = useState(null); // Place Modals
+  const [reportDetail, setReportDetail]   = useState(null); // AI Report Summary Modal
 
-  const sheetAnim = useRef(new Animated.Value(0)).current;
+  const { reports } = useCommunityReports(10); // Real SUPABASE reports
 
-  useEffect(() => { loadNearby(); }, []);
+  const panResponder = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 5,
+    onPanResponderMove: Animated.event([null, { dy: sheetY }], { useNativeDriver: false }),
+    onPanResponderRelease: (_, gestureState) => {
+      const isUp = gestureState.vy < -0.5 || gestureState.dy < -50;
+      Animated.spring(sheetY, {
+        toValue: isUp ? 60 : height * 0.55, 
+        useNativeDriver: false, friction: 8
+      }).start();
+    }
+  })).current;
 
+  // Init Location
   useEffect(() => {
-    Animated.spring(sheetAnim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 9 }).start();
-  }, [loading]);
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") { setLoading(false); return; }
+      try {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setLocation(loc.coords);
+        if (GOOGLE_KEY) await fetchPlaces(loc.coords.latitude, loc.coords.longitude, radiusKm);
+      } catch (e) {
+        setLoading(false);
+      }
+    })();
+  }, [radiusKm]); // Re-fetch on radius change
 
-  const loadNearby = async () => {
+  const fetchPlaces = async (lat, lng, rad) => {
     setLoading(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") { setNoKey(true); setLoading(false); return; }
+      const pUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${rad*1000}&type=police&key=${GOOGLE_KEY}`;
+      const hUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${rad*1000}&type=hospital&key=${GOOGLE_KEY}`;
+      
+      const [pRes, hRes] = await Promise.all([fetch(pUrl), fetch(hUrl)]);
+      const [pData, hData] = await Promise.all([pRes.json(), hRes.json()]);
 
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const { latitude, longitude } = loc.coords;
-      setLocation({ latitude, longitude });
-      setRegion({ latitude, longitude, latitudeDelta: 0.025, longitudeDelta: 0.025 });
+      const combined = [
+        ...(pData.results||[]).map(p => ({ ...p, _type: "police" })),
+        ...(hData.results||[]).map(h => ({ ...h, _type: "hospital" }))
+      ];
 
-      if (!GOOGLE_KEY) { setNoKey(true); setLoading(false); return; }
+      // Fix 3: Detail fetches for real phone numbers (Limit to top 10 to save API calls)
+      const enhanced = await Promise.all(combined.slice(0, 10).map(async (item) => {
+        let phone = null;
+        try {
+          const detailRes = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${item.place_id}&fields=formatted_phone_number&key=${GOOGLE_KEY}`);
+          const detailData = await detailRes.json();
+          phone = detailData.result?.formatted_phone_number;
+        } catch(e){}
 
-      const [policeRes, hospRes] = await Promise.all([
-        fetchNearby(latitude, longitude, "police"),
-        fetchNearby(latitude, longitude, "hospital"),
-      ]);
-      setPlaces([...policeRes, ...hospRes]);
-    } catch (e) {
-      console.error("Nearby error:", e);
-      setNoKey(true);
+        return {
+          id: item.place_id,
+          name: item.name,
+          address: item.vicinity,
+          type: item._type,
+          lat: item.geometry.location.lat,
+          lng: item.geometry.location.lng,
+          phone: phone,
+          rating: item.rating,
+          open: item.opening_hours?.open_now,
+          dist: haversineDistStr(lat, lng, item.geometry.location.lat, item.geometry.location.lng)
+        };
+      }));
+
+      setPlaces(enhanced);
+    } catch {
+      // Fallback
     }
     setLoading(false);
   };
 
-  const fetchNearby = async (lat, lng, type) => {
-    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=5000&type=${type}&key=${GOOGLE_KEY}`;
-    const res  = await fetch(url);
-    const data = await res.json();
-    return (data.results || []).slice(0, 8).map(p => ({
-      id:      p.place_id,
-      name:    p.name,
-      type,
-      address: p.vicinity,
-      rating:  p.rating,
-      open:    p.opening_hours?.open_now,
-      lat:     p.geometry.location.lat,
-      lng:     p.geometry.location.lng,
-      phone:   null,
-    }));
+  // Fix 1: Geocoding Search
+  const performSearch = async () => {
+    if (!search.trim() || !GOOGLE_KEY) return;
+    setLoading(true);
+    try {
+      const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(search)}&key=${GOOGLE_KEY}`;
+      const res = await fetch(geoUrl);
+      const data = await res.json();
+      if (data.results?.length > 0) {
+        const { lat, lng } = data.results[0].geometry.location;
+        mapRef.current?.animateToRegion({ latitude: lat, longitude: lng, latitudeDelta: 0.05, longitudeDelta: 0.05 }, 1000);
+        await fetchPlaces(lat, lng, radiusKm);
+      }
+    } catch (e) {
+      console.log("Search error", e);
+    }
+    setLoading(false);
   };
 
-  const openMaps  = (place) => {
-    const q = place.lat ? `${place.lat},${place.lng}` : place.name;
-    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`);
-  };
-  const callPlace = (phone) => Linking.openURL(`tel:${phone}`);
-
-  // ✅ submitReport comes from useCommunityReports — saves to Supabase + broadcasts Realtime
-  const handleSubmitReport = async () => {
-    const meta = getTypeMeta(repType);
-    await submitReport({
-      category: meta.label,
-      note: repNote,
-      lat: location?.latitude  ?? null,
-      lng: location?.longitude ?? null,
-    });
-    setReportModal(false);
-    setRepNote("");
+  // Fix 5: Marker sync
+  const onMarkerTap = (item, index) => {
+    setSelectedPlace(item);
   };
 
-  const listSource = noKey ? EMERGENCY : places;
-  const filtered   = filter === "all"
-    ? listSource
-    : listSource.filter(p => p.type === filter);
+  const onReportTap = async (item) => {
+    // AI-2: Report Summariser
+    setReportDetail({ ...item, aiLoading: true });
+    try {
+      const aiReply = await summariseReport(item.category, item.note, new Date(item.created_at).toLocaleString());
+      if (aiReply) setReportDetail({ ...item, aiSummary: aiReply, aiLoading: false });
+      else setReportDetail({ ...item, aiLoading: false, aiError: true });
+    } catch {
+      setReportDetail({ ...item, aiLoading: false, aiError: true });
+    }
+  };
 
-  // Community report cards for horizontal scroll (from Supabase, not demo data)
-  const reportCards = communityReports
-    .filter(r => r.lat && r.lng)
-    .slice(0, 10)
-    .map(r => ({
-      id:   r.id,
-      type: INCIDENT_TYPES.find(t => t.label === r.category)?.key || "suspicious",
-      label: r.category,
-      name:  r.note || r.category,
-      ago:   formatAgo(r.created_at),
-    }));
+  const onEscapeAdvice = async () => {
+    // AI-3: Escape Route Advisor
+    if (!selectedPlace) return;
+    setSelectedPlace(prev => ({ ...prev, aiLoading: true }));
+    try {
+      const placesSubset = places.slice(0, 5).map(p => p.name);
+      const advice = await getEscapeAdvice(placesSubset, new Date().toLocaleTimeString());
+      setSelectedPlace(prev => ({ ...prev, advice, aiLoading: false }));
+    } catch {
+      setSelectedPlace(prev => ({ ...prev, aiLoading: false }));
+    }
+  };
 
-  const mapStyle = [
-    { elementType: "geometry",            stylers: [{ color: "#1a0a2e" }] },
-    { elementType: "labels.text.stroke",  stylers: [{ color: "#0d0520" }] },
-    { elementType: "labels.text.fill",    stylers: [{ color: "#9ca3af" }] },
-    { featureType: "road",                elementType: "geometry", stylers: [{ color: "#2d1b4e" }] },
-    { featureType: "water",               elementType: "geometry", stylers: [{ color: "#0f2547" }] },
-    { featureType: "poi.park",            elementType: "geometry", stylers: [{ color: "#0d3320" }] },
-    { featureType: "administrative",      elementType: "geometry.stroke", stylers: [{ color: "#3d1f6e" }] },
-  ];
+  // Fix 2: Filter markers
+  const filteredPlaces = filter === "all" ? places : places.filter(p => p.type === filter);
+  const filteredReports = filter === "all" ? reports : reports.filter(r => getTypeMeta(r.category).key === filter);
 
   return (
-    <View style={s.root}>
+    <View style={s.container}>
+      {/* ── BACKGROUND MAP ───────────────────────────────────────────────────── */}
+      {Platform.OS === "web" ? (
+        <View style={{ flex: 1, backgroundColor: CARD, alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ color: SUBTEXT }}>Map unavailable on Web</Text>
+        </View>
+      ) : MapView && location ? (
+        <MapView 
+          ref={mapRef}
+          style={StyleSheet.absoluteFillObject} 
+          customMapStyle={darkMapStyle}
+          initialRegion={{ latitude: location.latitude, longitude: location.longitude, latitudeDelta: 0.04, longitudeDelta: 0.04 }}
+          showsUserLocation
+        >
+          {location && <Circle center={location} radius={radiusKm * 1000} fillColor="rgba(139,92,246,0.1)" strokeColor="rgba(139,92,246,0.3)" />}
+          
+          {/* Places Markers */}
+          {filteredPlaces.map((p, i) => (
+            <Marker key={p.id} coordinate={{ latitude: p.lat, longitude: p.lng }} onPress={() => onMarkerTap(p, i)}>
+              <MarkerBubble type={p.type} />
+            </Marker>
+          ))}
 
-      {/* ── Full-screen Map ──────────────────────────────────────────────── */}
-      <View style={s.mapContainer}>
-        {Platform.OS !== "web" && MapView ? (
-          <MapView
-            style={StyleSheet.absoluteFill}
-            region={region}
-            onRegionChangeComplete={setRegion}
-            showsUserLocation
-            showsMyLocationButton={false}
-            customMapStyle={mapStyle}
-            provider={PROVIDER_GOOGLE}
-          >
-            {/* Real community report markers from Supabase */}
-            {communityReports
-              .filter(r => typeof r.lat === "number" && typeof r.lng === "number")
-              .map(rep => {
-                const incType = INCIDENT_TYPES.find(t => t.label === rep.category);
-                return (
-                  <Marker
-                    key={rep.id}
-                    coordinate={{ latitude: rep.lat, longitude: rep.lng }}
-                    title={rep.category}
-                    description={rep.note || ""}
-                  >
-                    <MarkerBubble type={incType?.key || "suspicious"} size={40} />
-                  </Marker>
-                );
-              })}
+          {/* Report Markers */}
+          {filteredReports.map((r, i) => {
+            const tKey = getTypeMeta(r.category).key;
+            return (
+              <Marker key={`rep_${i}`} coordinate={{ latitude: r.latitude, longitude: r.longitude }} onPress={() => onReportTap(r)}>
+                <MarkerBubble type={tKey} size={36} />
+              </Marker>
+            );
+          })}
+        </MapView>
+      ) : null}
 
-            {/* Nearby place markers (police stations, hospitals) */}
-            {!noKey && places
-              .filter(p => typeof p.lat === "number" && typeof p.lng === "number")
-              .map(p => (
-                <Marker
-                  key={p.id}
-                  coordinate={{ latitude: p.lat, longitude: p.lng }}
-                  title={p.name}
-                >
-                  <MarkerBubble type={p.type} size={36} />
-                </Marker>
-              ))}
-
-            {/* User location pulse ring */}
-            {location && typeof location.latitude === "number" && (
-              <Circle
-                center={location}
-                radius={80}
-                strokeColor="rgba(59,130,246,0.5)"
-                fillColor="rgba(59,130,246,0.12)"
-              />
-            )}
-          </MapView>
-        ) : (
-          <View style={s.mapFallback}>
-            <Ionicons name="map-outline" size={44} color="#4b5563" />
-            <Text style={s.mapFallbackText}>Map available on Android</Text>
-            <Text style={s.mapFallbackSub}>Showing emergency numbers below</Text>
-          </View>
-        )}
-
-        {/* Floating search bar */}
-        <View style={s.searchBar}>
-          <Ionicons name="search-outline" size={16} color={SUBTEXT} />
-          <TextInput
-            style={s.searchInput}
-            placeholder="Search location or address"
-            placeholderTextColor="#6b7280"
-            value={search}
-            onChangeText={setSearch}
+      {/* ── TOP SEARCH OVERLAY ────────────────────────────────────────────────── */}
+      <View style={s.topOverlay}>
+        <View style={s.searchBox}>
+          <Ionicons name="search" size={20} color={SUBTEXT} />
+          <TextInput 
+            style={s.searchInput} 
+            value={search} onChangeText={setSearch} 
+            placeholder="Search location..." placeholderTextColor={SUBTEXT} 
+            onSubmitEditing={performSearch}
           />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch("")}>
-              <Ionicons name="close-circle" size={16} color={SUBTEXT} />
-            </TouchableOpacity>
-          )}
+        </View>
+        <TouchableOpacity style={s.recenterBtn} onPress={() => {
+           if(location) mapRef.current?.animateToRegion({ latitude: location.latitude, longitude: location.longitude, latitudeDelta: 0.04, longitudeDelta: 0.04 }, 1000);
+        }}>
+          <Ionicons name="locate" size={20} color={PRIMARY} />
+        </TouchableOpacity>
+      </View>
+
+      {/* ── SOS QUICK DIAL STRIP ────────────────────────────────────────────── */}
+      <View style={s.sosStrip}>
+        {EMERGENCY_NUMBERS.map(e => (
+          <TouchableOpacity key={e.number} style={[s.sosBtn, { borderColor: e.color + "40", backgroundColor: CARD }]} onPress={() => Linking.openURL(`tel:${e.number}`)}>
+            <Ionicons name={e.icon} size={14} color={e.color} />
+            <Text style={{ color: TEXT, fontSize: 11, fontWeight: "700" }}>{e.number}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* ── DRAGGABLE BOTTOM SHEET ──────────────────────────────────────────── */}
+      <Animated.View style={[s.sheet, { transform: [{ translateY: sheetY }] }]}>
+        <View {...panResponder.panHandlers} style={s.sheetHandleWrap}>
+          <View style={s.sheetHandle} />
         </View>
 
-        {/* My location button */}
-        <TouchableOpacity style={s.myLocBtn} onPress={loadNearby}>
-          <Ionicons name="locate" size={18} color={PRIMARY} />
-        </TouchableOpacity>
-      </View>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 160 }}>
+          
+          {/* Radius Selector */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipScroll} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}>
+            {[1, 5, 10, 20].map(rad => (
+               <TouchableOpacity key={rad} style={[s.chip, radiusKm === rad && s.chipActive]} onPress={() => setRadiusKm(rad)}>
+                 <Text style={[s.chipText, radiusKm === rad && s.chipTextActive]}>{rad} km</Text>
+               </TouchableOpacity>
+            ))}
+          </ScrollView>
 
-      {/* ── Bottom Sheet ─────────────────────────────────────────────────── */}
-      <View style={s.sheet}>
-        <View style={s.sheetHandle} />
-
-        {loading ? (
-          <View style={s.loadingBox}>
-            <ActivityIndicator color={PRIMARY} size="large" />
-            <Text style={s.loadingText}>Finding nearby help…</Text>
-          </View>
-        ) : (
-          <>
-            {/* Community report cards (horizontal scroll) — real data only */}
-            {reportCards.length > 0 && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.incRow}
-                style={s.incScroll}
-              >
-                {reportCards.map(inc => (
-                  <IncidentCard
-                    key={inc.id}
-                    item={inc}
-                    onPress={() => {
-                      const rep = communityReports.find(r => r.id === inc.id);
-                      if (rep?.lat) setRegion(r => ({ ...r, latitude: rep.lat, longitude: rep.lng }));
-                    }}
-                  />
-                ))}
-              </ScrollView>
-            )}
-
-            {/* Filter tabs */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={s.filterRow}
-              style={{ marginBottom: 10 }}
-            >
-              {[{ key: "all", label: "All", color: PRIMARY }, ...INCIDENT_TYPES.slice(0, 4)].map(f => (
-                <TouchableOpacity
-                  key={f.key}
-                  style={[s.filterChip, filter === f.key && { backgroundColor: f.color + "22", borderColor: f.color + "55" }]}
-                  onPress={() => setFilter(f.key)}
-                >
-                  <Text style={[s.filterChipText, filter === f.key && { color: f.color }]}>{f.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            {/* No-key banner */}
-            {noKey && (
-              <View style={s.alertBanner}>
-                <Ionicons name="information-circle" size={14} color="#fbbf24" />
-                <Text style={s.alertBannerText}>Showing emergency numbers — enable location for live results</Text>
-              </View>
-            )}
-
-            {/* Place list */}
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {filtered.length === 0 ? (
-                <View style={s.emptyBox}>
-                  <Ionicons name="location-outline" size={32} color="#4b5563" />
-                  <Text style={s.emptyText}>No results for this filter</Text>
-                </View>
-              ) : (
-                filtered.map((place, i) => (
-                  <PlaceCard
-                    key={place.id || i}
-                    place={place}
-                    onCall={callPlace}
-                    onNavigate={openMaps}
-                  />
-                ))
-              )}
-              <View style={{ height: 100 }} />
-            </ScrollView>
-          </>
-        )}
-      </View>
-
-      {/* ── FAB: Report an Incident ─────────────────────────────────────── */}
-      <View style={s.fabArea}>
-        <Text style={s.fabLabel}>Report an Incident</Text>
-        <TouchableOpacity style={s.fab} onPress={() => setReportModal(true)} activeOpacity={0.85}>
-          <Ionicons name="add" size={28} color="white" />
-        </TouchableOpacity>
-      </View>
-
-      {/* ── Report Modal ─────────────────────────────────────────────────── */}
-      <Modal visible={reportModal} transparent animationType="slide">
-        <View style={s.modalOverlay}>
-          <View style={s.modalCard}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Report an Incident</Text>
-              <TouchableOpacity onPress={() => setReportModal(false)}>
-                <Ionicons name="close" size={20} color={SUBTEXT} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={s.modalLabel}>INCIDENT TYPE</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                {INCIDENT_TYPES.map(t => (
-                  <TouchableOpacity
-                    key={t.key}
-                    style={[s.typeChip, repType === t.key && { backgroundColor: t.color + "22", borderColor: t.color }]}
-                    onPress={() => setRepType(t.key)}
-                  >
-                    <Ionicons name={t.icon} size={14} color={repType === t.key ? t.color : SUBTEXT} />
-                    <Text style={[s.typeChipText, repType === t.key && { color: t.color }]}>{t.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-
-            <Text style={s.modalLabel}>DETAILS (optional)</Text>
-            <TextInput
-              style={s.modalInput}
-              placeholder="Describe what you observed…"
-              placeholderTextColor="#4b5563"
-              value={repNote}
-              onChangeText={setRepNote}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-
-            <TouchableOpacity style={s.submitBtn} onPress={handleSubmitReport}>
-              <Ionicons name="send" size={16} color="white" />
-              <Text style={s.submitBtnText}>Submit Report</Text>
+          {/* Filter Row */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.chipScroll, { marginTop: 12 }]} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}>
+            <TouchableOpacity onPress={() => setFilter("all")} style={[s.chip, filter === "all" && s.chipActive]}>
+              <Text style={[s.chipText, filter === "all" && s.chipTextActive]}>All Nearby</Text>
             </TouchableOpacity>
+            {INCIDENT_TYPES.map(f => (
+              <TouchableOpacity key={f.key} onPress={() => setFilter(f.key)} style={[s.chip, filter === f.key && s.chipActive]}>
+                <Ionicons name={f.icon} size={14} color={filter === f.key ? PRIMARY : SUBTEXT} />
+                <Text style={[s.chipText, filter === f.key && s.chipTextActive]}>{f.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Results List */}
+          <View style={{ marginTop: 16, paddingHorizontal: 16, gap: 12 }}>
+            {loading ? <ActivityIndicator color={PRIMARY} style={{ marginTop: 40 }} /> : null}
+            {!loading && filteredPlaces.map(p => (
+              <TouchableOpacity key={p.id} onPress={() => setSelectedPlace(p)}>
+                <View style={[s.placeCard, { borderLeftColor: getTypeMeta(p.type).color, borderLeftWidth: 3 }]}>
+                  <View style={[s.placeIconWrap, { backgroundColor: getTypeMeta(p.type).color + "18" }]}>
+                    <Ionicons name={getTypeMeta(p.type).icon} size={20} color={getTypeMeta(p.type).color} />
+                  </View>
+                  <View style={s.placeInfo}>
+                    <Text style={s.placeName} numberOfLines={1}>{p.name}</Text>
+                    <Text style={s.placeAddr} numberOfLines={1}>{p.address || "Emergency service"}</Text>
+                    {p.rating && (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                        <Ionicons name="star" size={11} color="#fbbf24" />
+                        <Text style={s.placeRating}>{p.rating}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={s.placeActions}>
+                    <Text style={{ color: SUBTEXT, fontSize: 11 }}>{p.dist}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </Animated.View>
+
+      {/* ── PLACE DETAIL MODAL ──────────────────────────────────────────────── */}
+      <Modal visible={!!selectedPlace} transparent animationType="slide">
+        <View style={s.modalOverlay}>
+          <View style={s.modalContent}>
+            {selectedPlace && (
+              <>
+                <View style={s.modalHeader}>
+                  <Text style={s.modalTitle}>{selectedPlace.name}</Text>
+                  <TouchableOpacity onPress={() => setSelectedPlace(null)}>
+                    <Ionicons name="close" size={24} color={TEXT} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={{color:SUBTEXT, marginBottom: 16}}>{selectedPlace.address}</Text>
+                
+                <View style={{ flexDirection: "row", gap: 10, marginBottom: 16 }}>
+                  {selectedPlace.phone && (
+                    <TouchableOpacity style={[s.mBtn, { backgroundColor: SUCCESS + "18", borderColor: SUCCESS }]} onPress={() => Linking.openURL(`tel:${selectedPlace.phone}`)}>
+                      <Ionicons name="call" size={18} color={SUCCESS} />
+                      <Text style={[s.mBtnText, { color: SUCCESS }]}>Call</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity style={[s.mBtn, { backgroundColor: PRIMARY + "18", borderColor: PRIMARY }]} onPress={() => Linking.openURL(`geo:0,0?q=${selectedPlace.lat},${selectedPlace.lng}`)}>
+                    <Ionicons name="navigate" size={18} color={PRIMARY} />
+                    <Text style={[s.mBtnText, { color: PRIMARY }]}>Navigate</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* AI-3 Escape Advisor Trigger */}
+                {!selectedPlace.advice ? (
+                  <TouchableOpacity style={s.dangerBtn} onPress={onEscapeAdvice}>
+                    {selectedPlace.aiLoading ? <ActivityIndicator size="small" color={DANGER} /> : (
+                      <>
+                        <Ionicons name="warning" size={18} color={DANGER} />
+                        <Text style={s.dangerBtnText}>I feel unsafe here</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                ) : (
+                  <View style={s.adviceBox}>
+                    <View style={s.aiHeader}><Ionicons name="sparkles" size={14} color={WARNING}/><Text style={s.aiTitle}>AI Escape Advice</Text></View>
+                    {(selectedPlace.advice.steps || []).map((step, i) => (
+                      <Text key={i} style={s.adviceStep}>{i+1}. {step}</Text>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── REPORT SUMMARY MODAL ────────────────────────────────────────────── */}
+      <Modal visible={!!reportDetail} transparent animationType="fade">
+        <View style={s.modalOverlay}>
+          <View style={[s.modalContent, { borderColor: reportDetail ? getTypeMeta(reportDetail.category).color : BORDER }]}>
+            {reportDetail && (
+              <>
+                <View style={s.modalHeader}>
+                  <Text style={s.modalTitle}>{getTypeMeta(reportDetail.category).label}</Text>
+                  <TouchableOpacity onPress={() => setReportDetail(null)}>
+                    <Ionicons name="close" size={24} color={TEXT} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={{color:TEXT, fontSize:15, marginBottom: 12}}>{reportDetail.note}</Text>
+                <Text style={{color:SUBTEXT, fontSize:12, marginBottom: 16}}>Reported: {new Date(reportDetail.created_at).toLocaleString()}</Text>
+
+                {/* AI-2 Report Summary */}
+                <View style={s.adviceBox}>
+                  <View style={s.aiHeader}><Ionicons name="sparkles" size={14} color={WARNING}/><Text style={s.aiTitle}>AI Summary</Text></View>
+                  {reportDetail.aiLoading ? <ActivityIndicator color={WARNING} /> : reportDetail.aiSummary ? (
+                    <>
+                      <Text style={{color: TEXT, fontWeight: '700', marginBottom: 4}}>Risk: <Text style={{color: reportDetail.aiSummary.risk === 'high' ? DANGER : WARNING}}>{(reportDetail.aiSummary.risk || "").toUpperCase()}</Text></Text>
+                      <Text style={s.adviceStep}>{reportDetail.aiSummary.summary}</Text>
+                      <Text style={[s.adviceStep, {marginTop: 6, color: WARNING}]}>Tip: {reportDetail.aiSummary.advice}</Text>
+                    </>
+                  ) : <Text style={s.adviceStep}>Summary unavailable.</Text>}
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -468,111 +436,39 @@ export default function NearbyScreen() {
   );
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function formatAgo(iso) {
-  try {
-    const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-    if (mins < 1) return "just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  } catch { return ""; }
-}
-
 const s = StyleSheet.create({
-  root:           { flex: 1, backgroundColor: BG },
-
-  // Map
-  mapContainer:   { flex: 1 },
-  mapFallback:    { flex: 1, backgroundColor: "#0d0520", alignItems: "center", justifyContent: "center", gap: 10 },
-  mapFallbackText:{ color: "#6b7280", fontSize: 15, fontWeight: "600" },
-  mapFallbackSub: { color: "#4b5563", fontSize: 12 },
-
-  // Search bar floating
-  searchBar: {
-    position: "absolute", top: 52, left: 16, right: 16,
-    flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: "rgba(13,5,32,0.92)", borderRadius: 16,
-    paddingHorizontal: 14, paddingVertical: 12,
-    borderWidth: 1, borderColor: BORDER,
-    shadowColor: "#000", shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
-  },
-  searchInput:    { flex: 1, color: TEXT, fontSize: 15 },
-
-  // My location button
-  myLocBtn: {
-    position: "absolute", bottom: 240, right: 16,
-    width: 44, height: 44, borderRadius: 14,
-    backgroundColor: "rgba(13,5,32,0.9)", borderWidth: 1, borderColor: BORDER,
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
-  },
-
-  // Bottom Sheet
-  sheet: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
-    height: height * 0.5,
-    backgroundColor: "#0d0520",
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    borderWidth: 1, borderColor: BORDER,
-    paddingTop: 10, paddingHorizontal: 0,
-    shadowColor: "#8b5cf6", shadowOpacity: 0.15, shadowRadius: 20, elevation: 20,
-  },
-  sheetHandle:    { width: 40, height: 4, backgroundColor: "#4b5563", borderRadius: 2, alignSelf: "center", marginBottom: 14 },
-
-  // Incident horizontal cards
-  incScroll:      { marginBottom: 12 },
-  incRow:         { paddingHorizontal: 16, gap: 12, paddingRight: 24 },
-  incCard:        { width: 180, borderRadius: 16, borderWidth: 1, padding: 14, gap: 4, backgroundColor: "rgba(26,17,48,0.8)" },
-  incCardHeader:  { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 },
-  incCardCategory:{ fontSize: 11, fontWeight: "700" },
-  incCardTitle:   { fontSize: 15, fontWeight: "800", color: TEXT },
-  incCardDist:    { fontSize: 11, color: SUBTEXT },
-  incCardFooter:  { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 },
-  incCardAgo:     { fontSize: 10, color: "#4b5563" },
-  viewBtn:        { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 },
-  viewBtnText:    { fontSize: 11, fontWeight: "700" },
-
-  // Filter
-  filterRow:      { paddingHorizontal: 16, gap: 8, paddingBottom: 4 },
-  filterChip:     { borderWidth: 1, borderColor: BORDER, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, backgroundColor: "rgba(255,255,255,0.03)" },
-  filterChipText: { fontSize: 12, color: SUBTEXT, fontWeight: "600" },
-
-  // Alert banner
-  alertBanner:    { flexDirection: "row", gap: 8, alignItems: "center", backgroundColor: "rgba(251,191,36,0.08)", borderRadius: 10, padding: 10, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: "rgba(251,191,36,0.2)" },
-  alertBannerText:{ flex: 1, color: "#fbbf24", fontSize: 11, lineHeight: 16 },
-
-  // Loading / empty
-  loadingBox:     { alignItems: "center", paddingTop: 40, gap: 14 },
-  loadingText:    { color: SUBTEXT, fontSize: 14 },
-  emptyBox:       { alignItems: "center", paddingTop: 30, gap: 10 },
-  emptyText:      { color: SUBTEXT, fontSize: 14 },
-
-  // Place cards
-  placeCard:      { flexDirection: "row", alignItems: "center", backgroundColor: CARD, borderRadius: 16, padding: 12, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: BORDER, gap: 12 },
-  placeIconWrap:  { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  placeInfo:      { flex: 1 },
-  placeName:      { fontSize: 13, fontWeight: "700", color: TEXT },
-  placeAddr:      { fontSize: 11, color: SUBTEXT, marginTop: 2 },
-  placeRating:    { fontSize: 11, color: "#6b7280" },
-  placeActions:   { flexDirection: "row", gap: 6 },
-  actionBtn:      { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", borderWidth: 1 },
-
-  // FAB
-  fabArea:        { position: "absolute", bottom: height * 0.5 - 28, right: 16, alignItems: "flex-end", gap: 6 },
-  fabLabel:       { fontSize: 11, color: SUBTEXT, backgroundColor: "rgba(13,5,32,0.8)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  fab:            { width: 56, height: 56, borderRadius: 18, backgroundColor: "#ef4444", alignItems: "center", justifyContent: "center", shadowColor: "#ef4444", shadowOpacity: 0.5, shadowRadius: 12, elevation: 8 },
-
-  // Report Modal
-  modalOverlay:   { flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "flex-end" },
-  modalCard:      { backgroundColor: "#0d0520", borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, borderWidth: 1, borderColor: BORDER, gap: 12 },
-  modalHeader:    { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
-  modalTitle:     { fontSize: 18, fontWeight: "800", color: TEXT },
-  modalLabel:     { fontSize: 10, color: "#6b7280", fontWeight: "700", letterSpacing: 1, textTransform: "uppercase" },
-  typeChip:       { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: BORDER, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: "rgba(255,255,255,0.02)" },
-  typeChipText:   { fontSize: 12, color: SUBTEXT, fontWeight: "600" },
-  modalInput:     { borderWidth: 1, borderColor: BORDER, borderRadius: 14, padding: 14, color: TEXT, fontSize: 14, backgroundColor: "rgba(255,255,255,0.03)", minHeight: 80 },
-  submitBtn:      { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#ef4444", borderRadius: 16, paddingVertical: 14, marginTop: 4 },
-  submitBtnText:  { color: "white", fontWeight: "800", fontSize: 15 },
+  container: { flex: 1, backgroundColor: BG },
+  topOverlay: { position: "absolute", top: 50, left: 16, right: 16, flexDirection: "row", gap: 10, zIndex: 10 },
+  searchBox: { flex: 1, backgroundColor: CARD, borderRadius: 14, flexDirection: "row", alignItems: "center", paddingHorizontal: 12, height: 48, borderWidth: 1, borderColor: BORDER },
+  searchInput: { flex: 1, marginLeft: 8, color: TEXT, fontSize: 15 },
+  recenterBtn: { width: 48, height: 48, borderRadius: 14, backgroundColor: CARD, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: BORDER },
+  sosStrip: { position: "absolute", top: 110, left: 16, right: 16, flexDirection: "row", justifyContent: "space-between", zIndex: 10 },
+  sosBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 12, borderWidth: 1 },
+  sheet: { position: "absolute", left: 0, right: 0, bottom: 0, height: height * 0.85, backgroundColor: BG, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: BORDER },
+  sheetHandleWrap: { width: "100%", height: 30, alignItems: "center", justifyContent: "center" },
+  sheetHandle: { width: 40, height: 5, borderRadius: 3, backgroundColor: BORDER },
+  chipScroll: { maxHeight: 36 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, height: 32, borderRadius: 16, backgroundColor: CARD, borderWidth: 1, borderColor: BORDER },
+  chipActive: { backgroundColor: "rgba(139,92,246,0.15)", borderColor: PRIMARY },
+  chipText: { color: SUBTEXT, fontSize: 13, fontWeight: "500" },
+  chipTextActive: { color: PRIMARY, fontWeight: "600" },
+  placeCard: { flexDirection: "row", alignItems: "center", backgroundColor: CARD, pading: 12, borderRadius: 14, borderWidth: 1, borderColor: BORDER, padding: 12 },
+  placeIconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  placeInfo: { flex: 1, marginLeft: 12 },
+  placeName: { fontSize: 15, fontWeight: "700", color: TEXT },
+  placeAddr: { fontSize: 12, color: SUBTEXT, marginTop: 2 },
+  placeRating: { fontSize: 11, color: SUBTEXT },
+  placeActions: { alignItems: "flex-end" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  modalContent: { backgroundColor: CARD, borderTopLeftRadius: 24, borderTopRightRadius: 24, pading: 20, padding: 24, paddingBottom: 40, borderWidth: 1, borderColor: BORDER },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: TEXT },
+  mBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", height: 44, borderRadius: 12, borderWidth: 1, gap: 6 },
+  mBtnText: { fontWeight: "700", fontSize: 14 },
+  dangerBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", height: 48, borderRadius: 12, backgroundColor: "rgba(239,68,68,0.1)", borderWidth: 1, borderColor: "rgba(239,68,68,0.3)", gap: 8 },
+  dangerBtnText: { color: DANGER, fontWeight: "700" },
+  adviceBox: { backgroundColor: "rgba(251,191,36,0.08)", padding: 16, borderRadius: 12, borderWidth: 1, borderColor: "rgba(251,191,36,0.3)" },
+  aiHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
+  aiTitle: { color: WARNING, fontWeight: "700", fontSize: 12, letterSpacing: 0.5, textTransform: "uppercase" },
+  adviceStep: { color: TEXT, fontSize: 14, lineHeight: 22 }
 });

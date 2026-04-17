@@ -8,7 +8,7 @@ import {
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
-import { draftComplaint, analyzeEvidence } from "../api/claude";
+import { draftComplaint, analyzeEvidence, detectIncidentPattern } from "../api/gemini";
 import { supabase } from "../api/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, WARNING } from "../theme/colors";
@@ -43,6 +43,23 @@ export default function VaultScreen() {
   const [refreshing, setRefreshing]     = useState(false);
   const [userId, setUserId]             = useState(null);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [patternAnalysis, setPatternAnalysis] = useState(null);
+  const [patternLoading, setPatternLoading] = useState(false);
+
+  // Pattern detection effect
+  useEffect(() => {
+    if (incidents.length >= 3 && !patternAnalysis && !patternLoading) {
+      setPatternLoading(true);
+      (async () => {
+        try {
+          const stripped = incidents.slice(0, 10).map(i => ({ type: i.type, location: i.location, created_at: i.created_at }));
+          const res = await detectIncidentPattern(stripped);
+          if (res && res.patternFound) setPatternAnalysis(res);
+        } catch(e) {}
+        setPatternLoading(false);
+      })();
+    }
+  }, [incidents]);
 
   // Biometric lock
   const { supported: bioSupported, authenticated, checking: bioChecking, authenticate } = useBiometric();
@@ -458,6 +475,22 @@ export default function VaultScreen() {
         </View>
       )}
 
+      {/* AI Incident Pattern */}
+      {patternAnalysis && (
+        <View style={s.patternCard}>
+          <View style={s.patternHeader}>
+            <Ionicons name="warning" size={16} color={WARNING} />
+            <Text style={s.patternTitle}>AI Pattern Detected</Text>
+            <View style={s.aiBadge}><Text style={s.aiBadgeText}>GEMINI</Text></View>
+          </View>
+          <Text style={s.patternSummary}>{patternAnalysis.summary}</Text>
+          <View style={s.patternActionBox}>
+            <Ionicons name="bulb-outline" size={16} color={PRIMARY} />
+            <Text style={s.patternActionText}>{patternAnalysis.recommendation}</Text>
+          </View>
+        </View>
+      )}
+
       {/* Encrypted Records */}
       <View style={s.recordsCard}>
         <View style={s.recordsHeader}>
@@ -577,6 +610,17 @@ const s = StyleSheet.create({
   complaintText:      { fontSize: 12, color: SUBTEXT, lineHeight: 20 },
   exportBtn:          { backgroundColor: SUCCESS, borderRadius: 12, paddingVertical: 13, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 },
   exportBtnText:      { color: "white", fontWeight: "700" },
+  
+  // Pattern Card
+  patternCard:        { backgroundColor: "rgba(251,191,36,0.08)", borderRadius: 16, marginHorizontal: 16, marginBottom: 14, padding: 16, borderWidth: 1, borderColor: "rgba(251,191,36,0.3)" },
+  patternHeader:      { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+  patternTitle:       { color: WARNING, fontWeight: "700", fontSize: 13, flex: 1, textTransform: "uppercase", letterSpacing: 0.5 },
+  aiBadge:            { backgroundColor: "rgba(139,92,246,0.15)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  aiBadgeText:        { color: PRIMARY, fontSize: 9, fontWeight: "800", textTransform: "uppercase" },
+  patternSummary:     { color: TEXT, fontSize: 14, lineHeight: 22, marginBottom: 12 },
+  patternActionBox:   { flexDirection: "row", backgroundColor: "rgba(139,92,246,0.1)", padding: 12, borderRadius: 12, gap: 10, alignItems: "flex-start" },
+  patternActionText:  { color: TEXT, fontSize: 13, flex: 1, lineHeight: 18 },
+
   // Records
   recordsCard:        { backgroundColor: CARD, borderRadius: 20, padding: 18, marginHorizontal: 16, borderWidth: 1, borderColor: BORDER },
   recordsHeader:      { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },

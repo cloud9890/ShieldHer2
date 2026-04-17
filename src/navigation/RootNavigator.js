@@ -27,6 +27,7 @@ import OfflineBanner     from "../components/common/OfflineBanner";
 
 // API
 import { supabase } from "../api/supabase";
+import { scheduleDailySafetyBriefing } from "../api/sos";
 import { BG, CARD, PRIMARY, BORDER, TEXT, MUTED } from "../theme/colors";
 
 const DARK_BG = "#0d1117";
@@ -113,6 +114,7 @@ export default function RootNavigator() {
   const [session, setSession] = useState(undefined); // undefined = loading
 
   useEffect(() => {
+    scheduleDailySafetyBriefing();
     // Fix: Use onAuthStateChange as the ONLY source of truth to avoid race conditions.
     // The INITIAL_SESSION event fires synchronously with the stored session on mount.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {

@@ -42,9 +42,9 @@ export function IncidentCard({ item, onPress }) {
       {item.dist && <Text style={s.incCardDist}>{item.dist} away</Text>}
       <View style={s.incCardFooter}>
         <Text style={s.incCardAgo}>Reported {item.ago || "just now"}</Text>
-        <TouchableOpacity style={[s.viewBtn, { borderColor: meta.color + "60" }]}>
+        <View style={[s.viewBtn, { borderColor: meta.color + "60" }]}>
           <Text style={[s.viewBtnText, { color: meta.color }]}>View</Text>
-        </TouchableOpacity>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -64,7 +64,7 @@ export function PlaceCard({ place, onCall, onNavigate }) {
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
             <Ionicons name="star" size={11} color="#fbbf24" />
             <Text style={s.placeRating}>{place.rating}</Text>
-            {place.open === true  && <Text style={[s.placeRating, { color: "#4ade80" }]}>· Open</Text>}
+            {place.open === true && <Text style={[s.placeRating, { color: "#4ade80" }]}>· Open</Text>}
             {place.open === false && <Text style={[s.placeRating, { color: "#ef4444" }]}>· Closed</Text>}
           </View>
         ) : null}
@@ -77,7 +77,7 @@ export function PlaceCard({ place, onCall, onNavigate }) {
           </TouchableOpacity>
         )}
         <TouchableOpacity style={[s.actionBtn, { backgroundColor: PRIMARY + "18", borderColor: BORDER }]}
-          onPress={() => onNavigate(place)}>
+          onPress={() => onNavigate?.(place)}>
           <Ionicons name="navigate" size={14} color={PRIMARY} />
         </TouchableOpacity>
       </View>
@@ -86,22 +86,22 @@ export function PlaceCard({ place, onCall, onNavigate }) {
 }
 
 const s = StyleSheet.create({
-  incCard:        { width: 180, borderRadius: 16, borderWidth: 1, padding: 14, gap: 4, backgroundColor: "rgba(26,17,48,0.8)" },
-  incCardHeader:  { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 },
-  incCardCategory:{ fontSize: 11, fontWeight: "700" },
-  incCardTitle:   { fontSize: 15, fontWeight: "800", color: TEXT },
-  incCardDist:    { fontSize: 11, color: SUBTEXT },
-  incCardFooter:  { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 },
-  incCardAgo:     { fontSize: 10, color: "#4b5563" },
-  viewBtn:        { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 },
-  viewBtnText:    { fontSize: 11, fontWeight: "700" },
+  incCard: { width: 180, borderRadius: 16, borderWidth: 1, padding: 14, gap: 4, backgroundColor: "rgba(26,17,48,0.8)" },
+  incCardHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 },
+  incCardCategory: { fontSize: 11, fontWeight: "700" },
+  incCardTitle: { fontSize: 15, fontWeight: "800", color: TEXT },
+  incCardDist: { fontSize: 11, color: SUBTEXT },
+  incCardFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 },
+  incCardAgo: { fontSize: 10, color: "#4b5563" },
+  viewBtn: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 },
+  viewBtnText: { fontSize: 11, fontWeight: "700" },
 
-  placeCard:      { flexDirection: "row", alignItems: "center", backgroundColor: CARD, borderRadius: 16, padding: 12, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: BORDER, gap: 12 },
-  placeIconWrap:  { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  placeInfo:      { flex: 1 },
-  placeName:      { fontSize: 13, fontWeight: "700", color: TEXT },
-  placeAddr:      { fontSize: 11, color: SUBTEXT, marginTop: 2 },
-  placeRating:    { fontSize: 11, color: "#6b7280" },
-  placeActions:   { flexDirection: "row", gap: 6 },
-  actionBtn:      { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  placeCard: { flexDirection: "row", alignItems: "center", backgroundColor: CARD, borderRadius: 16, padding: 12, marginHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: BORDER, gap: 12 },
+  placeIconWrap: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  placeInfo: { flex: 1 },
+  placeName: { fontSize: 13, fontWeight: "700", color: TEXT },
+  placeAddr: { fontSize: 11, color: SUBTEXT, marginTop: 2 },
+  placeRating: { fontSize: 11, color: "#6b7280" },
+  placeActions: { flexDirection: "row", gap: 6 },
+  actionBtn: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", borderWidth: 1 },
 });

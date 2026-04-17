@@ -1,10 +1,11 @@
 // screens/SelfDefenseScreen.js
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, Linking
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, Linking, ActivityIndicator
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT } from "../theme/colors";
+import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT, WARNING } from "../theme/colors";
+import { recommendDefenseTechnique } from "../api/gemini";
 
 // Curated self-defense video topics with YouTube search queries
 const VIDEOS = [
@@ -108,6 +109,19 @@ const LEVEL_COLOR = {
 
 export default function SelfDefenseScreen() {
   const [activeCategory, setActiveCategory] = useState("All");
+  const [recommendation, setRecommendation] = useState(null);
+  const [recLoading, setRecLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const time = new Date().getHours() < 18 ? "daytime commuter" : "night traveler";
+        const res = await recommendDefenseTechnique(`User is a ${time}`);
+        if (res && res.techniqueName) setRecommendation(res);
+      } catch (e) {}
+      setRecLoading(false);
+    })();
+  }, []);
 
   const filtered = activeCategory === "All"
     ? VIDEOS
@@ -131,6 +145,30 @@ export default function SelfDefenseScreen() {
         <Text style={s.tipText}>
           Practice these techniques regularly. Muscle memory formed in safety could save your life in danger.
         </Text>
+      </View>
+
+      {/* AI Recommendation */}
+      <View style={s.aiCard}>
+        <View style={s.aiHeader}>
+          <Ionicons name="sparkles" size={16} color={WARNING} />
+          <Text style={s.aiTitle}>AI Recommended for You</Text>
+        </View>
+        {recLoading ? (
+           <ActivityIndicator size="small" color={WARNING} />
+        ) : recommendation ? (
+          <>
+            <Text style={{ color: TEXT, fontWeight: '700', marginBottom: 4 }}>{recommendation.techniqueName}</Text>
+            <Text style={{ color: SUBTEXT, fontSize: 12, lineHeight: 18, marginBottom: 8 }}>{recommendation.reasoning}</Text>
+            {recommendation.searchQuery ? (
+              <TouchableOpacity style={s.aiSearchBtn} onPress={() => openVideo(recommendation.searchQuery)}>
+                <Ionicons name="logo-youtube" size={14} color="#ef4444" />
+                <Text style={s.aiSearchText}>Search Tutorial</Text>
+              </TouchableOpacity>
+            ) : null}
+          </>
+        ) : (
+          <Text style={{ color: SUBTEXT, fontSize: 12 }}>No personalized recommendations right now.</Text>
+        )}
       </View>
 
       {/* Category filter */}
@@ -207,6 +245,11 @@ const s = StyleSheet.create({
   subtitle:         { fontSize: 12, color: PRIMARY, marginTop: 4, fontWeight: "600" },
   tipBanner:        { flexDirection: "row", gap: 10, alignItems: "flex-start", backgroundColor: "rgba(139,92,246,0.08)", borderRadius: 16, marginHorizontal: 16, marginBottom: 14, padding: 14, borderWidth: 1, borderColor: BORDER },
   tipText:          { flex: 1, fontSize: 12, color: "#a78bfa", lineHeight: 18 },
+  aiCard:           { backgroundColor: "rgba(251,191,36,0.08)", borderRadius: 16, marginHorizontal: 16, marginBottom: 14, padding: 14, borderWidth: 1, borderColor: "rgba(251,191,36,0.3)" },
+  aiHeader:         { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
+  aiTitle:          { color: WARNING, fontWeight: "700", fontSize: 13, textTransform: "uppercase" },
+  aiSearchBtn:      { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: CARD, alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: BORDER },
+  aiSearchText:     { color: TEXT, fontSize: 12, fontWeight: "600" },
   catScroll:        { marginBottom: 14 },
   catScrollContent: { paddingHorizontal: 16, gap: 8 },
   catChip:          { borderWidth: 1, borderColor: BORDER, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 7, backgroundColor: "rgba(255,255,255,0.03)" },

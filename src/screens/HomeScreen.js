@@ -25,6 +25,7 @@ import {
 import SOSButton       from "../components/home/SOSButton";
 import GuardianBadge   from "../components/home/GuardianBadge";
 import FakeCallScreen  from "../components/home/FakeCallScreen";
+import { getSituationBriefing } from "../api/gemini";
 
 const AVATAR_COLORS = ["#7c3aed","#0ea5e9","#ec4899","#f59e0b","#10b981"];
 
@@ -62,6 +63,22 @@ export default function HomeScreen() {
   const [imageUri, setImageUri]       = useState(null);
   const [dangerAlert, setDangerAlert] = useState(null);
   const [autoSOSCountdown, setAutoSOSCountdown] = useState(10);
+  const [advisorBrief, setAdvisorBrief] = useState(null);
+
+  // Situation Advisor (AI-1)
+  useEffect(() => {
+    if (!location) return;
+    (async () => {
+      try {
+        const h = new Date().getHours();
+        const timeOfDay = h < 6 ? "late night" : h < 18 ? "daytime" : "evening/night";
+        const alertsText = communityAlerts.length > 0 ? `${communityAlerts.length} community reports nearby.` : "No immediate community reports.";
+        const ctx = `User is at ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}. Time is ${timeOfDay}. ${alertsText}`;
+        const brief = await getSituationBriefing(ctx);
+        if (brief && brief.briefing) setAdvisorBrief(brief);
+      } catch (e) {}
+    })();
+  }, [location, communityAlerts]);
 
   // Derive SOS contacts from Supabase-backed circle (falls back to env)
   const sosContacts = circleContacts.length > 0
@@ -387,6 +404,23 @@ export default function HomeScreen() {
         <Text style={s.fakeCallBtnText}>Trigger Fake Call</Text>
       </TouchableOpacity>
 
+      {/* AI Situation Advisor */}
+      {advisorBrief && (
+        <View style={s.advisorCard}>
+          <View style={s.advisorHeader}>
+            <Ionicons name="sparkles" size={14} color={PINK} />
+            <Text style={s.advisorTitle}>AI SITUATION ADVISOR</Text>
+            <View style={{ flex: 1 }} />
+            <View style={[s.riskBadge, { backgroundColor: advisorBrief.riskLevel === 'high' ? "rgba(239,68,68,0.15)" : advisorBrief.riskLevel === 'moderate' ? "rgba(245,158,11,0.15)" : "rgba(34,197,94,0.15)" }]}>
+               <Text style={[s.riskBadgeText, { color: advisorBrief.riskLevel === 'high' ? DANGER : advisorBrief.riskLevel === 'moderate' ? WARNING : SUCCESS }]}>
+                 {advisorBrief.riskLevel?.toUpperCase()} RISK
+               </Text>
+            </View>
+          </View>
+          <Text style={s.advisorText}>{advisorBrief.briefing}</Text>
+        </View>
+      )}
+
       {/* Community Alerts — now from Supabase */}
       <Text style={s.sectionLabel}>COMMUNITY ALERTS NEARBY</Text>
       {communityAlerts.length === 0 ? (
@@ -435,6 +469,13 @@ const s = StyleSheet.create({
   // Fake call btn
   fakeCallBtn:        { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginTop: 4, marginBottom: 20, backgroundColor: CARD, borderRadius: 50, paddingVertical: 10, borderWidth: 1, borderColor: BORDER },
   fakeCallBtnText:    { color: SUBTEXT, fontSize: 13, fontWeight: "600" },
+  // Advisor
+  advisorCard:        { marginHorizontal: 16, marginBottom: 20, padding: 16, backgroundColor: CARD, borderRadius: 16, borderWidth: 1, borderColor: BORDER },
+  advisorHeader:      { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
+  advisorTitle:       { color: PINK, fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
+  riskBadge:          { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  riskBadgeText:      { fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
+  advisorText:        { color: TEXT, fontSize: 13, lineHeight: 20 },
   // Alerts
   sectionLabel:       { fontSize: 10, color: SUBTEXT, fontWeight: "700", letterSpacing: 1.2, marginHorizontal: 20, marginBottom: 8 },
   alertCard:          { backgroundColor: CARD, marginHorizontal: 16, marginBottom: 8, borderRadius: 16, padding: 14, flexDirection: "row", gap: 12, alignItems: "center", borderWidth: 1, borderColor: BORDER },

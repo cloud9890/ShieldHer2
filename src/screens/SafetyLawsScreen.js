@@ -2,10 +2,11 @@
 import { useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, Linking, Alert
+  TextInput, Linking, Alert, ActivityIndicator
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT } from "../theme/colors";
+import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT, WARNING, DANGER } from "../theme/colors";
+import { legalChat } from "../api/gemini";
 
 const LAWS = [
   {
@@ -72,6 +73,28 @@ const LAWS = [
 export default function SafetyLawsScreen() {
   const [expanded, setExpanded] = useState({ "5": true });
   const [search,   setSearch]   = useState("");
+  
+  // AI Legal Chat State
+  const [chatQ, setChatQ] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatHistory, setChatHistory] = useState([]);
+
+  const handleAskAI = async () => {
+    if (!chatQ.trim()) return;
+    const q = chatQ.trim();
+    setChatQ("");
+    const newHistory = [...chatHistory, { role: "user", text: q }];
+    setChatHistory(newHistory);
+    setChatLoading(true);
+    try {
+      const formattedHistory = newHistory.map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.text}`).join("\n");
+      const answer = await legalChat(formattedHistory);
+      setChatHistory([...newHistory, { role: "assistant", text: answer || "Sorry, I could not process that request." }]);
+    } catch(e) {
+      setChatHistory([...newHistory, { role: "assistant", text: "Error connecting to AI service." }]);
+    }
+    setChatLoading(false);
+  };
 
   const toggle = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
 
@@ -100,6 +123,39 @@ export default function SafetyLawsScreen() {
       <View style={s.header}>
         <Text style={s.title}>Women Safety Laws</Text>
         <Text style={s.subtitle}>Know your rights. Stay empowered.</Text>
+      </View>
+
+      {/* AI Legal Chatbot */}
+      <View style={s.aiChatCard}>
+        <View style={s.aiHeader}>
+          <Ionicons name="sparkles" size={16} color={PRIMARY} />
+          <Text style={s.aiTitle}>AI Legal Assistant</Text>
+        </View>
+        <Text style={s.aiSub}>Ask a question about women's rights or safety laws.</Text>
+        
+        {chatHistory.length > 0 && (
+          <ScrollView style={s.chatLog} nestedScrollEnabled>
+            {chatHistory.map((msg, i) => (
+              <View key={i} style={[s.chatMsg, msg.role === "user" ? s.msgUser : s.msgBot]}>
+                 <Text style={s.msgText}>{msg.text}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+
+        <View style={s.aiInputRow}>
+           <TextInput
+             style={s.aiInput}
+             placeholder="e.g., What are my rights if I am stalked?"
+             placeholderTextColor={SUBTEXT}
+             value={chatQ}
+             onChangeText={setChatQ}
+             onSubmitEditing={handleAskAI}
+           />
+           <TouchableOpacity style={s.aiSendBtn} onPress={handleAskAI} disabled={chatLoading}>
+              {chatLoading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="send" size={14} color="#fff" />}
+           </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search */}
@@ -182,6 +238,21 @@ const s = StyleSheet.create({
   subtitle:       { fontSize: 12, color: PRIMARY, marginTop: 4, fontWeight: "600" },
   searchRow:      { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: CARD, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, marginHorizontal: 16, marginBottom: 14, borderWidth: 1, borderColor: BORDER },
   searchInput:    { flex: 1, fontSize: 14, color: TEXT },
+  
+  // AI Chat
+  aiChatCard:     { marginHorizontal: 16, marginBottom: 14, backgroundColor: "rgba(139,92,246,0.06)", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "rgba(139,92,246,0.3)" },
+  aiHeader:       { flexDirection: "row", alignItems: "center", gap: 8 },
+  aiTitle:        { color: PRIMARY, fontWeight: "700", fontSize: 13, textTransform: "uppercase", letterSpacing: 0.5 },
+  aiSub:          { color: SUBTEXT, fontSize: 11, marginTop: 4, marginBottom: 12 },
+  chatLog:        { backgroundColor: "rgba(0,0,0,0.2)", borderRadius: 12, padding: 10, marginBottom: 12, maxHeight: 200 },
+  chatMsg:        { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, maxWidth: "85%", marginBottom: 8 },
+  msgUser:        { backgroundColor: CARD, alignSelf: "flex-end", borderBottomRightRadius: 4 },
+  msgBot:         { backgroundColor: "rgba(139,92,246,0.15)", alignSelf: "flex-start", borderBottomLeftRadius: 4 },
+  msgText:        { color: TEXT, fontSize: 12, lineHeight: 18 },
+  aiInputRow:     { flexDirection: "row", gap: 8 },
+  aiInput:        { flex: 1, backgroundColor: CARD, borderRadius: 12, paddingHorizontal: 12, fontSize: 13, color: TEXT, borderWidth: 1, borderColor: BORDER, minHeight: 40 },
+  aiSendBtn:      { width: 40, height: 40, borderRadius: 12, backgroundColor: PRIMARY, alignItems: "center", justifyContent: "center" },
+
   catCard:        { backgroundColor: CARD, borderRadius: 20, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: BORDER, overflow: "hidden" },
   catHeader:      { flexDirection: "row", alignItems: "center", padding: 14, gap: 10 },
   catIcon:        { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
