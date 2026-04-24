@@ -1,3 +1,4 @@
+// @ts-nocheck
 // supabase/functions/track/index.ts
 // Live location tracking web page served as an Edge Function
 // Contact opens: https://[project].supabase.co/functions/v1/track?id=SESSION_ID
