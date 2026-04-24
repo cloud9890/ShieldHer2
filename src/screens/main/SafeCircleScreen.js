@@ -11,11 +11,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   sendSOSAlert, sendEscortSOS, startLocationWatch, stopLocationWatch,
   createLiveSession, endLiveSession, getCurrentLocation
-} from "../api/sos";
-import { personaliseSOSMessage } from "../api/gemini";
-import { BG, CARD, BORDER, PRIMARY, DANGER, SUCCESS, TEXT, SUBTEXT, MUTED, WARNING } from "../theme/colors";
-import { supabase } from "../api/supabase";
-import useContacts from "../hooks/useContacts";
+} from "../../api/sos";
+import { personaliseSOSMessage } from "../../api/gemini";
+import { BG, CARD, BORDER, PRIMARY, DANGER, SUCCESS, TEXT, SUBTEXT, MUTED, WARNING } from "../../theme/colors";
+import { supabase } from "../../api/supabase";
+import useContacts from "../../hooks/useContacts";
 
 const REPORT_CATEGORIES = [
   { label: "Poor Lighting", icon: "bulb-outline" },

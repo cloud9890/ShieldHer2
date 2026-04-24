@@ -10,22 +10,22 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { BG, CARD, BORDER, PRIMARY, PINK, DANGER, SUCCESS, WARNING, TEXT, SUBTEXT, MUTED } from "../theme/colors";
-import useAuth from "../hooks/useAuth";
-import useContacts from "../hooks/useContacts";
-import useCommunityReports from "../hooks/useCommunityReports";
+import { BG, CARD, BORDER, PRIMARY, PINK, DANGER, SUCCESS, WARNING, TEXT, SUBTEXT, MUTED } from "../../theme/colors";
+import useAuth from "../../hooks/useAuth";
+import useContacts from "../../hooks/useContacts";
+import useCommunityReports from "../../hooks/useCommunityReports";
 import {
   sendSOSAlert, startEvidenceRecording, stopEvidenceRecording,
   registerForPushNotifications,
   startShakeDetection, stopShakeDetection, startBackgroundGuardian,
   stopBackgroundGuardian, setGlobalShakeCallback,
   startAutoDangerDetection, stopAutoDangerDetection, cancelAutoSOS,
-} from "../api/sos";
+} from "../../api/sos";
 
-import SOSButton       from "../components/home/SOSButton";
-import GuardianBadge   from "../components/home/GuardianBadge";
-import FakeCallScreen  from "../components/home/FakeCallScreen";
-import { getSituationBriefing } from "../api/gemini";
+import SOSButton       from "../../components/home/SOSButton";
+import GuardianBadge   from "../../components/home/GuardianBadge";
+import FakeCallScreen  from "../features/FakeCallScreen";
+import { getSituationBriefing } from "../../api/gemini";
 
 const AVATAR_COLORS = ["#7c3aed","#0ea5e9","#ec4899","#f59e0b","#10b981"];
 

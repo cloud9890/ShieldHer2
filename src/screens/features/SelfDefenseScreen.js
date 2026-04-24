@@ -4,8 +4,8 @@ import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, Linking, ActivityIndicator
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT, WARNING } from "../theme/colors";
-import { recommendDefenseTechnique } from "../api/gemini";
+import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT, WARNING } from "../../theme/colors";
+import { recommendDefenseTechnique } from "../../api/gemini";
 
 // Curated self-defense video topics with YouTube search queries
 const VIDEOS = [

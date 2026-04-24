@@ -7,9 +7,9 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
-import { supabase } from "../api/supabase";
-import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT } from "../theme/colors";
-import useToast from "../hooks/useToast";
+import { supabase } from "../../api/supabase";
+import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT } from "../../theme/colors";
+import useToast from "../../hooks/useToast";
 
 const VERSION = "1.0.0";
 const AVATAR_COLORS = ["#7c3aed","#0ea5e9","#ec4899","#f59e0b","#10b981"];

@@ -1,8 +1,8 @@
 // src/screens/SupportScreen.js
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity, Linking, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BG_DEEP, CARD_DEEP, TEXT, SUBTEXT, PRIMARY, BORDER_VIOLET } from "../theme/colors";
-import SectionLabel from "../components/common/SectionLabel";
+import { BG_DEEP, CARD_DEEP, TEXT, SUBTEXT, PRIMARY, BORDER_VIOLET } from "../../theme/colors";
+import SectionLabel from "../../components/common/SectionLabel";
 
 export default function SupportScreen() {
   const handleEmail = () => {

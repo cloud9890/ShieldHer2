@@ -5,8 +5,8 @@ import {
   TextInput, Linking, Alert, ActivityIndicator
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT, WARNING, DANGER } from "../theme/colors";
-import { legalChat } from "../api/gemini";
+import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT, WARNING, DANGER } from "../../theme/colors";
+import { legalChat } from "../../api/gemini";
 
 const LAWS = [
   {

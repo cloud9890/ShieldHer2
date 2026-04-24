@@ -9,10 +9,10 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
-import { BG, PRIMARY, SUBTEXT, TEXT, BORDER, CARD, WARNING, DANGER, SUCCESS } from "../theme/colors";
-import useCommunityReports from "../hooks/useCommunityReports";
-import { getTypeMeta, EMERGENCY_NUMBERS } from "../components/map/incidentMeta";
-import { summariseReport, getEscapeAdvice } from "../api/gemini";
+import { BG, PRIMARY, SUBTEXT, TEXT, BORDER, CARD, WARNING, DANGER, SUCCESS } from "../../theme/colors";
+import useCommunityReports from "../../hooks/useCommunityReports";
+import { getTypeMeta, EMERGENCY_NUMBERS } from "../../components/map/incidentMeta";
+import { summariseReport, getEscapeAdvice } from "../../api/gemini";
 
 let MapView, Marker, PROVIDER_GOOGLE, Circle;
 if (Platform.OS !== "web") {

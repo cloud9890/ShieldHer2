@@ -8,14 +8,14 @@ import {
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
-import { draftComplaint, analyzeEvidence, detectIncidentPattern } from "../api/gemini";
-import { supabase } from "../api/supabase";
+import { draftComplaint, analyzeEvidence, detectIncidentPattern } from "../../api/gemini";
+import { supabase } from "../../api/supabase";
 import { Ionicons } from "@expo/vector-icons";
-import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, WARNING } from "../theme/colors";
-import useBiometric from "../hooks/useBiometric";
+import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, WARNING } from "../../theme/colors";
+import useBiometric from "../../hooks/useBiometric";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import useToast from "../hooks/useToast";
+import useToast from "../../hooks/useToast";
 
 // PDF export (optional — graceful if not installed)
 let Print = null;

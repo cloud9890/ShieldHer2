@@ -7,22 +7,25 @@ import { createNativeStackNavigator }    from "@react-navigation/native-stack";
 import { Ionicons }                      from "@expo/vector-icons";
 import { StatusBar }                     from "expo-status-bar";
 
-// Screens
-import HomeScreen        from "../screens/HomeScreen";
-import SafeRouteScreen   from "../screens/SafeRouteScreen";
-import SafeCircleScreen  from "../screens/SafeCircleScreen";
-import VaultScreen       from "../screens/VaultScreen";
-import AIShieldScreen    from "../screens/AIShieldScreen";
-import NearbyScreen      from "../screens/NearbyScreen";
-import SafetyLawsScreen  from "../screens/SafetyLawsScreen";
-import SelfDefenseScreen from "../screens/SelfDefenseScreen";
-import MoreScreen        from "../screens/MoreScreen";
-import LoginScreen       from "../screens/LoginScreen";
-import ProfileScreen     from "../screens/ProfileScreen";
-import SupportScreen     from "../screens/SupportScreen";
-import PrivacyScreen     from "../screens/PrivacyScreen";
-import TermsScreen       from "../screens/TermsScreen";
-import IncidentDetailScreen from "../screens/IncidentDetailScreen";
+import HomeScreen        from "../screens/main/HomeScreen";
+import SafeRouteScreen   from "../screens/main/SafeRouteScreen";
+import SafeCircleScreen  from "../screens/main/SafeCircleScreen";
+import VaultScreen       from "../screens/main/VaultScreen";
+import NearbyScreen      from "../screens/main/NearbyScreen";
+import MoreScreen        from "../screens/main/MoreScreen";
+
+import LoginScreen       from "../screens/auth/LoginScreen";
+
+import AIShieldScreen    from "../screens/features/AIShieldScreen";
+import SafetyLawsScreen  from "../screens/features/SafetyLawsScreen";
+import SelfDefenseScreen from "../screens/features/SelfDefenseScreen";
+import IncidentDetailScreen from "../screens/features/IncidentDetailScreen";
+
+import ProfileScreen     from "../screens/settings/ProfileScreen";
+import SupportScreen     from "../screens/settings/SupportScreen";
+import PrivacyScreen     from "../screens/settings/PrivacyScreen";
+import TermsScreen       from "../screens/settings/TermsScreen";
+
 import OfflineBanner     from "../components/common/OfflineBanner";
 
 // API

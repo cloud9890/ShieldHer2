@@ -6,9 +6,9 @@ import {
   Animated, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { supabase } from "../api/supabase";
-import { BG, CARD, BORDER, PRIMARY, TEXT, SUBTEXT } from "../theme/colors";
-import useToast from "../hooks/useToast";
+import { supabase } from "../../api/supabase";
+import { BG, CARD, BORDER, PRIMARY, TEXT, SUBTEXT } from "../../theme/colors";
+import useToast from "../../hooks/useToast";
 
 // Google OAuth (optional — graceful if deps not installed)
 let GoogleAuth = null;

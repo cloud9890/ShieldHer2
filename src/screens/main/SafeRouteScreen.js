@@ -7,7 +7,7 @@ import {
   ScrollView, ActivityIndicator, Platform, Animated
 } from "react-native";
 import * as Location from "expo-location";
-import { analyzeRoute } from "../api/gemini";
+import { analyzeRoute } from "../../api/gemini";
 import { Ionicons } from "@expo/vector-icons";
 
 let MapView, Marker, Polyline;
@@ -18,7 +18,7 @@ if (Platform.OS !== "web") {
   Polyline = Maps.Polyline;
 }
 
-import { PRIMARY, TEXT, SUBTEXT, PINK, SUCCESS, WARNING, DANGER, BG, CARD, BORDER } from "../theme/colors";
+import { PRIMARY, TEXT, SUBTEXT, PINK, SUCCESS, WARNING, DANGER, BG, CARD, BORDER } from "../../theme/colors";
 
 const GOOGLE_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
 

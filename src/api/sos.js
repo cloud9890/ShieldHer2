@@ -376,11 +376,6 @@ export function stopLocationWatch() {
   _locationSub = null;
 }
 
-// Build live tracking URL
-export function getLiveTrackingUrl(sessionId) {
-  return `${SUPABASE_URL}/functions/v1/track?id=${sessionId}`;
-}
-
 // ── SOS Alert ─────────────────────────────────────────────────────────────
 export async function sendSOSAlert(contacts, alertType = "sos", preFetchedCoords = null, customMsg = null) {
   try {

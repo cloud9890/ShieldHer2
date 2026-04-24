@@ -1,7 +1,7 @@
 // src/screens/TermsScreen.js
 import { ScrollView, View, Text, StyleSheet } from "react-native";
-import { BG_DEEP, TEXT, SUBTEXT } from "../theme/colors";
-import SectionLabel from "../components/common/SectionLabel";
+import { BG_DEEP, TEXT, SUBTEXT } from "../../theme/colors";
+import SectionLabel from "../../components/common/SectionLabel";
 
 export default function TermsScreen() {
   return (

@@ -2,8 +2,8 @@
 import { ScrollView, View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { supabase } from "../api/supabase";
-import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, WARNING, TEAL, DANGER } from "../theme/colors";
+import { supabase } from "../../api/supabase";
+import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, WARNING, TEAL, DANGER } from "../../theme/colors";
 
 const FEATURES = [
   {

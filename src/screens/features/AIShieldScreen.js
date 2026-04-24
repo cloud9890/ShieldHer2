@@ -2,8 +2,8 @@
 import { useState, useRef, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { analyzeHarassment, safetyChat } from "../api/claude";
-import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT } from "../theme/colors";
+import { analyzeHarassment, safetyChat } from "../../api/gemini";
+import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT } from "../../theme/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SEV_CONFIG = {

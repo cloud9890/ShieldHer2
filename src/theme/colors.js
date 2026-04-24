@@ -3,11 +3,8 @@
 
 export const BG        = "#0d1117";   // Deep cosmic dark
 export const CARD      = "#161b22";   // Card surface
-export const CARD2     = "#1c2230";   // Slightly elevated card
 export const BORDER    = "rgba(255,255,255,0.06)";
-export const BORDER_MED= "rgba(255,255,255,0.10)";
 export const PRIMARY   = "#8b5cf6";   // Violet
-export const PRIMARY_DK= "#6d28d9";
 export const PINK      = "#ec4899";   // Accent pink
 export const SUCCESS   = "#22c55e";   // Green
 export const DANGER    = "#ef4444";   // Red / SOS

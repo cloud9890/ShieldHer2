@@ -8,8 +8,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { supabase } from "../api/supabase";
-import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, DANGER, WARNING } from "../theme/colors";
+import { supabase } from "../../api/supabase";
+import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, DANGER, WARNING } from "../../theme/colors";
 
 // Optional PDF export
 let Print = null, Sharing = null;
