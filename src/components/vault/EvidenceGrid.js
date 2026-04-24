@@ -31,48 +31,42 @@ export default function EvidenceGrid({ incidents, fetchingRecords, onNew, onSele
           <Text style={s.emptyText}>No records yet</Text>
           <Text style={s.emptySubText}>Your encrypted incident records will appear here</Text>
         </View>
-      ) : incidents.map(inc => {
-        {
-          incidents.map(inc => (
-            <TouchableOpacity
-              key={inc.id}
-              style={s.recordRow}
-              activeOpacity={0.75}
-              onPress={() => {
-                if (onSelect) onSelect(inc);
-              }}
-            >
-          >
-              {inc.media_url ? (
-                <Image source={{ uri: inc.media_url }} style={s.recordThumb} />
-              ) : (
-                <View style={s.recordIcon}>
-                  <Ionicons name="lock-closed" size={14} color={WARNING} />
-                </View>
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={s.recordType}>{inc.type}</Text>
-                <Text style={s.recordMeta}>{formatDate(inc.created_at)}</Text>
-                {inc.location ? <Text style={s.recordLoc} numberOfLines={1}>📍 {inc.location}</Text> : null}
-              </View>
-              <View style={s.recordRight}>
-                <View style={s.encChip}>
-                  <Text style={s.encChipText}>Encrypted</Text>
-                </View>
-                <View style={{ flexDirection: "row", gap: 4 }}>
-                  <Ionicons name="chevron-forward" size={14} color={SUBTEXT} />
-                  <TouchableOpacity
-                    onPress={() => { _deletePressed = true; if (onDelete) onDelete(inc.id); }}
-                    style={s.deleteBtn}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons name="trash-outline" size={15} color={SUBTEXT} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+      ) : incidents.map(inc => (
+        <TouchableOpacity
+          key={inc.id}
+          style={s.recordRow}
+          activeOpacity={0.75}
+          onPress={() => { if (onSelect) onSelect(inc); }}
+        >
+          {inc.media_url ? (
+            <Image source={{ uri: inc.media_url }} style={s.recordThumb} />
+          ) : (
+            <View style={s.recordIcon}>
+              <Ionicons name="lock-closed" size={14} color={WARNING} />
+            </View>
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={s.recordType}>{inc.type}</Text>
+            <Text style={s.recordMeta}>{formatDate(inc.created_at)}</Text>
+            {inc.location ? <Text style={s.recordLoc} numberOfLines={1}>📍 {inc.location}</Text> : null}
+          </View>
+          <View style={s.recordRight}>
+            <View style={s.encChip}>
+              <Text style={s.encChipText}>Encrypted</Text>
+            </View>
+            <View style={{ flexDirection: "row", gap: 4 }}>
+              <Ionicons name="chevron-forward" size={14} color={SUBTEXT} />
+              <TouchableOpacity
+                onPress={() => { if (onDelete) onDelete(inc.id); }}
+                style={s.deleteBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="trash-outline" size={15} color={SUBTEXT} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      ))}
     </View>
   );
 }
