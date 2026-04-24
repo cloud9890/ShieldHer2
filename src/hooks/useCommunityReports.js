@@ -24,8 +24,9 @@ export default function useCommunityReports(limit = 50) {
     load();
 
     // Realtime subscription for live map updates
+    const channelId = `reports_realtime_${Math.random().toString(36).substring(7)}`;
     const channel = supabase
-      .channel("community_reports_realtime")
+      .channel(channelId)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "community_reports" },
