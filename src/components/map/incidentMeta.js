@@ -1,5 +1,4 @@
-// src/components/map/incidentMeta.js
-const INCIDENT_TYPES = [
+export const INCIDENT_TYPES = [
   { key: "suspicious", label: "Suspicious activity", color: "#ef4444", icon: "alert-circle",     bg: "rgba(239,68,68,0.12)"  },
   { key: "lighting",   label: "Poor lighting",        color: "#f59e0b", icon: "bulb-outline",     bg: "rgba(245,158,11,0.12)" },
   { key: "police",     label: "Police presence",      color: "#3b82f6", icon: "shield",           bg: "rgba(59,130,246,0.12)" },
