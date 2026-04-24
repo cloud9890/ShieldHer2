@@ -56,6 +56,19 @@ const decodePolyline = (t, e = 5) => {
   return d;
 };
 
+function formatDuration(seconds) {
+  const mins = Math.round(seconds / 60);
+  if (mins < 60) return `${mins} min`;
+  const hours = Math.floor(mins / 60);
+  const remainingMins = mins % 60;
+  return `${hours}h ${remainingMins}m`;
+}
+
+function formatDistance(meters) {
+  if (meters < 1000) return `${Math.round(meters)} m`;
+  return `${(meters / 1000).toFixed(1)} km`;
+}
+
 function usePlacesAutocomplete(query, sessionToken) {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -115,12 +128,12 @@ export default function SafeRouteScreen() {
   const [toEditing, setToEditing]   = useState(false);
   const [loading, setLoading]       = useState(false);
   
-  const [routeLine, setRouteLine]   = useState(null);
+  const [routesData, setRoutesData] = useState([]);
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
   const [destRegion, setDestRegion] = useState(null);
   const [region, setRegion]         = useState({ latitude: 28.6139, longitude: 77.2090, latitudeDelta: 0.05, longitudeDelta: 0.05 });
   
   const [safeSpots, setSafeSpots]   = useState([]);
-  const [turnByTurn, setTurnByTurn] = useState([]);
   const [scoreData, setScoreData]   = useState(null);
   const [insights, setInsights]     = useState(null);
   
@@ -161,46 +174,59 @@ export default function SafeRouteScreen() {
     } catch { return []; }
   };
 
+  const getCoords = async (query, defaultCoords) => {
+    if (query === "My Location" || !query) return defaultCoords;
+    try {
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${GOOGLE_KEY}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.results?.[0]) return data.results[0].geometry.location;
+    } catch {}
+    return defaultCoords;
+  };
+
   const analyze = async () => {
     if (!to.trim() || !from.trim() || from === "Locating...") return;
     setLoading(true);
-    setRouteLine(null); setDestRegion(null); setSafeSpots([]); setTurnByTurn([]); setScoreData(null); setInsights(null);
+    setRoutesData([]); setSelectedRouteIndex(0); setDestRegion(null); setSafeSpots([]); setScoreData(null); setInsights(null);
     scoreAnim.setValue(0);
 
     try {
       if (!GOOGLE_KEY) throw new Error("No Maps Key");
       
-      // 1. Directions API
-      const dirUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&key=${GOOGLE_KEY}`;
-      const dirRes  = await fetch(dirUrl);
-      const dirData = await dirRes.json();
+      const fromCoords = await getCoords(from, { lat: region.latitude, lng: region.longitude });
+      const toCoords = await getCoords(to, null);
+      if (!toCoords) throw new Error("Destination not geocodable");
+
+      // 1. OSRM Multi-Route API logic completely replaces Google Directions API
+      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${fromCoords.lng},${fromCoords.lat};${toCoords.lng},${toCoords.lat}?overview=full&geometries=geojson&alternatives=true`;
+      const osrmRes  = await fetch(osrmUrl);
+      const osrmData = await osrmRes.json();
       
       let routeDistanceM = 0;
       let midLat = region.latitude, midLng = region.longitude;
-      let stepsData = [];
-      let hasWarnings = false;
 
-      if (dirData.routes?.length > 0) {
-        const route = dirData.routes[0];
-        if (route.warnings && route.warnings.length > 0) hasWarnings = true;
-        if (route.overview_polyline?.points) {
-          const points = decodePolyline(route.overview_polyline.points);
-          setRouteLine(points);
-          if (points.length > 0) {
-            const mid = points[Math.floor(points.length / 2)];
-            midLat = mid.latitude; midLng = mid.longitude;
-            setRegion({ latitude: midLat, longitude: midLng, latitudeDelta: 0.08, longitudeDelta: 0.08 });
-            setDestRegion(points[points.length - 1]);
-          }
-        }
-        if (route.legs?.[0]) {
-          routeDistanceM = route.legs[0].distance.value;
-          stepsData = route.legs[0].steps.map(s => ({
-            instruction: s.html_instructions.replace(/<[^>]+>/g, ""),
-            distance: s.distance.text,
-            maneuver: s.maneuver || "straight"
-          }));
-          setTurnByTurn(stepsData);
+      if (osrmData.routes?.length > 0) {
+        let allRoutes = osrmData.routes.map((rt) => {
+          const coords = rt.geometry.coordinates.map(c => ({ latitude: c[1], longitude: c[0] }));
+          return { coordinates: coords, duration: rt.duration, distance: rt.distance };
+        });
+
+        // Sort by duration so index 0 is fastest
+        allRoutes.sort((a,b) => a.duration - b.duration);
+        setRoutesData(allRoutes);
+        setSelectedRouteIndex(0);
+
+        const bestRoute = allRoutes[0];
+        routeDistanceM = bestRoute.distance;
+        const points = bestRoute.coordinates;
+        
+        if (points.length > 0) {
+          const mid = points[Math.floor(points.length / 2)];
+          midLat = mid.latitude;
+          midLng = mid.longitude;
+          setRegion({ latitude: midLat, longitude: midLng, latitudeDelta: 0.08, longitudeDelta: 0.08 });
+          setDestRegion(points[points.length - 1]);
         }
       }
 
@@ -242,8 +268,7 @@ Route Distance: ${routeDistanceM} meters
 Time: ${hour >= 22 || hour < 5 ? "Late Night" : "Daytime"}
 Police Stations within 2km: ${police.length}
 Hospitals within 2km: ${hospitals.length}
-Warnings: ${hasWarnings ? "Map provider issued alerts" : "None"}
-Steps: ${stepsData.length > 0 ? stepsData.map(s=>s.instruction).join(" | ") : "N/A"}
+Routing Alternative Count: ${routesData.length}
       `;
       const aiData = await analyzeRoute(from, to, context);
       setInsights(aiData);
@@ -277,9 +302,22 @@ Steps: ${stepsData.length > 0 ? stepsData.map(s=>s.instruction).join(" | ") : "N
           <View style={s.mapPlaceholder}><Text style={{color: SUBTEXT}}>Map on mobile</Text></View>
         ) : MapView ? (
           <MapView style={{ flex: 1 }} region={region} showsUserLocation customMapStyle={darkMapStyle}>
-            {!routeLine && <Marker coordinate={{ latitude: region.latitude, longitude: region.longitude }} title="Start" pinColor={PRIMARY} />}
+            {!routesData.length && <Marker coordinate={{ latitude: region.latitude, longitude: region.longitude }} title="Start" pinColor={PRIMARY} />}
             {destRegion && <Marker coordinate={{ latitude: destRegion.latitude, longitude: destRegion.longitude }} title="Destination" pinColor={PINK} />}
-            {routeLine && routeLine.length > 1 && Polyline && <Polyline coordinates={routeLine} strokeWidth={4} strokeColor={PRIMARY} />}
+            {routesData.map((rt, index) => {
+              const isSelected = index === selectedRouteIndex;
+              return (
+                <Polyline 
+                  key={index} 
+                  coordinates={rt.coordinates} 
+                  strokeWidth={isSelected ? 6 : 4} 
+                  strokeColor={isSelected ? PRIMARY : SUBTEXT} 
+                  zIndex={isSelected ? 10 : 1}
+                  tappable
+                  onPress={() => setSelectedRouteIndex(index)}
+                />
+              )
+            })}
             {safeSpots.map(spot => (
               <Marker
                 key={spot.id}
@@ -318,6 +356,36 @@ Steps: ${stepsData.length > 0 ? stepsData.map(s=>s.instruction).join(" | ") : "N
         {/* RESULTS SECTION */}
         {scoreData && (
           <View style={s.results}>
+            
+            {/* OSRM Route Selector Chips */}
+            {routesData.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+                <View style={{ flexDirection: "row", gap: 10, paddingVertical: 4 }}>
+                  {routesData.map((route, i) => {
+                    const isActive = i === selectedRouteIndex;
+                    return (
+                      <TouchableOpacity key={i} onPress={() => setSelectedRouteIndex(i)} activeOpacity={0.8}
+                        style={[s.routeChip, isActive && s.routeChipActive]}
+                      >
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                          <Ionicons name="time-outline" size={14} color={isActive ? "#fff" : SUBTEXT} />
+                          <Text style={[s.routeChipTime, isActive && s.routeChipTimeActive]}>
+                            {formatDuration(route.duration)}
+                          </Text>
+                        </View>
+                        <Text style={s.routeChipDist}>{formatDistance(route.distance)} route</Text>
+                        {i === 0 && (
+                          <View style={s.fastestBadge}>
+                            <Text style={s.fastestText}>Fastest</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            )}
+
             {/* Animated Score Arc */}
             <View style={s.scoreBox}>
               <View style={s.scoreHeader}>
@@ -366,22 +434,6 @@ Steps: ${stepsData.length > 0 ? stepsData.map(s=>s.instruction).join(" | ") : "N
               </View>
             )}
 
-            {/* Turn-by-Turn Steps */}
-            {turnByTurn.length > 0 && (
-              <View style={s.tbtCard}>
-                 <Text style={s.sectionLabel}>DIRECTIONS</Text>
-                 {turnByTurn.map((t, i) => (
-                   <View key={i} style={s.stepRow}>
-                     <View style={s.stepIconBg}><Ionicons name={getManeuverIcon(t.maneuver)} size={16} color={TEXT}/></View>
-                     <View style={{ flex: 1 }}>
-                       <Text style={s.stepMsg}>{t.instruction}</Text>
-                     </View>
-                     <Text style={s.stepDist}>{t.distance}</Text>
-                   </View>
-                 ))}
-              </View>
-            )}
-
             <View style={{ height: 120 }} />
           </View>
         )}
@@ -427,12 +479,14 @@ const s = StyleSheet.create({
   hiRow:        { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 4 },
   hiDot:        { width: 4, height: 4, borderRadius: 2, backgroundColor: PINK, marginTop: 7 },
   hiText:       { flex: 1, fontSize: 13, color: TEXT, lineHeight: 20 },
-  tipBox:       { flexDirection: "row", gap: 10, backgroundColor: "rgba(251,191,36,0.1)", padding: 12, borderRadius: 12, marginTop: 8 },
-  tipText:      { flex: 1, fontSize: 13, color: WARNING, lineHeight: 18 },
-
-  tbtCard:      { backgroundColor: CARD, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: BORDER, gap: 12 },
-  stepRow:      { flexDirection: "row", alignItems: "center", gap: 12 },
-  stepIconBg:   { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.05)", alignItems: "center", justifyContent: "center" },
-  stepMsg:      { fontSize: 14, color: TEXT, fontWeight: "500" },
-  stepDist:     { fontSize: 12, color: SUBTEXT, fontWeight: "600", minWidth: 44, textAlign: "right" }
+  tipBox:       { flexDirection: "row", gap: 10, padding: 14, backgroundColor: "rgba(251,191,36,0.1)", borderRadius: 14, marginTop: 4, borderWidth: 1, borderColor: "rgba(251,191,36,0.3)" },
+  tipText:      { flex: 1, fontSize: 13, color: WARNING, lineHeight: 20 },
+  
+  routeChip:    { backgroundColor: "rgba(255,255,255,0.05)", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, borderWidth: 1, borderColor: BORDER, gap: 4, minWidth: 100 },
+  routeChipActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
+  routeChipTime: { fontSize: 16, fontWeight: "800", color: TEXT },
+  routeChipTimeActive: { color: "#fff" },
+  routeChipDist: { fontSize: 11, color: SUBTEXT, fontWeight: "600" },
+  fastestBadge: { position: "absolute", top: -8, right: -8, backgroundColor: SUCCESS, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, borderWidth: 2, borderColor: DARK_BG },
+  fastestText:  { fontSize: 9, fontWeight: "800", color: "#fff", textTransform: "uppercase" },
 });
