@@ -13,8 +13,8 @@ import { Ionicons } from "@expo/vector-icons";
 let MapView, Marker, Polyline;
 if (Platform.OS !== "web") {
   const Maps = require("react-native-maps");
-  MapView  = Maps.default;
-  Marker   = Maps.Marker;
+  MapView = Maps.default;
+  Marker = Maps.Marker;
   Polyline = Maps.Polyline;
 }
 
@@ -23,24 +23,24 @@ import { PRIMARY, TEXT, SUBTEXT, PINK, SUCCESS, WARNING, DANGER, BG, CARD, BORDE
 const GOOGLE_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
 
 const darkMapStyle = [
-  {"elementType":"geometry","stylers":[{"color":"#242f3e"}]},
-  {"elementType":"labels.text.fill","stylers":[{"color":"#746855"}]},
-  {"elementType":"labels.text.stroke","stylers":[{"color":"#242f3e"}]},
-  {"featureType":"administrative.locality","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},
-  {"featureType":"poi","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},
-  {"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#263c3f"}]},
-  {"featureType":"poi.park","elementType":"labels.text.fill","stylers":[{"color":"#6b9a76"}]},
-  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#38414e"}]},
-  {"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#212a37"}]},
-  {"featureType":"road","elementType":"labels.text.fill","stylers":[{"color":"#9ca5b3"}]},
-  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#746855"}]},
-  {"featureType":"road.highway","elementType":"geometry.stroke","stylers":[{"color":"#1f2835"}]},
-  {"featureType":"road.highway","elementType":"labels.text.fill","stylers":[{"color":"#f3d19c"}]},
-  {"featureType":"transit","elementType":"geometry","stylers":[{"color":"#2f3948"}]},
-  {"featureType":"transit.station","elementType":"labels.text.fill","stylers":[{"color":"#d59563"}]},
-  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#17263c"}]},
-  {"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#515c6d"}]},
-  {"featureType":"water","elementType":"labels.text.stroke","stylers":[{"color":"#17263c"}]}
+  { "elementType": "geometry", "stylers": [{ "color": "#242f3e" }] },
+  { "elementType": "labels.text.fill", "stylers": [{ "color": "#746855" }] },
+  { "elementType": "labels.text.stroke", "stylers": [{ "color": "#242f3e" }] },
+  { "featureType": "administrative.locality", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
+  { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
+  { "featureType": "poi.park", "elementType": "geometry", "stylers": [{ "color": "#263c3f" }] },
+  { "featureType": "poi.park", "elementType": "labels.text.fill", "stylers": [{ "color": "#6b9a76" }] },
+  { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#38414e" }] },
+  { "featureType": "road", "elementType": "geometry.stroke", "stylers": [{ "color": "#212a37" }] },
+  { "featureType": "road", "elementType": "labels.text.fill", "stylers": [{ "color": "#9ca5b3" }] },
+  { "featureType": "road.highway", "elementType": "geometry", "stylers": [{ "color": "#746855" }] },
+  { "featureType": "road.highway", "elementType": "geometry.stroke", "stylers": [{ "color": "#1f2835" }] },
+  { "featureType": "road.highway", "elementType": "labels.text.fill", "stylers": [{ "color": "#f3d19c" }] },
+  { "featureType": "transit", "elementType": "geometry", "stylers": [{ "color": "#2f3948" }] },
+  { "featureType": "transit.station", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
+  { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#17263c" }] },
+  { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#515c6d" }] },
+  { "featureType": "water", "elementType": "labels.text.stroke", "stylers": [{ "color": "#17263c" }] }
 ];
 
 const decodePolyline = (t, e = 5) => {
@@ -84,7 +84,7 @@ function usePlacesAutocomplete(query, sessionToken) {
       setLoading(true);
       try {
         const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${GOOGLE_KEY}&sessiontoken=${sessionToken}&types=geocode|establishment&language=en`;
-        const res  = await fetch(url);
+        const res = await fetch(url);
         const data = await res.json();
         setSuggestions(data.predictions || []);
       } catch { setSuggestions([]); }
@@ -115,30 +115,30 @@ function SuggestionList({ suggestions, loading, onSelect }) {
 }
 
 const sd = StyleSheet.create({
-  container:  { backgroundColor: "#12082a", borderRadius: 14, borderWidth: 1, borderColor: BORDER, marginTop: 4, overflow: "hidden", zIndex: 999 },
-  item:       { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12 },
+  container: { backgroundColor: "#12082a", borderRadius: 14, borderWidth: 1, borderColor: BORDER, marginTop: 4, overflow: "hidden", zIndex: 999 },
+  item: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12 },
   itemBorder: { borderBottomWidth: 1, borderBottomColor: "rgba(139,92,246,0.1)" },
-  mainText:   { fontSize: 13, color: TEXT, fontWeight: "500" },
-  subText:    { fontSize: 11, color: SUBTEXT, marginTop: 1 },
+  mainText: { fontSize: 13, color: TEXT, fontWeight: "500" },
+  subText: { fontSize: 11, color: SUBTEXT, marginTop: 1 },
 });
 
 export default function SafeRouteScreen() {
-  const [from, setFrom]             = useState("Locating...");
-  const [to, setTo]                 = useState("");
-  const [toEditing, setToEditing]   = useState(false);
-  const [loading, setLoading]       = useState(false);
-  
+  const [from, setFrom] = useState("Locating...");
+  const [to, setTo] = useState("");
+  const [toEditing, setToEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
+
   const [routesData, setRoutesData] = useState([]);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
   const [destRegion, setDestRegion] = useState(null);
-  const [region, setRegion]         = useState({ latitude: 28.6139, longitude: 77.2090, latitudeDelta: 0.05, longitudeDelta: 0.05 });
-  
-  const [safeSpots, setSafeSpots]   = useState([]);
-  const [scoreData, setScoreData]   = useState(null);
-  const [insights, setInsights]     = useState(null);
-  
-  const scoreAnim                   = useRef(new Animated.Value(0)).current;
-  const sessionToken                = useRef(Math.random().toString(36)).current;
+  const [region, setRegion] = useState({ latitude: 28.6139, longitude: 77.2090, latitudeDelta: 0.05, longitudeDelta: 0.05 });
+
+  const [safeSpots, setSafeSpots] = useState([]);
+  const [scoreData, setScoreData] = useState(null);
+  const [insights, setInsights] = useState(null);
+
+  const scoreAnim = useRef(new Animated.Value(0)).current;
+  const sessionToken = useRef(Math.random().toString(36)).current;
 
   const { suggestions, loading: sugLoading, clear } = usePlacesAutocomplete(toEditing ? to : "", sessionToken);
 
@@ -181,7 +181,7 @@ export default function SafeRouteScreen() {
       const res = await fetch(url);
       const data = await res.json();
       if (data.results?.[0]) return data.results[0].geometry.location;
-    } catch {}
+    } catch { }
     return defaultCoords;
   };
 
@@ -193,18 +193,19 @@ export default function SafeRouteScreen() {
 
     try {
       if (!GOOGLE_KEY) throw new Error("No Maps Key");
-      
+
       const fromCoords = await getCoords(from, { lat: region.latitude, lng: region.longitude });
       const toCoords = await getCoords(to, null);
       if (!toCoords) throw new Error("Destination not geocodable");
 
       // 1. OSRM Multi-Route API logic completely replaces Google Directions API
-      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${fromCoords.lng},${fromCoords.lat};${toCoords.lng},${toCoords.lat}?overview=full&geometries=geojson&alternatives=true`;
-      const osrmRes  = await fetch(osrmUrl);
+      const osrmUrl = `https://router.project-osrm.org/route/v1/foot/${fromCoords.lng},${fromCoords.lat};${toCoords.lng},${toCoords.lat}?overview=full&geometries=geojson&alternatives=true`;
+      const osrmRes = await fetch(osrmUrl);
       const osrmData = await osrmRes.json();
-      
+
       let routeDistanceM = 0;
       let midLat = region.latitude, midLng = region.longitude;
+      let localRouteCount = 0;
 
       if (osrmData.routes?.length > 0) {
         let allRoutes = osrmData.routes.map((rt) => {
@@ -213,14 +214,15 @@ export default function SafeRouteScreen() {
         });
 
         // Sort by duration so index 0 is fastest
-        allRoutes.sort((a,b) => a.duration - b.duration);
+        allRoutes.sort((a, b) => a.duration - b.duration);
         setRoutesData(allRoutes);
         setSelectedRouteIndex(0);
+        localRouteCount = allRoutes.length;
 
         const bestRoute = allRoutes[0];
         routeDistanceM = bestRoute.distance;
         const points = bestRoute.coordinates;
-        
+
         if (points.length > 0) {
           const mid = points[Math.floor(points.length / 2)];
           midLat = mid.latitude;
@@ -233,7 +235,7 @@ export default function SafeRouteScreen() {
       // 2. Real Places API data (hospitals + police)
       const police = await fetchNearbyCount(midLat, midLng, "police", 2000);
       const hospitals = await fetchNearbyCount(midLat, midLng, "hospital", 2000);
-      
+
       // Convert to map markers
       const spots = [];
       police.slice(0, 3).forEach(p => spots.push({ id: p.place_id, type: "police", name: p.name, coords: p.geometry.location }));
@@ -244,10 +246,10 @@ export default function SafeRouteScreen() {
       const hour = new Date().getHours();
       let score = 100;
       if (hour >= 22 || hour < 5) score -= 20;
-      if (routeDistanceM > 5000)  score -= 10;
-      if (police.length === 0)    score -= 15;
+      if (routeDistanceM > 5000) score -= 10;
+      if (police.length === 0) score -= 15;
       if (hospitals.length === 0) score -= 10;
-      if (hasWarnings)            score -= 15;
+      if (hasWarnings) score -= 15;
       score = Math.max(10, Math.min(100, score));
 
       // Animated score
@@ -268,7 +270,7 @@ Route Distance: ${routeDistanceM} meters
 Time: ${hour >= 22 || hour < 5 ? "Late Night" : "Daytime"}
 Police Stations within 2km: ${police.length}
 Hospitals within 2km: ${hospitals.length}
-Routing Alternative Count: ${routesData.length}
+Routing Alternative Count: ${localRouteCount}
       `;
       const aiData = await analyzeRoute(from, to, context);
       setInsights(aiData);
@@ -299,7 +301,7 @@ Routing Alternative Count: ${routesData.length}
       {/* ── MAP (Expanded) ───────────────────────────────────────────────────── */}
       <View style={s.mapContainer}>
         {Platform.OS === "web" ? (
-          <View style={s.mapPlaceholder}><Text style={{color: SUBTEXT}}>Map on mobile</Text></View>
+          <View style={s.mapPlaceholder}><Text style={{ color: SUBTEXT }}>Map on mobile</Text></View>
         ) : MapView ? (
           <MapView style={{ flex: 1 }} region={region} showsUserLocation customMapStyle={darkMapStyle}>
             {!routesData.length && <Marker coordinate={{ latitude: region.latitude, longitude: region.longitude }} title="Start" pinColor={PRIMARY} />}
@@ -307,11 +309,11 @@ Routing Alternative Count: ${routesData.length}
             {routesData.map((rt, index) => {
               const isSelected = index === selectedRouteIndex;
               return (
-                <Polyline 
-                  key={index} 
-                  coordinates={rt.coordinates} 
-                  strokeWidth={isSelected ? 6 : 4} 
-                  strokeColor={isSelected ? PRIMARY : SUBTEXT} 
+                <Polyline
+                  key={index}
+                  coordinates={rt.coordinates}
+                  strokeWidth={isSelected ? 6 : 4}
+                  strokeColor={isSelected ? PRIMARY : SUBTEXT}
                   zIndex={isSelected ? 10 : 1}
                   tappable
                   onPress={() => setSelectedRouteIndex(index)}
@@ -345,7 +347,7 @@ Routing Alternative Count: ${routesData.length}
           <View style={s.inputDivider} />
           <View style={s.inputRow}>
             <Ionicons name="location" size={16} color={PINK} />
-            <TextInput style={s.input} value={to} onChangeText={v=>{setTo(v);setToEditing(true);}} onFocus={()=>setToEditing(true)} onBlur={()=>setTimeout(()=>setToEditing(false), 200)} placeholder="Destination" placeholderTextColor="#4b5563" returnKeyType="search" onSubmitEditing={analyze} />
+            <TextInput style={s.input} value={to} onChangeText={v => { setTo(v); setToEditing(true); }} onFocus={() => setToEditing(true)} onBlur={() => setTimeout(() => setToEditing(false), 200)} placeholder="Destination" placeholderTextColor="#4b5563" returnKeyType="search" onSubmitEditing={analyze} />
           </View>
           {toEditing && <SuggestionList suggestions={suggestions} loading={sugLoading} onSelect={selectSuggestion} />}
           <TouchableOpacity style={s.btn} onPress={analyze} disabled={loading}>
@@ -356,7 +358,7 @@ Routing Alternative Count: ${routesData.length}
         {/* RESULTS SECTION */}
         {scoreData && (
           <View style={s.results}>
-            
+
             {/* OSRM Route Selector Chips */}
             {routesData.length > 0 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
@@ -418,7 +420,7 @@ Routing Alternative Count: ${routesData.length}
             {/* AI Highlights */}
             {insights && insights.highlights && (
               <View style={s.insightsCard}>
-                <View style={s.aiHeader}><Ionicons name="sparkles" size={14} color={PINK}/><Text style={s.aiTitle}>AI Insights</Text></View>
+                <View style={s.aiHeader}><Ionicons name="sparkles" size={14} color={PINK} /><Text style={s.aiTitle}>AI Insights</Text></View>
                 {insights.highlights.map((h, i) => (
                   <View key={i} style={s.hiRow}>
                     <View style={s.hiDot} />
@@ -443,50 +445,50 @@ Routing Alternative Count: ${routesData.length}
 }
 
 const s = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: BG },
+  container: { flex: 1, backgroundColor: BG },
   mapContainer: { flex: 0.45 },
   mapPlaceholder: { flex: 1, backgroundColor: CARD, alignItems: "center", justifyContent: "center" },
-  spotPin:      { padding: 4, borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.5)", shadowColor: "#000", shadowOffset: {width:0, height:2}, shadowOpacity: 0.5, shadowRadius: 2 },
-  
-  panel:        { flex: 0.55, paddingHorizontal: 16, paddingTop: 16 },
-  inputCard:    { backgroundColor: CARD, padding: 14, borderRadius: 20, borderWidth: 1, borderColor: BORDER, gap: 10, zIndex: 10 },
-  inputRow:     { flexDirection: "row", alignItems: "center", gap: 10 },
-  inputDot:     { width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: PRIMARY, alignItems: "center", justifyContent: "center" },
-  dotFill:      { width: 6, height: 6, borderRadius: 3, backgroundColor: PRIMARY },
-  input:        { flex: 1, fontSize: 15, color: TEXT, paddingVertical: 8, height: 44 },
+  spotPin: { padding: 4, borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.5)", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 2 },
+
+  panel: { flex: 0.55, paddingHorizontal: 16, paddingTop: 16 },
+  inputCard: { backgroundColor: CARD, padding: 14, borderRadius: 20, borderWidth: 1, borderColor: BORDER, gap: 10, zIndex: 10 },
+  inputRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  inputDot: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: PRIMARY, alignItems: "center", justifyContent: "center" },
+  dotFill: { width: 6, height: 6, borderRadius: 3, backgroundColor: PRIMARY },
+  input: { flex: 1, fontSize: 15, color: TEXT, paddingVertical: 8, height: 44 },
   inputDivider: { height: 1, backgroundColor: BORDER, marginLeft: 26 },
-  btn:          { backgroundColor: PRIMARY, borderRadius: 14, height: 48, alignItems: "center", justifyContent: "center", marginTop: 8 },
-  btnText:      { color: "#fff", fontWeight: "700", fontSize: 15 },
-  
-  results:      { marginTop: 16, gap: 12 },
+  btn: { backgroundColor: PRIMARY, borderRadius: 14, height: 48, alignItems: "center", justifyContent: "center", marginTop: 8 },
+  btnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+
+  results: { marginTop: 16, gap: 12 },
   sectionLabel: { fontSize: 11, color: SUBTEXT, fontWeight: "800", letterSpacing: 1.2, marginBottom: 8 },
-  
-  scoreBox:     { backgroundColor: CARD, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
-  scoreHeader:  { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 12 },
-  scoreTitle:   { fontSize: 13, color: SUBTEXT, fontWeight: "600" },
-  scoreNum:     { fontSize: 24, fontWeight: "800" },
-  scoreTrack:   { height: 8, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 4, overflow: "hidden" },
-  scoreFill:    { height: "100%", borderRadius: 4 },
+
+  scoreBox: { backgroundColor: CARD, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
+  scoreHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 12 },
+  scoreTitle: { fontSize: 13, color: SUBTEXT, fontWeight: "600" },
+  scoreNum: { fontSize: 24, fontWeight: "800" },
+  scoreTrack: { height: 8, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 4, overflow: "hidden" },
+  scoreFill: { height: "100%", borderRadius: 4 },
   scoreFooterText: { fontSize: 12, fontWeight: "700", marginTop: 8, textAlign: "right" },
-  
-  signalsCard:  { backgroundColor: CARD, borderRadius: 16, padding: 16, gap: 10, borderWidth: 1, borderColor: BORDER },
-  signalRow:    { flexDirection: "row", alignItems: "center", gap: 8 },
-  signalText:   { fontSize: 14, color: TEXT },
+
+  signalsCard: { backgroundColor: CARD, borderRadius: 16, padding: 16, gap: 10, borderWidth: 1, borderColor: BORDER },
+  signalRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  signalText: { fontSize: 14, color: TEXT },
 
   insightsCard: { backgroundColor: CARD, borderRadius: 16, padding: 16, gap: 10, borderWidth: 1, borderColor: BORDER },
-  aiHeader:     { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 },
-  aiTitle:      { fontSize: 12, color: PINK, fontWeight: "700", letterSpacing: 0.5 },
-  hiRow:        { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 4 },
-  hiDot:        { width: 4, height: 4, borderRadius: 2, backgroundColor: PINK, marginTop: 7 },
-  hiText:       { flex: 1, fontSize: 13, color: TEXT, lineHeight: 20 },
-  tipBox:       { flexDirection: "row", gap: 10, padding: 14, backgroundColor: "rgba(251,191,36,0.1)", borderRadius: 14, marginTop: 4, borderWidth: 1, borderColor: "rgba(251,191,36,0.3)" },
-  tipText:      { flex: 1, fontSize: 13, color: WARNING, lineHeight: 20 },
-  
-  routeChip:    { backgroundColor: "rgba(255,255,255,0.05)", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, borderWidth: 1, borderColor: BORDER, gap: 4, minWidth: 100 },
+  aiHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 },
+  aiTitle: { fontSize: 12, color: PINK, fontWeight: "700", letterSpacing: 0.5 },
+  hiRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 4 },
+  hiDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: PINK, marginTop: 7 },
+  hiText: { flex: 1, fontSize: 13, color: TEXT, lineHeight: 20 },
+  tipBox: { flexDirection: "row", gap: 10, padding: 14, backgroundColor: "rgba(251,191,36,0.1)", borderRadius: 14, marginTop: 4, borderWidth: 1, borderColor: "rgba(251,191,36,0.3)" },
+  tipText: { flex: 1, fontSize: 13, color: WARNING, lineHeight: 20 },
+
+  routeChip: { backgroundColor: "rgba(255,255,255,0.05)", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, borderWidth: 1, borderColor: BORDER, gap: 4, minWidth: 100 },
   routeChipActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
   routeChipTime: { fontSize: 16, fontWeight: "800", color: TEXT },
   routeChipTimeActive: { color: "#fff" },
   routeChipDist: { fontSize: 11, color: SUBTEXT, fontWeight: "600" },
-  fastestBadge: { position: "absolute", top: -8, right: -8, backgroundColor: SUCCESS, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, borderWidth: 2, borderColor: DARK_BG },
-  fastestText:  { fontSize: 9, fontWeight: "800", color: "#fff", textTransform: "uppercase" },
+  fastestBadge: { position: "absolute", top: -8, right: -8, backgroundColor: SUCCESS, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, borderWidth: 2, borderColor: BG },
+  fastestText: { fontSize: 9, fontWeight: "800", color: "#fff", textTransform: "uppercase" },
 });

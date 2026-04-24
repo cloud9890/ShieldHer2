@@ -111,15 +111,13 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
                   size={22}
                   color={isFocused ? PRIMARY : INACTIVE}
                 />
-              </Animated.View>
-
-              {/* Label */}
-              <Text
-                style={[s.label, isFocused ? s.labelActive : s.labelInactive]}
-                numberOfLines={1}
-              >
-                {label}
-              </Text>
+                {/* Label */}
+                <Text
+                  style={[s.label, isFocused ? s.labelActive : s.labelInactive]}
+                  numberOfLines={1}
+                >
+                  {label}
+                </Text>
             </TouchableOpacity>
           );
         })}

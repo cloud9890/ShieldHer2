@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     <p>The live escort session has ended.<br/>Your contact has completed their journey safely.</p>
   </div>
   <div id="map"></div>
-  <div id="footer">Powered by ShieldHer • This link expires 24h after the session ends</div>
+  <div id="footer">Powered by ShieldHer • Link is valid while the escort session is active</div>
 
   <script>
     const SESSION_ID   = "${sessionId}";
