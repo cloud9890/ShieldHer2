@@ -1,0 +1,40 @@
+// src/api/supabase.js
+// NOTE: react-native-url-polyfill/auto is imported in index.js (must be first)
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
+
+const supabaseUrl     = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    '[ShieldHer] Missing Supabase credentials.\n' +
+    'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file.'
+  );
+}
+
+let currentClerkToken = null;
+
+export const setSupabaseToken = (token) => {
+  currentClerkToken = token;
+};
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    // Disable Supabase Auth, we are using Clerk
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+  },
+  global: {
+    fetch: async (url, options) => {
+      const headers = new Headers(options?.headers);
+      if (currentClerkToken) {
+        headers.set('Authorization', `Bearer ${currentClerkToken}`);
+      }
+      return fetch(url, { ...options, headers });
+    },
+    headers: { 'X-Client-Info': 'shieldher-rn-clerk' },
+  },
+});

@@ -1,0 +1,96 @@
+{
+  "expo": {
+    "name": "ShieldHer",
+    "slug": "ShieldHer2",
+    "scheme": "shieldher",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ShieldHer needs your location to share it with your safety circle and analyze safe routes.",
+          "locationAlwaysAndWhenInUsePermission": "ShieldHer needs your location to share it with your safety circle and analyze safe routes.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#9333ea",
+          "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "ShieldHer needs camera access to capture photo evidence in the Vault."
+        }
+      ],
+      "expo-sensors",
+      "expo-sharing",
+      "expo-secure-store",
+      "expo-local-authentication",
+      "expo-web-browser"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "ShieldHer needs your location to share with your safety circle and analyze route safety.",
+        "NSLocationAlwaysUsageDescription": "ShieldHer needs background location for Guardian Mode.",
+        "NSMicrophoneUsageDescription": "ShieldHer uses the microphone to record audio evidence when SOS is activated.",
+        "NSCameraUsageDescription": "ShieldHer uses the camera to capture photo evidence in the Vault."
+      }
+    },
+    "android": {
+      "package": "com.yash.shieldher",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB8hborDSFZBu0jfY26LPDGuuRExGzUVUA"
+        }
+      },
+      "adaptiveIcon": {
+        "backgroundColor": "#0f0a1e",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "RECORD_AUDIO",
+        "CAMERA",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "daf5cfd0-126b-48da-84c4-93c6d8452bf7"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/daf5cfd0-126b-48da-84c4-93c6d8452bf7"
+    }
+  }
+}
