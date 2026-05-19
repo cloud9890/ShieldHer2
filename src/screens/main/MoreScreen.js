@@ -8,7 +8,6 @@ import {
   StyleSheet,
   Alert,
   Platform,
-  Platform,
 } from "react-native";
 import Hoverable from "../../components/common/Hoverable";
 import { LinearGradient } from "expo-linear-gradient";
