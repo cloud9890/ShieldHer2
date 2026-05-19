@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 // src/hooks/useToast.js
 // Lightweight in-app toast — replaces Alert.alert for non-critical feedback.
 // Usage:
@@ -5,24 +6,49 @@
 //   showToast("Saved successfully", "success");
 //   return <View>...<ToastComponent /></View>
 import { useState, useRef, useCallback } from "react";
-import { Animated, View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  Animated,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+} from "react-native";
 import { X } from "lucide-react-native";
 
 import Hoverable from "../components/common/Hoverable";
 
-
 const CONFIGS = {
-  success: { icon: "checkmark-circle", color: "#34d399", bg: "rgba(52,211,153,0.12)", border: "rgba(52,211,153,0.3)" },
-  error:   { icon: "alert-circle",    color: "#f87171", bg: "rgba(248,113,113,0.12)", border: "rgba(248,113,113,0.3)" },
-  info:    { icon: "information-circle", color: "#818cf8", bg: "rgba(129,140,248,0.12)", border: "rgba(129,140,248,0.3)" },
-  warning: { icon: "warning",          color: "#fbbf24", bg: "rgba(251,191,36,0.12)",  border: "rgba(251,191,36,0.3)"  },
+  success: {
+    icon: "checkmark-circle",
+    color: "#34d399",
+    bg: "rgba(52,211,153,0.12)",
+    border: "rgba(52,211,153,0.3)",
+  },
+  error: {
+    icon: "alert-circle",
+    color: "#f87171",
+    bg: "rgba(248,113,113,0.12)",
+    border: "rgba(248,113,113,0.3)",
+  },
+  info: {
+    icon: "information-circle",
+    color: "#818cf8",
+    bg: "rgba(129,140,248,0.12)",
+    border: "rgba(129,140,248,0.3)",
+  },
+  warning: {
+    icon: "warning",
+    color: "#fbbf24",
+    bg: "rgba(251,191,36,0.12)",
+    border: "rgba(251,191,36,0.3)",
+  },
 };
 
 export default function useToast() {
   const [toast, setToast] = useState(null);
-  const slideAnim  = useRef(new Animated.Value(-80)).current;
+  const slideAnim = useRef(new Animated.Value(-80)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
-  const timerRef   = useRef(null);
+  const timerRef = useRef(null);
 
   const showToast = useCallback((message, type = "info", duration = 3500) => {
     // Clear any existing timer
@@ -32,8 +58,17 @@ export default function useToast() {
 
     // Slide in
     Animated.parallel([
-      Animated.spring(slideAnim,  { toValue: 0,   useNativeDriver: true, tension: 80, friction: 10 }),
-      Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 80,
+        friction: 10,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
     ]).start();
 
     // Auto-dismiss
@@ -42,8 +77,16 @@ export default function useToast() {
 
   const dismiss = useCallback(() => {
     Animated.parallel([
-      Animated.timing(slideAnim,   { toValue: -80, duration: 250, useNativeDriver: true }),
-      Animated.timing(opacityAnim, { toValue: 0,   duration: 200, useNativeDriver: true }),
+      Animated.timing(slideAnim, {
+        toValue: -80,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
     ]).start(() => setToast(null));
   }, []);
 
@@ -60,8 +103,14 @@ export default function useToast() {
         pointerEvents="box-none"
       >
         <Ionicons name={cfg.icon} size={18} color={cfg.color} />
-        <Text style={[styles.text, { color: cfg.color }]} numberOfLines={2}>{toast.message}</Text>
-        <Hoverable onPress={dismiss} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Text style={[styles.text, { color: cfg.color }]} numberOfLines={2}>
+          {toast.message}
+        </Text>
+        <Hoverable
+          onPress={dismiss}
+          style={styles.closeBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
           <X size={14} color={cfg.color} />
         </Hoverable>
       </Animated.View>

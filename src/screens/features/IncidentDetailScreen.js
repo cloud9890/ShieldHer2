@@ -1,45 +1,99 @@
+import { Ionicons } from "@expo/vector-icons";
 // src/screens/IncidentDetailScreen.js
 // Full-detail view for a single Evidence Vault incident record
 import { useState } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Share, Alert, Image, ActivityIndicator
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Share,
+  Alert,
+  Image,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { ArrowRight, CircleDashed, FileText, MapPin, Share, Trash, X } from "lucide-react-native";
+import {
+  ArrowRight,
+  CircleDashed,
+  FileText,
+  MapPin,
+  Share as ShareIcon,
+  Trash,
+  X,
+} from "lucide-react-native";
 
 import { supabase } from "../../api/supabase";
-import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, DANGER, WARNING } from "../../theme/colors";
+import {
+  BG,
+  CARD,
+  BORDER,
+  PRIMARY,
+  PINK,
+  TEXT,
+  SUBTEXT,
+  SUCCESS,
+  DANGER,
+  WARNING,
+} from "../../theme/colors";
 
 // Optional PDF export
 import Hoverable from "../../components/common/Hoverable";
 
-let Print = null, Sharing = null;
-try { Print = require("expo-print"); } catch (_) {}
-try { Sharing = require("expo-sharing"); } catch (_) {}
+let Print = null,
+  Sharing = null;
+try {
+  Print = require("expo-print");
+} catch (_) {}
+try {
+  Sharing = require("expo-sharing");
+} catch (_) {}
 
 const TYPE_COLORS = {
-  "Verbal Harassment":   { color: "#f87171", icon: "megaphone",        bg: "rgba(248,113,113,0.1)"  },
-  "Physical Harassment": { color: "#ef4444", icon: "hand-right",       bg: "rgba(239,68,68,0.1)"    },
-  "Stalking":            { color: "#fb923c", icon: "eye",              bg: "rgba(251,146,60,0.1)"   },
-  "Online Harassment":   { color: "#a78bfa", icon: "phone-portrait",   bg: "rgba(167,139,250,0.1)"  },
-  "Eve Teasing":         { color: "#f472b6", icon: "alert-circle",     bg: "rgba(244,114,182,0.1)"  },
-  "Other":               { color: "#94a3b8", icon: "document-text",    bg: "rgba(148,163,184,0.1)"  },
+  "Verbal Harassment": {
+    color: "#f87171",
+    icon: "megaphone",
+    bg: "rgba(248,113,113,0.1)",
+  },
+  "Physical Harassment": {
+    color: "#ef4444",
+    icon: "hand-right",
+    bg: "rgba(239,68,68,0.1)",
+  },
+  Stalking: { color: "#fb923c", icon: "eye", bg: "rgba(251,146,60,0.1)" },
+  "Online Harassment": {
+    color: "#a78bfa",
+    icon: "phone-portrait",
+    bg: "rgba(167,139,250,0.1)",
+  },
+  "Eve Teasing": {
+    color: "#f472b6",
+    icon: "alert-circle",
+    bg: "rgba(244,114,182,0.1)",
+  },
+  Other: {
+    color: "#94a3b8",
+    icon: "document-text",
+    bg: "rgba(148,163,184,0.1)",
+  },
 };
 
 export default function IncidentDetailScreen() {
-  const insets     = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const route      = useRoute();
-  const incident   = route.params?.incident;
+  const route = useRoute();
+  const incident = route.params?.incident;
 
-  const [deleting, setDeleting]   = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   if (!incident) {
     return (
-      <View style={[s.root, { alignItems: "center", justifyContent: "center" }]}>
+      <View
+        style={[s.root, { alignItems: "center", justifyContent: "center" }]}
+      >
         <ActivityIndicator color={PRIMARY} size="large" />
       </View>
     );
@@ -50,23 +104,35 @@ export default function IncidentDetailScreen() {
   const formatDate = (iso) => {
     try {
       return new Date(iso).toLocaleDateString("en-IN", {
-        weekday: "long", day: "numeric", month: "long", year: "numeric"
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
       });
-    } catch { return iso; }
+    } catch {
+      return iso;
+    }
   };
 
   const formatTime = (iso) => {
     try {
       return new Date(iso).toLocaleTimeString("en-IN", {
-        hour: "2-digit", minute: "2-digit", hour12: true
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
       });
-    } catch { return ""; }
+    } catch {
+      return "";
+    }
   };
 
   // ── Share complaint text ──────────────────────────────────────────────────
   const shareComplaint = async () => {
     if (!incident.complaint) {
-      Alert.alert("No Complaint", "Generate an AI complaint draft first from the Vault.");
+      Alert.alert(
+        "No Complaint",
+        "Generate an AI complaint draft first from the Vault.",
+      );
       return;
     }
     try {
@@ -82,7 +148,10 @@ export default function IncidentDetailScreen() {
   // ── Export as PDF ─────────────────────────────────────────────────────────
   const exportPDF = async () => {
     if (!Print || !Sharing) {
-      Alert.alert("Not Available", "Install expo-print and expo-sharing to enable PDF export.");
+      Alert.alert(
+        "Not Available",
+        "Install expo-print and expo-sharing to enable PDF export.",
+      );
       return;
     }
     if (!incident.complaint) {
@@ -148,7 +217,7 @@ export default function IncidentDetailScreen() {
             setDeleting(false);
           },
         },
-      ]
+      ],
     );
   };
 
@@ -160,21 +229,38 @@ export default function IncidentDetailScreen() {
           <ArrowRight size={20} color={TEXT} />
         </Hoverable>
         <Text style={s.headerTitle}>Incident Detail</Text>
-        <Hoverable style={s.deleteBtn} onPress={deleteIncident} disabled={deleting}>
-          {deleting
-            ? <ActivityIndicator color={DANGER} size="small" />
-            : <Trash size={20} color={DANGER} />}
+        <Hoverable
+          style={s.deleteBtn}
+          onPress={deleteIncident}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator color={DANGER} size="small" />
+          ) : (
+            <Trash size={20} color={DANGER} />
+          )}
         </Hoverable>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={s.content}
+      >
         {/* ── Hero card ───────────────────────────────────────────────── */}
-        <View style={[s.heroCard, { borderColor: meta.color + "40", backgroundColor: meta.bg }]}>
-          <View style={[s.typeIconWrap, { backgroundColor: meta.color + "20" }]}>
+        <View
+          style={[
+            s.heroCard,
+            { borderColor: meta.color + "40", backgroundColor: meta.bg },
+          ]}
+        >
+          <View
+            style={[s.typeIconWrap, { backgroundColor: meta.color + "20" }]}
+          >
             <Ionicons name={meta.icon} size={28} color={meta.color} />
           </View>
-          <Text style={[s.heroType, { color: meta.color }]}>{incident.type}</Text>
+          <Text style={[s.heroType, { color: meta.color }]}>
+            {incident.type}
+          </Text>
           <Text style={s.heroDate}>{formatDate(incident.created_at)}</Text>
           <Text style={s.heroTime}>{formatTime(incident.created_at)}</Text>
         </View>
@@ -226,7 +312,10 @@ export default function IncidentDetailScreen() {
             <CircleDashed size={16} color={PRIMARY} />
             <View style={s.metaTextWrap}>
               <Text style={s.metaLabel}>Recorded On</Text>
-              <Text style={s.metaValue}>{formatDate(incident.created_at)} at {formatTime(incident.created_at)}</Text>
+              <Text style={s.metaValue}>
+                {formatDate(incident.created_at)} at{" "}
+                {formatTime(incident.created_at)}
+              </Text>
             </View>
           </View>
         </View>
@@ -253,8 +342,11 @@ export default function IncidentDetailScreen() {
 
             {/* Action row */}
             <View style={s.actionRow}>
-              <Hoverable style={[s.actionBtn, { borderColor: PRIMARY + "40" }]} onPress={shareComplaint}>
-                <Share size={16} color={PRIMARY} />
+              <Hoverable
+                style={[s.actionBtn, { borderColor: PRIMARY + "40" }]}
+                onPress={shareComplaint}
+              >
+                <ShareIcon size={16} color={PRIMARY} />
                 <Text style={[s.actionBtnText, { color: PRIMARY }]}>Share</Text>
               </Hoverable>
 
@@ -263,21 +355,28 @@ export default function IncidentDetailScreen() {
                 onPress={exportPDF}
                 disabled={exporting}
               >
-                {exporting
-                  ? <ActivityIndicator color={SUCCESS} size="small" />
-                  : <>
-                      <CircleDashed size={16} color={SUCCESS} />
-                      <Text style={[s.actionBtnText, { color: SUCCESS }]}>Export PDF</Text>
-                    </>}
+                {exporting ? (
+                  <ActivityIndicator color={SUCCESS} size="small" />
+                ) : (
+                  <>
+                    <CircleDashed size={16} color={SUCCESS} />
+                    <Text style={[s.actionBtnText, { color: SUCCESS }]}>
+                      Export PDF
+                    </Text>
+                  </>
+                )}
               </Hoverable>
             </View>
           </View>
         ) : (
           <View style={[s.complaintCard, { alignItems: "center", gap: 8 }]}>
             <FileText size={28} color={SUBTEXT} />
-            <Text style={[s.metaLabel, { textAlign: "center" }]}>No complaint draft yet</Text>
+            <Text style={[s.metaLabel, { textAlign: "center" }]}>
+              No complaint draft yet
+            </Text>
             <Text style={[s.metaValue, { textAlign: "center", opacity: 0.6 }]}>
-              Open the Vault, select this record, and tap "Generate AI Complaint" to create a formal FIR draft.
+              Open the Vault, select this record, and tap "Generate AI
+              Complaint" to create a formal FIR draft.
             </Text>
           </View>
         )}
@@ -289,50 +388,167 @@ export default function IncidentDetailScreen() {
 }
 
 const s = StyleSheet.create({
-  root:             { flex: 1, backgroundColor: BG },
+  root: { flex: 1, backgroundColor: BG },
 
   // Header
-  header:           { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: BORDER },
-  backBtn:          { width: 38, height: 38, borderRadius: 12, backgroundColor: CARD, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: BORDER },
-  headerTitle:      { flex: 1, fontSize: 17, fontWeight: "700", color: TEXT, textAlign: "center" },
-  deleteBtn:        { width: 38, height: 38, borderRadius: 12, backgroundColor: "rgba(239,68,68,0.1)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(239,68,68,0.25)" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: CARD,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: "700",
+    color: TEXT,
+    textAlign: "center",
+  },
+  deleteBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: "rgba(239,68,68,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(239,68,68,0.25)",
+  },
 
-  content:          { padding: 16, gap: 14 },
+  content: { padding: 16, gap: 14 },
 
   // Hero
-  heroCard:         { borderRadius: 20, borderWidth: 1, padding: 24, alignItems: "center", gap: 8 },
-  typeIconWrap:     { width: 64, height: 64, borderRadius: 20, alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  heroType:         { fontSize: 20, fontWeight: "800" },
-  heroDate:         { fontSize: 15, color: TEXT, fontWeight: "500" },
-  heroTime:         { fontSize: 13, color: SUBTEXT },
+  heroCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: "center",
+    gap: 8,
+  },
+  typeIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  heroType: { fontSize: 20, fontWeight: "800" },
+  heroDate: { fontSize: 15, color: TEXT, fontWeight: "500" },
+  heroTime: { fontSize: 13, color: SUBTEXT },
 
   // Media
-  mediaCard:        { backgroundColor: CARD, borderRadius: 20, padding: 16, borderWidth: 1, borderColor: BORDER, gap: 12 },
-  mediaHeader:      { flexDirection: "row", alignItems: "center", gap: 6 },
-  evidenceImage:    { width: "100%", height: 200, borderRadius: 14, backgroundColor: "#1a1130" },
-  encBadge:         { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(34,197,94,0.08)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, alignSelf: "flex-start", borderWidth: 1, borderColor: "rgba(34,197,94,0.2)" },
-  encBadgeText:     { fontSize: 10, color: SUCCESS, fontWeight: "700" },
+  mediaCard: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    gap: 12,
+  },
+  mediaHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
+  evidenceImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 14,
+    backgroundColor: "#1a1130",
+  },
+  encBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(34,197,94,0.08)",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.2)",
+  },
+  encBadgeText: { fontSize: 10, color: SUCCESS, fontWeight: "700" },
 
   // Meta
-  metaCard:         { backgroundColor: CARD, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: BORDER, gap: 16 },
-  sectionLabel:     { fontSize: 10, color: SUBTEXT, fontWeight: "700", letterSpacing: 1.2, textTransform: "uppercase" },
-  metaRow:          { flexDirection: "row", alignItems: "center", gap: 12 },
-  metaTextWrap:     { flex: 1, gap: 2 },
-  metaLabel:        { fontSize: 11, color: SUBTEXT, fontWeight: "600" },
-  metaValue:        { fontSize: 14, color: TEXT, lineHeight: 20 },
+  metaCard: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: BORDER,
+    gap: 16,
+  },
+  sectionLabel: {
+    fontSize: 10,
+    color: SUBTEXT,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  metaTextWrap: { flex: 1, gap: 2 },
+  metaLabel: { fontSize: 11, color: SUBTEXT, fontWeight: "600" },
+  metaValue: { fontSize: 14, color: TEXT, lineHeight: 20 },
 
   // Complaint
-  complaintCard:    { backgroundColor: CARD, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: "rgba(34,197,94,0.2)", gap: 12 },
-  complaintHeader:  { flexDirection: "row", alignItems: "center", gap: 8 },
-  complaintIconBg:  { width: 30, height: 30, borderRadius: 9, backgroundColor: "rgba(34,197,94,0.12)", alignItems: "center", justifyContent: "center" },
-  complaintTitle:   { fontSize: 14, fontWeight: "700", color: SUCCESS, flex: 1 },
-  aiBadge:          { backgroundColor: "rgba(139,92,246,0.12)", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: "rgba(139,92,246,0.25)" },
-  aiBadgeText:      { fontSize: 10, color: PRIMARY, fontWeight: "700" },
-  complaintScroll:  { maxHeight: 220, backgroundColor: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: BORDER },
-  complaintText:    { fontSize: 13, color: SUBTEXT, lineHeight: 21 },
+  complaintCard: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.2)",
+    gap: 12,
+  },
+  complaintHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  complaintIconBg: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: "rgba(34,197,94,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  complaintTitle: { fontSize: 14, fontWeight: "700", color: SUCCESS, flex: 1 },
+  aiBadge: {
+    backgroundColor: "rgba(139,92,246,0.12)",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: "rgba(139,92,246,0.25)",
+  },
+  aiBadgeText: { fontSize: 10, color: PRIMARY, fontWeight: "700" },
+  complaintScroll: {
+    maxHeight: 220,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  complaintText: { fontSize: 13, color: SUBTEXT, lineHeight: 21 },
 
   // Actions
-  actionRow:        { flexDirection: "row", gap: 10 },
-  actionBtn:        { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderRadius: 14, paddingVertical: 12 },
-  actionBtnText:    { fontWeight: "700", fontSize: 13 },
+  actionRow: { flexDirection: "row", gap: 10 },
+  actionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 12,
+  },
+  actionBtnText: { fontWeight: "700", fontSize: 13 },
 });

@@ -6,7 +6,6 @@ import { AlertTriangle } from "lucide-react-native";
 
 import Hoverable from "../../components/common/Hoverable";
 
-
 export default class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
 
@@ -49,8 +48,19 @@ const s = StyleSheet.create({
     padding: 32,
     gap: 14,
   },
-  title:    { fontSize: 22, fontWeight: "800", color: "#f0f6fc" },
-  subtitle: { fontSize: 14, color: "#8b949e", textAlign: "center", lineHeight: 22 },
-  btn:      { backgroundColor: "#8b5cf6", borderRadius: 14, paddingVertical: 13, paddingHorizontal: 32, marginTop: 10 },
-  btnText:  { color: "white", fontWeight: "700", fontSize: 14 },
+  title: { fontSize: 22, fontWeight: "800", color: "#f0f6fc" },
+  subtitle: {
+    fontSize: 14,
+    color: "#8b949e",
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  btn: {
+    backgroundColor: "#8b5cf6",
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 32,
+    marginTop: 10,
+  },
+  btnText: { color: "white", fontWeight: "700", fontSize: 14 },
 });

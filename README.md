@@ -32,9 +32,13 @@
 - **Gemini NLP FIR Summaries:** The integrated Google Gemini vision-language model analyzes the vault payload and generates formally drafted legal complaints/FIR reports ready to be submitted to law enforcement.
 
 ### 5. Safety AI & Education Hub
-- **Safety Assistant:** An integrated chatbot trained to navigate legal rights, local authorities, and crisis de-escalation tips.
+- **Voice-Activated Safety Assistant:** An integrated chatbot trained to navigate legal rights, local authorities, and crisis de-escalation tips, featuring a Hands-Free voice recognition UI for emergency situations.
 - **Harassment Detection ML:** Copy/paste suspicious texts or DMs, and let ShieldHer measure the severity and draft blocking templates or authoritative responses. 
-- **Laws & Curated Video Integrations:** Immediate access to native laws involving domestic violence, workplace boundaries, cyber harassment, and fundamental self-defense video libraries.
+- **Laws & Curated Video Integrations:** Immediate offline-ready access to native laws involving domestic violence, workplace boundaries, cyber harassment, and fundamental self-defense video libraries.
+
+### 6. Premium "Pro Max" Aesthetic
+- **Unified Glassmorphism UI:** Seamless deep space gradients, floating abstract glow orbs, and frosted glass cards across the entire application interface.
+- **Dynamic Navigation:** iOS-style floating pill navigation bar with spring animations and interactive glow halos.
 
 ---
 

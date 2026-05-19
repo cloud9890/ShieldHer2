@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { supabase } from '../api/supabase';
+import { create } from "zustand";
+import { supabase } from "../api/supabase";
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -24,18 +24,18 @@ const useAuthStore = create((set, get) => ({
   loadProfile: async (authUser) => {
     try {
       const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
+        .from("profiles")
+        .select("*")
+        .eq("id", authUser.id)
         .single();
-      set({ profile: data || { name: 'New User', phone: '' } });
+      set({ profile: data || { name: "New User", phone: "" } });
     } catch (_) {
-      set({ profile: { name: 'New User', phone: '' } });
+      set({ profile: { name: "New User", phone: "" } });
     }
   },
 
   initAuth: () => {
-    if (get().isInitialized) return; 
+    if (get().isInitialized) return;
     set({ isInitialized: true });
 
     supabase.auth.getUser().then(({ data: { user: u } }) => {
@@ -43,14 +43,14 @@ const useAuthStore = create((set, get) => ({
       get().loadProfileIfNeeded(u);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        const u = session?.user ?? null;
-        set({ user: u });
-        get().loadProfileIfNeeded(u);
-      }
-    );
-    
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const u = session?.user ?? null;
+      set({ user: u });
+      get().loadProfileIfNeeded(u);
+    });
+
     set({ unsubAuth: subscription.unsubscribe });
   },
 
@@ -65,7 +65,7 @@ const useAuthStore = create((set, get) => ({
   refreshProfile: () => {
     const { user, loadProfile } = get();
     if (user) loadProfile(user);
-  }
+  },
 }));
 
 export default useAuthStore;

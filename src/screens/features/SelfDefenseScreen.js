@@ -1,11 +1,26 @@
+import { Ionicons } from "@expo/vector-icons";
 // screens/SelfDefenseScreen.js
 import { useState, useEffect } from "react";
 import { CircleDashed, Info, PlayCircle } from "lucide-react-native";
 
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, Linking, ActivityIndicator
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Linking,
+  ActivityIndicator,
 } from "react-native";
-import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT, WARNING } from "../../theme/colors";
+import {
+  BG_DEEP as BG,
+  CARD_DEEP as CARD,
+  BORDER_VIOLET as BORDER,
+  PRIMARY,
+  TEXT,
+  SUBTEXT,
+  WARNING,
+} from "../../theme/colors";
 import { recommendDefenseTechnique } from "../../api/gemini";
 
 // Curated self-defense video topics with YouTube search queries
@@ -102,12 +117,19 @@ const VIDEOS = [
   },
 ];
 
-const CATEGORIES = ["All", "Basics", "Escapes", "Striking", "Awareness", "Tools"];
+const CATEGORIES = [
+  "All",
+  "Basics",
+  "Escapes",
+  "Striking",
+  "Awareness",
+  "Tools",
+];
 
 const LEVEL_COLOR = {
-  "Beginner":     "#34d399",
-  "Intermediate": "#fbbf24",
-  "All levels":   "#a78bfa",
+  Beginner: "#34d399",
+  Intermediate: "#fbbf24",
+  "All levels": "#a78bfa",
 };
 
 export default function SelfDefenseScreen() {
@@ -118,7 +140,8 @@ export default function SelfDefenseScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const time = new Date().getHours() < 18 ? "daytime commuter" : "night traveler";
+        const time =
+          new Date().getHours() < 18 ? "daytime commuter" : "night traveler";
         const res = await recommendDefenseTechnique(`User is a ${time}`);
         if (res && res.techniqueName) setRecommendation(res);
       } catch (e) {}
@@ -126,12 +149,15 @@ export default function SelfDefenseScreen() {
     })();
   }, []);
 
-  const filtered = activeCategory === "All"
-    ? VIDEOS
-    : VIDEOS.filter(v => v.category === activeCategory);
+  const filtered =
+    activeCategory === "All"
+      ? VIDEOS
+      : VIDEOS.filter((v) => v.category === activeCategory);
 
   const openVideo = (query) => {
-    Linking.openURL(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`);
+    Linking.openURL(
+      `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`,
+    );
   };
 
   return (
@@ -146,7 +172,8 @@ export default function SelfDefenseScreen() {
       <View style={s.tipBanner}>
         <CircleDashed size={20} color="#a78bfa" />
         <Text style={s.tipText}>
-          Practice these techniques regularly. Muscle memory formed in safety could save your life in danger.
+          Practice these techniques regularly. Muscle memory formed in safety
+          could save your life in danger.
         </Text>
       </View>
 
@@ -157,43 +184,86 @@ export default function SelfDefenseScreen() {
           <Text style={s.aiTitle}>AI Recommended for You</Text>
         </View>
         {recLoading ? (
-           <ActivityIndicator size="small" color={WARNING} />
+          <ActivityIndicator size="small" color={WARNING} />
         ) : recommendation ? (
           <>
-            <Text style={{ color: TEXT, fontWeight: '700', marginBottom: 4 }}>{recommendation.techniqueName}</Text>
-            <Text style={{ color: SUBTEXT, fontSize: 12, lineHeight: 18, marginBottom: 8 }}>{recommendation.reasoning}</Text>
+            <Text style={{ color: TEXT, fontWeight: "700", marginBottom: 4 }}>
+              {recommendation.techniqueName}
+            </Text>
+            <Text
+              style={{
+                color: SUBTEXT,
+                fontSize: 12,
+                lineHeight: 18,
+                marginBottom: 8,
+              }}
+            >
+              {recommendation.reasoning}
+            </Text>
             {recommendation.searchQuery ? (
-              <Hoverable style={s.aiSearchBtn} onPress={() => openVideo(recommendation.searchQuery)}>
+              <Hoverable
+                style={s.aiSearchBtn}
+                onPress={() => openVideo(recommendation.searchQuery)}
+              >
                 <CircleDashed size={14} color="#ef4444" />
                 <Text style={s.aiSearchText}>Search Tutorial</Text>
               </Hoverable>
             ) : null}
           </>
         ) : (
-          <Text style={{ color: SUBTEXT, fontSize: 12 }}>No personalized recommendations right now.</Text>
+          <Text style={{ color: SUBTEXT, fontSize: 12 }}>
+            No personalized recommendations right now.
+          </Text>
         )}
       </View>
 
       {/* Category filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catScroll} contentContainerStyle={s.catScrollContent}>
-        {CATEGORIES.map(cat => (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={s.catScroll}
+        contentContainerStyle={s.catScrollContent}
+      >
+        {CATEGORIES.map((cat) => (
           <Hoverable
             key={cat}
             style={[s.catChip, activeCategory === cat && s.catChipActive]}
             onPress={() => setActiveCategory(cat)}
           >
-            <Text style={[s.catChipText, activeCategory === cat && { color: "white" }]}>{cat}</Text>
+            <Text
+              style={[
+                s.catChipText,
+                activeCategory === cat && { color: "white" },
+              ]}
+            >
+              {cat}
+            </Text>
           </Hoverable>
         ))}
       </ScrollView>
 
       {/* Videos */}
       <View style={s.grid}>
-        {filtered.map(video => (
-          <Hoverable key={video.id} style={s.videoCard} onPress={() => openVideo(video.query)} >
+        {filtered.map((video) => (
+          <Hoverable
+            key={video.id}
+            style={s.videoCard}
+            onPress={() => openVideo(video.query)}
+          >
             {/* Thumbnail area */}
-            <View style={[s.thumbnail, { backgroundColor: video.color + "18" }]}>
-              <View style={{ alignItems: "center", justifyContent: "center", width: 64, height: 64, borderRadius: 32, backgroundColor: video.color + "22" }}>
+            <View
+              style={[s.thumbnail, { backgroundColor: video.color + "18" }]}
+            >
+              <View
+                style={{
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  backgroundColor: video.color + "22",
+                }}
+              >
                 <Ionicons name={video.icon} size={34} color={video.color} />
               </View>
               <View style={s.playBtn}>
@@ -209,15 +279,33 @@ export default function SelfDefenseScreen() {
             {/* Info */}
             <View style={s.videoInfo}>
               <View style={s.videoTopRow}>
-                <View style={[s.levelBadge, { backgroundColor: LEVEL_COLOR[video.level] + "18", borderColor: LEVEL_COLOR[video.level] + "35" }]}>
-                  <Text style={[s.levelText, { color: LEVEL_COLOR[video.level] }]}>{video.level}</Text>
+                <View
+                  style={[
+                    s.levelBadge,
+                    {
+                      backgroundColor: LEVEL_COLOR[video.level] + "18",
+                      borderColor: LEVEL_COLOR[video.level] + "35",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[s.levelText, { color: LEVEL_COLOR[video.level] }]}
+                  >
+                    {video.level}
+                  </Text>
                 </View>
-                <View style={[s.catBadge, { backgroundColor: video.color + "15" }]}>
-                  <Text style={[s.catBadgeText, { color: video.color }]}>{video.category}</Text>
+                <View
+                  style={[s.catBadge, { backgroundColor: video.color + "15" }]}
+                >
+                  <Text style={[s.catBadgeText, { color: video.color }]}>
+                    {video.category}
+                  </Text>
                 </View>
               </View>
               <Text style={s.videoTitle}>{video.title}</Text>
-              <Text style={s.videoDesc} numberOfLines={2}>{video.desc}</Text>
+              <Text style={s.videoDesc} numberOfLines={2}>
+                {video.desc}
+              </Text>
               <View style={s.watchRow}>
                 <CircleDashed size={14} color="#ef4444" />
                 <Text style={s.watchText}>Watch on YouTube</Text>
@@ -232,7 +320,8 @@ export default function SelfDefenseScreen() {
       <View style={s.disclaimer}>
         <Info size={14} color="#4b5563" />
         <Text style={s.disclaimerText}>
-          These videos open YouTube searches. Content accuracy depends on the video creator. Practice with a certified instructor for best results.
+          These videos open YouTube searches. Content accuracy depends on the
+          video creator. Practice with a certified instructor for best results.
         </Text>
       </View>
 
@@ -242,40 +331,134 @@ export default function SelfDefenseScreen() {
 }
 
 const s = StyleSheet.create({
-  container:        { flex: 1, backgroundColor: BG },
-  header:           { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 12 },
-  title:            { fontSize: 24, fontWeight: "800", color: TEXT },
-  subtitle:         { fontSize: 12, color: PRIMARY, marginTop: 4, fontWeight: "600" },
-  tipBanner:        { flexDirection: "row", gap: 10, alignItems: "flex-start", backgroundColor: "rgba(139,92,246,0.08)", borderRadius: 16, marginHorizontal: 16, marginBottom: 14, padding: 14, borderWidth: 1, borderColor: BORDER },
-  tipText:          { flex: 1, fontSize: 12, color: "#a78bfa", lineHeight: 18 },
-  aiCard:           { backgroundColor: "rgba(251,191,36,0.08)", borderRadius: 16, marginHorizontal: 16, marginBottom: 14, padding: 14, borderWidth: 1, borderColor: "rgba(251,191,36,0.3)" },
-  aiHeader:         { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
-  aiTitle:          { color: WARNING, fontWeight: "700", fontSize: 13, textTransform: "uppercase" },
-  aiSearchBtn:      { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: CARD, alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: BORDER },
-  aiSearchText:     { color: TEXT, fontSize: 12, fontWeight: "600" },
-  catScroll:        { marginBottom: 14 },
+  container: { flex: 1, backgroundColor: BG },
+  header: { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 12 },
+  title: { fontSize: 24, fontWeight: "800", color: TEXT },
+  subtitle: { fontSize: 12, color: PRIMARY, marginTop: 4, fontWeight: "600" },
+  tipBanner: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "flex-start",
+    backgroundColor: "rgba(139,92,246,0.08)",
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  tipText: { flex: 1, fontSize: 12, color: "#a78bfa", lineHeight: 18 },
+  aiCard: {
+    backgroundColor: "rgba(251,191,36,0.08)",
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(251,191,36,0.3)",
+  },
+  aiHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
+  aiTitle: {
+    color: WARNING,
+    fontWeight: "700",
+    fontSize: 13,
+    textTransform: "uppercase",
+  },
+  aiSearchBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: CARD,
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  aiSearchText: { color: TEXT, fontSize: 12, fontWeight: "600" },
+  catScroll: { marginBottom: 14 },
   catScrollContent: { paddingHorizontal: 16, gap: 8 },
-  catChip:          { borderWidth: 1, borderColor: BORDER, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 7, backgroundColor: "rgba(255,255,255,0.03)" },
-  catChipActive:    { backgroundColor: PRIMARY, borderColor: PRIMARY },
-  catChipText:      { fontSize: 12, color: SUBTEXT, fontWeight: "600" },
-  grid:             { paddingHorizontal: 16, gap: 14 },
-  videoCard:        { backgroundColor: CARD, borderRadius: 20, overflow: "hidden", borderWidth: 1, borderColor: BORDER },
-  thumbnail:        { height: 140, alignItems: "center", justifyContent: "center", position: "relative" },
-  thumbnailEmoji:   { fontSize: 56 },
-  playBtn:          { position: "absolute", bottom: 10, right: 10 },
-  thumbnailOverlay: { position: "absolute", bottom: 0, left: 0, right: 0, height: 40, backgroundColor: "rgba(0,0,0,0.4)" },
-  durationBadge:    { position: "absolute", bottom: 10, left: 10, backgroundColor: "rgba(0,0,0,0.7)", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  durationText:     { color: "white", fontSize: 11, fontWeight: "600" },
-  videoInfo:        { padding: 14, gap: 6 },
-  videoTopRow:      { flexDirection: "row", gap: 7 },
-  levelBadge:       { borderWidth: 1, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 2 },
-  levelText:        { fontSize: 10, fontWeight: "700" },
-  catBadge:         { borderRadius: 20, paddingHorizontal: 9, paddingVertical: 2 },
-  catBadgeText:     { fontSize: 10, fontWeight: "700" },
-  videoTitle:       { fontSize: 15, fontWeight: "700", color: TEXT },
-  videoDesc:        { fontSize: 12, color: SUBTEXT, lineHeight: 17 },
-  watchRow:         { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
-  watchText:        { fontSize: 12, color: "#ef4444", fontWeight: "600", flex: 1 },
-  disclaimer:       { flexDirection: "row", gap: 8, alignItems: "flex-start", marginHorizontal: 16, marginTop: 4, padding: 12, backgroundColor: "rgba(255,255,255,0.03)", borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
-  disclaimerText:   { flex: 1, fontSize: 11, color: "#4b5563", lineHeight: 16 },
+  catChip: {
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    backgroundColor: "rgba(255,255,255,0.03)",
+  },
+  catChipActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
+  catChipText: { fontSize: 12, color: SUBTEXT, fontWeight: "600" },
+  grid: { paddingHorizontal: 16, gap: 14 },
+  videoCard: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  thumbnail: {
+    height: 140,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  thumbnailEmoji: { fontSize: 56 },
+  playBtn: { position: "absolute", bottom: 10, right: 10 },
+  thumbnailOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 40,
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  durationBadge: {
+    position: "absolute",
+    bottom: 10,
+    left: 10,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  durationText: { color: "white", fontSize: 11, fontWeight: "600" },
+  videoInfo: { padding: 14, gap: 6 },
+  videoTopRow: { flexDirection: "row", gap: 7 },
+  levelBadge: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 9,
+    paddingVertical: 2,
+  },
+  levelText: { fontSize: 10, fontWeight: "700" },
+  catBadge: { borderRadius: 20, paddingHorizontal: 9, paddingVertical: 2 },
+  catBadgeText: { fontSize: 10, fontWeight: "700" },
+  videoTitle: { fontSize: 15, fontWeight: "700", color: TEXT },
+  videoDesc: { fontSize: 12, color: SUBTEXT, lineHeight: 17 },
+  watchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 2,
+  },
+  watchText: { fontSize: 12, color: "#ef4444", fontWeight: "600", flex: 1 },
+  disclaimer: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "flex-start",
+    marginHorizontal: 16,
+    marginTop: 4,
+    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
+  },
+  disclaimerText: { flex: 1, fontSize: 11, color: "#4b5563", lineHeight: 16 },
 });

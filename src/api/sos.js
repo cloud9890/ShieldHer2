@@ -8,10 +8,10 @@ import * as TaskManager from "expo-task-manager";
 import { supabase } from "./supabase";
 
 const GUARDIAN_BG_TASK = "shieldher-guardian-bg";
-const BG_CHANNEL_ID    = "shieldher-guardian";
-const SOS_CATEGORY_ID  = "sos_guardian";
+const BG_CHANNEL_ID = "shieldher-guardian";
+const SOS_CATEGORY_ID = "sos_guardian";
 // Read credentials from env only — never hard-code secrets
-const SUPABASE_URL      = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 // ── Accelerometer lazy-loader ──────────────────────────────────────────────
@@ -21,7 +21,7 @@ const getAccelerometer = () => {
 };
 
 // ── Shake Detection ────────────────────────────────────────────────────────
-let _shakeSub   = null;
+let _shakeSub = null;
 let _shakeCount = 0;
 let _shakeTimer = null;
 
@@ -36,7 +36,9 @@ export function startShakeDetection(onTrigger) {
     if (mag > 2.8) {
       _shakeCount++;
       if (_shakeTimer) clearTimeout(_shakeTimer);
-      _shakeTimer = setTimeout(() => { _shakeCount = 0; }, 3000);
+      _shakeTimer = setTimeout(() => {
+        _shakeCount = 0;
+      }, 3000);
       if (_shakeCount >= 5) {
         _shakeCount = 0;
         clearTimeout(_shakeTimer);
@@ -57,15 +59,15 @@ export function stopShakeDetection() {
 
 // ── Auto Danger Detection ──────────────────────────────────────────────────
 // Analyses accelerometer + GPS to automatically detect danger situations
-let _dangerSub        = null;
-let _dangerCallback   = null;
-let _impactBuffer     = [];
-let _panicStartTime   = null;
-let _autoSOSTimer     = null;
-const IMPACT_THRESHOLD = 4.2;     // G-force for fall/push/collision
-const PANIC_THRESHOLD  = 2.2;     // G-force for sustained panic running
-const PANIC_DURATION   = 8000;    // 8 seconds of sustained panic = alert
-const AUTO_SOS_DELAY   = 10000;   // 10 second cancel window before auto-SOS fires
+let _dangerSub = null;
+let _dangerCallback = null;
+let _impactBuffer = [];
+let _panicStartTime = null;
+let _autoSOSTimer = null;
+const IMPACT_THRESHOLD = 4.2; // G-force for fall/push/collision
+const PANIC_THRESHOLD = 2.2; // G-force for sustained panic running
+const PANIC_DURATION = 8000; // 8 seconds of sustained panic = alert
+const AUTO_SOS_DELAY = 10000; // 10 second cancel window before auto-SOS fires
 
 let _locationWatchForDanger = null;
 
@@ -106,10 +108,10 @@ export function startAutoDangerDetection(onDangerDetected) {
 //   • Must see high speed for FORCED_VEHICLE_CONSECUTIVE_READINGS consecutive updates (~3 min at 10s interval)
 //   • Must also detect an acceleration spike, ruling out smooth legitimate travel
 //   • Minimum 2-minute cooldown between triggers so alerts don’t cascade
-const FORCED_VEHICLE_COOLDOWN_MS = 2 * 60 * 1000;  // 2 minutes
-const FORCED_VEHICLE_CONSECUTIVE = 3;               // readings at high speed needed
-const FORCED_VEHICLE_ACCEL_SPIKE = 1.5;             // m/s² speed-change between GPS fixes
-let _forcedVehicleCount     = 0;
+const FORCED_VEHICLE_COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes
+const FORCED_VEHICLE_CONSECUTIVE = 3; // readings at high speed needed
+const FORCED_VEHICLE_ACCEL_SPIKE = 1.5; // m/s² speed-change between GPS fixes
+let _forcedVehicleCount = 0;
 let _forcedVehicleLastSpeed = 0;
 let _forcedVehicleLastAlert = 0;
 
@@ -118,19 +120,30 @@ async function _startNightSpeedWatch(onDangerDetected) {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") return;
     _locationWatchForDanger = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.Balanced, timeInterval: 10000, distanceInterval: 50 },
+      {
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 10000,
+        distanceInterval: 50,
+      },
       (loc) => {
         const speed = loc.coords.speed || 0; // m/s
-        const kmh   = speed * 3.6;
-        const hour  = new Date().getHours();
-        const now   = Date.now();
+        const kmh = speed * 3.6;
+        const hour = new Date().getHours();
+        const now = Date.now();
 
         // Gate 1: Night hours only (23:00 – 03:59)
         const isNight = hour >= 23 || hour < 4;
-        if (!isNight) { _forcedVehicleCount = 0; return; }
+        if (!isNight) {
+          _forcedVehicleCount = 0;
+          return;
+        }
 
         // Gate 2: Speed threshold
-        if (kmh < 80) { _forcedVehicleCount = 0; _forcedVehicleLastSpeed = speed; return; }
+        if (kmh < 80) {
+          _forcedVehicleCount = 0;
+          _forcedVehicleLastSpeed = speed;
+          return;
+        }
 
         // Gate 3: Acceleration anomaly — sudden jerky speed change rules out smooth Uber travel
         const accelDelta = Math.abs(speed - _forcedVehicleLastSpeed); // m/s change since last fix
@@ -144,10 +157,10 @@ async function _startNightSpeedWatch(onDangerDetected) {
         // Gate 5: Cooldown between alerts (prevent cascading triggers)
         if (now - _forcedVehicleLastAlert < FORCED_VEHICLE_COOLDOWN_MS) return;
 
-        _forcedVehicleCount     = 0;
+        _forcedVehicleCount = 0;
         _forcedVehicleLastAlert = now;
         triggerAutoSOS("forced_vehicle");
-      }
+      },
     );
   } catch (_) {}
 }
@@ -175,18 +188,20 @@ export function stopAutoDangerDetection() {
   _locationWatchForDanger?.remove();
   _locationWatchForDanger = null;
   cancelAutoSOS();
-  _panicStartTime          = null;
-  _dangerCallback          = null;
+  _panicStartTime = null;
+  _dangerCallback = null;
   // Reset forced-vehicle counters so a fresh start is clean
-  _forcedVehicleCount      = 0;
-  _forcedVehicleLastSpeed  = 0;
-  _forcedVehicleLastAlert  = 0;
+  _forcedVehicleCount = 0;
+  _forcedVehicleLastSpeed = 0;
+  _forcedVehicleLastAlert = 0;
 }
 
 // ── Background Guardian ────────────────────────────────────────────────────
 let _guardianNotifId = null;
-let _shakeCallback   = null;
-export function setGlobalShakeCallback(cb) { _shakeCallback = cb; }
+let _shakeCallback = null;
+export function setGlobalShakeCallback(cb) {
+  _shakeCallback = cb;
+}
 
 // Background location task — also re-attaches shake listener as heartbeat
 TaskManager.defineTask(GUARDIAN_BG_TASK, async ({ data, error }) => {
@@ -248,7 +263,7 @@ export async function startBackgroundGuardian(onShake) {
       if (!isReg) {
         await Location.startLocationUpdatesAsync(GUARDIAN_BG_TASK, {
           accuracy: Location.Accuracy.Balanced,
-          timeInterval: 5000,       // 5s heartbeat (was 15s)
+          timeInterval: 5000, // 5s heartbeat (was 15s)
           distanceInterval: 0,
           showsBackgroundLocationIndicator: true,
           foregroundService: {
@@ -268,7 +283,9 @@ export async function startBackgroundGuardian(onShake) {
 export async function stopBackgroundGuardian() {
   if (Platform.OS === "web") return;
   if (_guardianNotifId) {
-    await Notifications.dismissNotificationAsync(_guardianNotifId).catch(() => {});
+    await Notifications.dismissNotificationAsync(_guardianNotifId).catch(
+      () => {},
+    );
     _guardianNotifId = null;
   }
   try {
@@ -278,21 +295,23 @@ export async function stopBackgroundGuardian() {
 }
 
 // ── Live Session (Escort Real-time Location) ───────────────────────────────
-let _liveSessionId  = null;
-let _locationSub    = null;
+let _liveSessionId = null;
+let _locationSub = null;
 
 export async function createLiveSession() {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return null;
     const { data, error } = await supabase
       .from("live_sessions")
       .insert({
-        user_id:    user.id,
-        lat:        0,
-        lng:        0,
-        is_active:  true,
-        started_at: new Date().toISOString(),   // ← was missing; track page crashed
+        user_id: user.id,
+        lat: 0,
+        lng: 0,
+        is_active: true,
+        started_at: new Date().toISOString(), // ← was missing; track page crashed
       })
       .select("id")
       .single();
@@ -308,7 +327,8 @@ export async function createLiveSession() {
 export async function endLiveSession() {
   if (!_liveSessionId) return;
   try {
-    await supabase.from("live_sessions")
+    await supabase
+      .from("live_sessions")
       .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq("id", _liveSessionId);
   } catch (_) {}
@@ -321,15 +341,18 @@ export function startLocationWatch(onUpdate) {
   return new Promise(async (resolve) => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") { resolve(null); return; }
+      if (status !== "granted") {
+        resolve(null);
+        return;
+      }
 
       let firstResolved = false;
 
       _locationSub = await Location.watchPositionAsync(
         {
-          accuracy:         Location.Accuracy.BestForNavigation,
-          timeInterval:     2000,   // every 2 seconds
-          distanceInterval: 1,      // or every 1 metre
+          accuracy: Location.Accuracy.BestForNavigation,
+          timeInterval: 2000, // every 2 seconds
+          distanceInterval: 1, // or every 1 metre
         },
         async (loc) => {
           const coords = loc.coords;
@@ -337,20 +360,24 @@ export function startLocationWatch(onUpdate) {
           onUpdate(coords);
           // Write to Supabase live_session for real-time tracking
           if (_liveSessionId) {
-            supabase.from("live_sessions").update({
-              lat:        coords.latitude,
-              lng:        coords.longitude,
-              updated_at: new Date().toISOString(),
-            }).eq("id", _liveSessionId).then(({ error }) => {
-              if (error) console.warn("live session update:", error.message);
-            });
+            supabase
+              .from("live_sessions")
+              .update({
+                lat: coords.latitude,
+                lng: coords.longitude,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", _liveSessionId)
+              .then(({ error }) => {
+                if (error) console.warn("live session update:", error.message);
+              });
           }
           // Resolve the promise on the FIRST real fix so the caller can use accurate coords
           if (!firstResolved) {
             firstResolved = true;
             resolve(coords);
           }
-        }
+        },
       );
 
       // Fallback: if GPS hasn't fired within 5s, resolve with last known position
@@ -358,12 +385,15 @@ export function startLocationWatch(onUpdate) {
         if (!firstResolved) {
           firstResolved = true;
           try {
-            const last = await Location.getLastKnownPositionAsync({ maxAge: 30000 });
+            const last = await Location.getLastKnownPositionAsync({
+              maxAge: 30000,
+            });
             resolve(last?.coords ?? null);
-          } catch { resolve(null); }
+          } catch {
+            resolve(null);
+          }
         }
       }, 5000);
-
     } catch (e) {
       console.error("startLocationWatch:", e.message);
       resolve(null);
@@ -377,14 +407,22 @@ export function stopLocationWatch() {
 }
 
 // ── SOS Alert ─────────────────────────────────────────────────────────────
-export async function sendSOSAlert(contacts, alertType = "sos", preFetchedCoords = null, customMsg = null) {
+export async function sendSOSAlert(
+  contacts,
+  alertType = "sos",
+  preFetchedCoords = null,
+  customMsg = null,
+) {
   try {
-    const coords = preFetchedCoords || await getCurrentLocation();
-    const msg    = customMsg || buildMessage(alertType, coords);
-    const results = await Promise.allSettled(contacts.map(c => sendSMS(c.phone, msg)));
-    const sent   = results.filter(r => r.status === "fulfilled").length;
-    const failed = results.filter(r => r.status === "rejected");
-    if (failed.length > 0) failed.forEach(f => console.error("SMS:", f.reason));
+    const coords = preFetchedCoords || (await getCurrentLocation());
+    const msg = customMsg || buildMessage(alertType, coords);
+    const results = await Promise.allSettled(
+      contacts.map((c) => sendSMS(c.phone, msg)),
+    );
+    const sent = results.filter((r) => r.status === "fulfilled").length;
+    const failed = results.filter((r) => r.status === "rejected");
+    if (failed.length > 0)
+      failed.forEach((f) => console.error("SMS:", f.reason));
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
@@ -401,15 +439,27 @@ export async function sendSOSAlert(contacts, alertType = "sos", preFetchedCoords
   }
 }
 
-export async function sendEscortSOS(contacts, sessionId, preFetchedCoords = null, customMsg = null) {
+export async function sendEscortSOS(
+  contacts,
+  sessionId,
+  preFetchedCoords = null,
+  customMsg = null,
+) {
   try {
-    const coords = preFetchedCoords || await getCurrentLocation();
+    const coords = preFetchedCoords || (await getCurrentLocation());
     const trackUrl = getLiveTrackingUrl(sessionId);
-    const time = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+    const time = new Date().toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
     const fallbackMsg = `🛡️ ShieldHer — Live Escort Started\n\nTrack my live location in real-time:\n${trackUrl}\n\n• Map updates every 2 seconds\n• Link expires when I arrive safely\n\nTime: ${time}`;
-    const msg = customMsg ? `${customMsg}\n\nLive tracking: ${trackUrl}` : fallbackMsg;
-    const results = await Promise.allSettled(contacts.map(c => sendSMS(c.phone, msg)));
-    const sent = results.filter(r => r.status === "fulfilled").length;
+    const msg = customMsg
+      ? `${customMsg}\n\nLive tracking: ${trackUrl}`
+      : fallbackMsg;
+    const results = await Promise.allSettled(
+      contacts.map((c) => sendSMS(c.phone, msg)),
+    );
+    const sent = results.filter((r) => r.status === "fulfilled").length;
     return { success: true, sent, trackUrl };
   } catch (err) {
     console.error("Escort SOS error:", err);
@@ -421,30 +471,36 @@ export async function getCurrentLocation() {
   try {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") throw new Error("Permission denied");
-    
+
     let loc = await Location.getLastKnownPositionAsync({ maxAge: 15000 });
     if (!loc) {
-      loc = await Location.getCurrentPositionAsync({ 
-        accuracy: Location.Accuracy.Balanced, 
-        timeout: 4000 
+      loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        timeout: 4000,
       });
     }
     return loc.coords;
   } catch (e) {
-    console.warn("GPS lock failed, sending SOS without exact location.", e.message);
+    console.warn(
+      "GPS lock failed, sending SOS without exact location.",
+      e.message,
+    );
     return { latitude: 0, longitude: 0 }; // Fallback so SMS still sends!
   }
 }
 
 function buildMessage(type, coords) {
   const link = `https://maps.google.com/?q=${coords.latitude},${coords.longitude}`;
-  const time = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  const time = new Date().toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const templates = {
-    sos:          `🚨 EMERGENCY ALERT — ShieldHer\n\nI need immediate help!\nMy location: ${link}\nTime: ${time}\n\nPlease call me or contact emergency services (112).`,
-    checkin:      `✅ Safe Check-in — ShieldHer\n\nI have arrived safely.\nLocation: ${link}\nTime: ${time}`,
+    sos: `🚨 EMERGENCY ALERT — ShieldHer\n\nI need immediate help!\nMy location: ${link}\nTime: ${time}\n\nPlease call me or contact emergency services (112).`,
+    checkin: `✅ Safe Check-in — ShieldHer\n\nI have arrived safely.\nLocation: ${link}\nTime: ${time}`,
     escort_start: `🛡️ ShieldHer Escort Started\n\nStarting location: ${link}\nTime: ${time}`,
-    escort_end:   `✅ Journey Complete — ShieldHer\n\nI've arrived safely!\nFinal location: ${link}\nTime: ${time}`,
-    auto_sos:     `🆘 AUTO-DANGER ALERT — ShieldHer\n\nThe app detected a possible danger situation!\nLast known location: ${link}\nTime: ${time}\n\nPlease check on me immediately.`,
+    escort_end: `✅ Journey Complete — ShieldHer\n\nI've arrived safely!\nFinal location: ${link}\nTime: ${time}`,
+    auto_sos: `🆘 AUTO-DANGER ALERT — ShieldHer\n\nThe app detected a possible danger situation!\nLast known location: ${link}\nTime: ${time}\n\nPlease check on me immediately.`,
   };
   return templates[type] || templates.sos;
 }
@@ -454,13 +510,14 @@ async function sendSMS(phone, message) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-      "apikey": SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      apikey: SUPABASE_ANON_KEY,
     },
     body: JSON.stringify({ to: phone, message }),
   });
   const result = await res.json();
-  if (!res.ok) throw new Error(`SMS failed for ${phone}: ${result.error || res.status}`);
+  if (!res.ok)
+    throw new Error(`SMS failed for ${phone}: ${result.error || res.status}`);
   return result;
 }
 
@@ -471,8 +528,13 @@ export async function startEvidenceRecording() {
   try {
     const { granted } = await Audio.requestPermissionsAsync();
     if (!granted) throw new Error("Audio permission denied");
-    await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-    const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: true,
+      playsInSilentModeIOS: true,
+    });
+    const { recording } = await Audio.Recording.createAsync(
+      Audio.RecordingOptionsPresets.HIGH_QUALITY,
+    );
     _recording = recording;
     return true;
   } catch (err) {
@@ -488,7 +550,9 @@ export async function stopEvidenceRecording() {
     const uri = _recording.getURI();
     _recording = null;
     return uri;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 // ── Push Notifications ─────────────────────────────────────────────────────
@@ -498,21 +562,23 @@ export async function registerForPushNotifications() {
   try {
     const token = await Notifications.getExpoPushTokenAsync();
     return token.data;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 export async function scheduleDailySafetyBriefing() {
   try {
     const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') return;
-    
+    if (status !== "granted") return;
+
     await Notifications.cancelAllScheduledNotificationsAsync();
 
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "🛡️ Morning Safety Briefing",
         body: "Tap to review community alerts and AI safety insights for your commute.",
-        data: { route: "Home" }
+        data: { route: "Home" },
       },
       trigger: {
         hour: 8,
@@ -520,7 +586,7 @@ export async function scheduleDailySafetyBriefing() {
         repeats: true,
       },
     });
-  } catch(e) {
+  } catch (e) {
     console.warn("Failed to schedule daily briefing:", e);
   }
 }

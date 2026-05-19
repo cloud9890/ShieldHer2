@@ -2,19 +2,23 @@
 // Dynamic Island — frosted-glass floating pill navigation
 import React, { useEffect, useRef } from "react";
 import {
-  View, Text, TouchableOpacity, StyleSheet,
-  Animated, Dimensions, Platform,
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  Dimensions,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Hoverable from "../components/common/Hoverable";
 
-
 const { width: SCREEN_W } = Dimensions.get("window");
 
 const PRIMARY = "#8b5cf6";
-const PILL_BG = "rgba(10, 10, 18, 0.92)";
-const PILL_BORDER = "rgba(139, 92, 246, 0.18)";
+const PILL_BG = "rgba(30, 41, 59, 0.65)";
+const PILL_BORDER = "rgba(255, 255, 255, 0.15)";
 const INACTIVE = "#4b5563";
 const PILL_WIDTH = Math.min(SCREEN_W - 48, 500); // cap for web wide-screen
 
@@ -63,15 +67,12 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
       pointerEvents="box-none"
     >
       <View style={s.pill}>
-
         {/* Sliding purple underline indicator */}
-        <Animated.View
-          style={[s.indicator, { left: slideAnim }]}
-        />
+        <Animated.View style={[s.indicator, { left: slideAnim }]} />
 
         {/* Tab buttons */}
         {state.routes.map((route, index) => {
-          const tab = TABS.find(t => t.name === route.name) || TABS[0];
+          const tab = TABS.find((t) => t.name === route.name) || TABS[0];
           const isFocused = state.index === index;
           const { options } = descriptors[route.key];
           const label = options.title ?? route.name;
@@ -92,7 +93,6 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
               key={route.key}
               onPress={onPress}
               style={s.tabBtn}
-              
               accessibilityRole="button"
               accessibilityLabel={label}
               accessibilityState={{ selected: isFocused }}
@@ -147,10 +147,10 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
-    shadowColor: PRIMARY,
-    shadowOpacity: 0.28,
+    shadowColor: "#000",
+    shadowOpacity: 0.5,
     shadowRadius: 24,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 10 },
     elevation: Platform.OS === "android" ? 20 : undefined,
   },
   indicator: {

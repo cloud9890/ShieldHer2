@@ -5,7 +5,12 @@ import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SUBTEXT } from "../../theme/colors";
 
-export default function EmptyState({ icon = "folder-open-outline", title, subtitle, size = 36 }) {
+export default function EmptyState({
+  icon = "folder-open-outline",
+  title,
+  subtitle,
+  size = 36,
+}) {
   return (
     <View style={s.container}>
       <Ionicons name={icon} size={size} color={SUBTEXT} />
@@ -17,6 +22,12 @@ export default function EmptyState({ icon = "folder-open-outline", title, subtit
 
 const s = StyleSheet.create({
   container: { alignItems: "center", paddingVertical: 28, gap: 8 },
-  title:     { color: SUBTEXT, fontSize: 15, fontWeight: "600" },
-  subtitle:  { color: SUBTEXT, fontSize: 12, textAlign: "center", opacity: 0.6, maxWidth: 220 },
+  title: { color: SUBTEXT, fontSize: 15, fontWeight: "600" },
+  subtitle: {
+    color: SUBTEXT,
+    fontSize: 12,
+    textAlign: "center",
+    opacity: 0.6,
+    maxWidth: 220,
+  },
 });

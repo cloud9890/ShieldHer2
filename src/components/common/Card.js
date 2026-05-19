@@ -6,9 +6,7 @@ import { CARD, BORDER } from "../../theme/colors";
 
 export default function Card({ children, style, noPadding }) {
   return (
-    <View style={[s.card, noPadding && { padding: 0 }, style]}>
-      {children}
-    </View>
+    <View style={[s.card, noPadding && { padding: 0 }, style]}>{children}</View>
   );
 }
 

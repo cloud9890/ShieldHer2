@@ -5,7 +5,9 @@ import { Platform } from "react-native";
 
 let LocalAuthentication = null;
 if (Platform.OS !== "web") {
-  try { LocalAuthentication = require("expo-local-authentication"); } catch (_) {}
+  try {
+    LocalAuthentication = require("expo-local-authentication");
+  } catch (_) {}
 }
 
 export default function useBiometric() {
@@ -15,7 +17,10 @@ export default function useBiometric() {
 
   useEffect(() => {
     (async () => {
-      if (!LocalAuthentication) { setChecking(false); return; }
+      if (!LocalAuthentication) {
+        setChecking(false);
+        return;
+      }
       try {
         const compatible = await LocalAuthentication.hasHardwareAsync();
         const enrolled = await LocalAuthentication.isEnrolledAsync();
@@ -25,25 +30,28 @@ export default function useBiometric() {
     })();
   }, []);
 
-  const authenticate = useCallback(async (promptMessage = "Authenticate to access Evidence Vault") => {
-    if (!LocalAuthentication || !supported) {
-      setAuthenticated(true);
-      return true;
-    }
-    try {
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage,
-        cancelLabel: "Cancel",
-        fallbackLabel: "Use Passcode",
-        disableDeviceFallback: false,
-      });
-      setAuthenticated(result.success);
-      return result.success;
-    } catch (_) {
-      setAuthenticated(false);
-      return false;
-    }
-  }, [supported]);
+  const authenticate = useCallback(
+    async (promptMessage = "Authenticate to access Evidence Vault") => {
+      if (!LocalAuthentication || !supported) {
+        setAuthenticated(true);
+        return true;
+      }
+      try {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage,
+          cancelLabel: "Cancel",
+          fallbackLabel: "Use Passcode",
+          disableDeviceFallback: false,
+        });
+        setAuthenticated(result.success);
+        return result.success;
+      } catch (_) {
+        setAuthenticated(false);
+        return false;
+      }
+    },
+    [supported],
+  );
 
   return { supported, authenticated, checking, authenticate, setAuthenticated };
 }

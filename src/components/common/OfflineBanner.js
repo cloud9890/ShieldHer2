@@ -32,7 +32,10 @@ export default function OfflineBanner() {
 
   return (
     <Animated.View
-      style={[s.banner, { transform: [{ translateY: slideAnim }], opacity: opacityAnim }]}
+      style={[
+        s.banner,
+        { transform: [{ translateY: slideAnim }], opacity: opacityAnim },
+      ]}
       pointerEvents="none"
     >
       <CircleDashed size={14} color="#fef3c7" />

@@ -32,23 +32,27 @@ export default function useCommunityReports(limit = 50) {
         { event: "INSERT", schema: "public", table: "community_reports" },
         (payload) => {
           setReports((prev) => [payload.new, ...prev].slice(0, limit));
-        }
+        },
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "community_reports" },
         (payload) => {
           setReports((prev) => prev.filter((r) => r.id !== payload.old.id));
-        }
+        },
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [load, limit]);
 
   const submitReport = async ({ category, note, lat, lng }) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return null;
       const { data, error } = await supabase
         .from("community_reports")

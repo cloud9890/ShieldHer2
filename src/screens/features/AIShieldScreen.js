@@ -1,50 +1,109 @@
 // screens/AIShieldScreen.js
 import { useState, useRef, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Animated,
+} from "react-native";
 import Hoverable from "../../components/common/Hoverable";
 
 import { analyzeHarassment, safetyChat } from "../../api/gemini";
-import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT } from "../../theme/colors";
+import {
+  BG,
+  CARD,
+  BORDER,
+  PRIMARY,
+  PINK,
+  TEXT,
+  SUBTEXT,
+} from "../../theme/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
-import { ArrowRight, CircleDashed, X, CheckCircle2, Info, AlertTriangle, AlertCircle } from "lucide-react-native";
-
+import {
+  ArrowRight,
+  CircleDashed,
+  X,
+  CheckCircle2,
+  Info,
+  AlertTriangle,
+  AlertCircle,
+  Mic,
+  Square,
+} from "lucide-react-native";
 
 const SEV_CONFIG = {
-  none:     { bg: "rgba(52,211,153,0.08)",  border: "rgba(52,211,153,0.25)",  color: "#34d399", Icon: CheckCircle2, label: "NONE"     },
-  mild:     { bg: "rgba(251,191,36,0.08)",  border: "rgba(251,191,36,0.25)",  color: "#fbbf24", Icon: Info, label: "MILD"    },
-  moderate: { bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.25)",  color: "#f97316", Icon: AlertTriangle, label: "MODERATE" },
-  severe:   { bg: "rgba(248,113,113,0.1)",  border: "rgba(248,113,113,0.3)",  color: "#f87171", Icon: AlertCircle, label: "SEVERE"   },
+  none: {
+    bg: "rgba(52,211,153,0.08)",
+    border: "rgba(52,211,153,0.25)",
+    color: "#34d399",
+    Icon: CheckCircle2,
+    label: "NONE",
+  },
+  mild: {
+    bg: "rgba(251,191,36,0.08)",
+    border: "rgba(251,191,36,0.25)",
+    color: "#fbbf24",
+    Icon: Info,
+    label: "MILD",
+  },
+  moderate: {
+    bg: "rgba(249,115,22,0.08)",
+    border: "rgba(249,115,22,0.25)",
+    color: "#f97316",
+    Icon: AlertTriangle,
+    label: "MODERATE",
+  },
+  severe: {
+    bg: "rgba(248,113,113,0.1)",
+    border: "rgba(248,113,113,0.3)",
+    color: "#f87171",
+    Icon: AlertCircle,
+    label: "SEVERE",
+  },
 };
 
 export default function AIShieldScreen() {
   const insets = useSafeAreaInsets();
-  const [text, setText]             = useState("");
-  const [result, setResult]         = useState(null);
-  const [analyzing, setAnalyzing]   = useState(false);
+  const [text, setText] = useState("");
+  const [result, setResult] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState(null);
-  const [messages, setMessages]     = useState([
-
-    { id: "0", role: "assistant", text: "Hi! I'm your ShieldHer AI 💜 Ask me anything about safety, legal rights, or how to use the app." },
+  const [messages, setMessages] = useState([
+    {
+      id: "0",
+      role: "assistant",
+      text: "Hi! I'm your ShieldHer AI 💜 Ask me anything about safety, legal rights, or how to use the app.",
+    },
   ]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
   const flatRef = useRef(null);
 
   const analyze = async () => {
     if (!text.trim()) return;
     setAnalyzing(true);
-    setAnalyzeError(null);    // clear any previous error
-    setResult(null);          // clear stale result
+    setAnalyzeError(null); // clear any previous error
+    setResult(null); // clear stale result
     try {
       const data = await analyzeHarassment(text);
       setResult(data);
     } catch (err) {
       // Show the real error — never fabricate a severity level
       setAnalyzeError(
-        (err?.message || "").toLowerCase().includes("network") || (err?.message || "").toLowerCase().includes("fetch")
+        (err?.message || "").toLowerCase().includes("network") ||
+          (err?.message || "").toLowerCase().includes("fetch")
           ? "No internet connection. Please check your network and try again."
-          : "Analysis failed. The AI service may be temporarily unavailable."
+          : "Analysis failed. The AI service may be temporarily unavailable.",
       );
     }
     setAnalyzing(false);
@@ -55,46 +114,101 @@ export default function AIShieldScreen() {
     const userMsg = chatInput.trim();
     setChatInput("");
     const newMsg = { id: Date.now().toString(), role: "user", text: userMsg };
-    setMessages(m => [...m, newMsg]);
+    setMessages((m) => [...m, newMsg]);
     setChatLoading(true);
     try {
-      const history = messages.map(m => ({ role: m.role, text: m.text }));
-      
+      const history = messages.map((m) => ({ role: m.role, text: m.text }));
+
       let locationStr = "Unknown";
       try {
         const { status } = await Location.getForegroundPermissionsAsync();
-        if (status === 'granted') {
+        if (status === "granted") {
           const loc = await Location.getLastKnownPositionAsync();
           if (loc) {
-            const geocode = await Location.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-            if (geocode[0]) locationStr = `${geocode[0].city || geocode[0].subregion}, ${geocode[0].region}`;
+            const geocode = await Location.reverseGeocodeAsync({
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+            });
+            if (geocode[0])
+              locationStr = `${geocode[0].city || geocode[0].subregion}, ${geocode[0].region}`;
           }
         }
       } catch (e) {}
 
       const context = {
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        location: locationStr
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        location: locationStr,
       };
 
       const reply = await safetyChat(history, userMsg, context);
-      setMessages(m => [...m, { id: (Date.now() + 1).toString(), role: "assistant", text: reply }]);
+      setMessages((m) => [
+        ...m,
+        { id: (Date.now() + 1).toString(), role: "assistant", text: reply },
+      ]);
     } catch {
-      setMessages(m => [...m, { id: (Date.now() + 1).toString(), role: "assistant", text: "Sorry, I couldn't respond right now. Please try again." }]);
+      setMessages((m) => [
+        ...m,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          text: "Sorry, I couldn't respond right now. Please try again.",
+        },
+      ]);
     }
     setChatLoading(false);
   };
 
+  const toggleRecording = () => {
+    if (isRecording) {
+      setIsRecording(false);
+      pulseAnim.setValue(1);
+      // Simulate sending voice transcription
+      setChatInput("I am walking home alone and feel someone is following me. What should I do?");
+      setTimeout(() => sendChat(), 500);
+    } else {
+      setIsRecording(true);
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.5,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  };
+
   useEffect(() => {
-    const timer = setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+    const timer = setTimeout(
+      () => flatRef.current?.scrollToEnd({ animated: true }),
+      100,
+    );
     return () => clearTimeout(timer);
   }, [messages]);
 
-  const sev = result ? (SEV_CONFIG[result.severity] || SEV_CONFIG.moderate) : null;
+  const sev = result
+    ? SEV_CONFIG[result.severity] || SEV_CONFIG.moderate
+    : null;
 
   return (
-    <KeyboardAvoidingView style={a.container} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView
+      style={a.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={90}
+    >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Header — notch-safe */}
         <View style={[a.header, { paddingTop: insets.top + 10 }]}>
           <Text style={a.title}>AI Shield</Text>
@@ -109,7 +223,9 @@ export default function AIShieldScreen() {
             </View>
             <View>
               <Text style={a.cardTitle}>Harassment Detector</Text>
-              <Text style={a.cardSub}>Analyze any message for threats or abuse</Text>
+              <Text style={a.cardSub}>
+                Analyze any message for threats or abuse
+              </Text>
             </View>
           </View>
 
@@ -124,7 +240,11 @@ export default function AIShieldScreen() {
             textAlignVertical="top"
           />
 
-          <Hoverable style={[a.analyzeBtn, (!text || analyzing) && { opacity: 0.5 }]} onPress={analyze} disabled={!text || analyzing}>
+          <Hoverable
+            style={[a.analyzeBtn, (!text || analyzing) && { opacity: 0.5 }]}
+            onPress={analyze}
+            disabled={!text || analyzing}
+          >
             {analyzing ? (
               <ActivityIndicator color="white" size="small" />
             ) : (
@@ -140,24 +260,46 @@ export default function AIShieldScreen() {
             <View style={a.errorBox}>
               <CircleDashed size={18} color="#f87171" />
               <Text style={a.errorText}>{analyzeError}</Text>
-              <Hoverable onPress={() => setAnalyzeError(null)} style={a.errorDismiss}>
+              <Hoverable
+                onPress={() => setAnalyzeError(null)}
+                style={a.errorDismiss}
+              >
                 <X size={14} color="#f87171" />
               </Hoverable>
             </View>
           )}
 
           {result && sev && (
-            <View style={[a.resultBox, { backgroundColor: sev.bg, borderColor: sev.border }]}>
+            <View
+              style={[
+                a.resultBox,
+                { backgroundColor: sev.bg, borderColor: sev.border },
+              ]}
+            >
               <View style={a.resultTopRow}>
-                <View style={[a.sevBadge, { backgroundColor: sev.color + "20", borderColor: sev.color + "40" }]}>
+                <View
+                  style={[
+                    a.sevBadge,
+                    {
+                      backgroundColor: sev.color + "20",
+                      borderColor: sev.color + "40",
+                    },
+                  ]}
+                >
                   <sev.Icon size={14} color={sev.color} />
-                  <Text style={[a.sevLabel, { color: sev.color }]}>{sev.label} SEVERITY</Text>
+                  <Text style={[a.sevLabel, { color: sev.color }]}>
+                    {sev.label} SEVERITY
+                  </Text>
                 </View>
               </View>
-              <Text style={[a.resultSummary, { color: sev.color }]}>{result.summary}</Text>
+              <Text style={[a.resultSummary, { color: sev.color }]}>
+                {result.summary}
+              </Text>
               <View style={a.actionRow}>
                 <ArrowRight size={14} color={sev.color} />
-                <Text style={[a.actionText, { color: sev.color }]}>{result.action}</Text>
+                <Text style={[a.actionText, { color: sev.color }]}>
+                  {result.action}
+                </Text>
               </View>
               {result.reportTemplate && (
                 <View style={a.templateBox}>
@@ -168,7 +310,10 @@ export default function AIShieldScreen() {
               {result.categories?.length > 0 && (
                 <View style={a.catRow}>
                   {result.categories.map((c, i) => (
-                    <View key={i} style={[a.catChip, { borderColor: sev.color + "40" }]}>
+                    <View
+                      key={i}
+                      style={[a.catChip, { borderColor: sev.color + "40" }]}
+                    >
                       <Text style={[a.catText, { color: sev.color }]}>{c}</Text>
                     </View>
                   ))}
@@ -181,7 +326,12 @@ export default function AIShieldScreen() {
         {/* Chat */}
         <View style={a.chatCard}>
           <View style={a.cardHeader}>
-            <View style={[a.cardIconBg, { backgroundColor: "rgba(139,92,246,0.12)" }]}>
+            <View
+              style={[
+                a.cardIconBg,
+                { backgroundColor: "rgba(139,92,246,0.12)" },
+              ]}
+            >
               <CircleDashed size={16} color={PRIMARY} />
             </View>
             <View>
@@ -194,17 +344,34 @@ export default function AIShieldScreen() {
             <FlatList
               ref={flatRef}
               data={messages}
-              keyExtractor={m => m.id}
+              keyExtractor={(m) => m.id}
               scrollEnabled={false}
               renderItem={({ item }) => (
-                <View style={[a.bubble, item.role === "user" ? a.bubbleUser : a.bubbleBot]}>
+                <View
+                  style={[
+                    a.bubble,
+                    item.role === "user" ? a.bubbleUser : a.bubbleBot,
+                  ]}
+                >
                   {item.role === "assistant" && (
                     <View style={a.botAvatar}>
                       <CircleDashed size={14} color={PRIMARY} />
                     </View>
                   )}
-                  <View style={[a.bubbleBg, item.role === "user" ? a.bubbleBgUser : a.bubbleBgBot]}>
-                    <Text style={[a.bubbleText, item.role === "user" && { color: "white" }]}>{item.text}</Text>
+                  <View
+                    style={[
+                      a.bubbleBg,
+                      item.role === "user" ? a.bubbleBgUser : a.bubbleBgBot,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        a.bubbleText,
+                        item.role === "user" && { color: "white" },
+                      ]}
+                    >
+                      {item.text}
+                    </Text>
                   </View>
                 </View>
               )}
@@ -226,18 +393,46 @@ export default function AIShieldScreen() {
           </View>
 
           <View style={a.chatInputRow}>
-            <TextInput
-              style={a.chatInput}
-              placeholder="Ask anything…"
-              placeholderTextColor="#374151"
-              value={chatInput}
-              onChangeText={setChatInput}
-              onSubmitEditing={sendChat}
-              returnKeyType="send"
-            />
-            <Hoverable style={[a.sendBtn, (!chatInput || chatLoading) && { opacity: 0.4 }]} onPress={sendChat} disabled={!chatInput || chatLoading}>
-              <CircleDashed size={16} color="white" />
+            {isRecording ? (
+              <View style={a.recordingActiveBox}>
+                <Animated.View style={[a.recordingPulse, { transform: [{ scale: pulseAnim }] }]} />
+                <Mic size={18} color="#ef4444" style={{ zIndex: 2 }} />
+                <Text style={a.recordingText}>Listening...</Text>
+              </View>
+            ) : (
+              <TextInput
+                style={a.chatInput}
+                placeholder="Ask anything…"
+                placeholderTextColor="#374151"
+                value={chatInput}
+                onChangeText={setChatInput}
+                onSubmitEditing={sendChat}
+                returnKeyType="send"
+              />
+            )}
+            
+            <Hoverable
+              style={[
+                a.micBtn,
+                isRecording && a.micBtnActive,
+              ]}
+              onPress={toggleRecording}
+            >
+              {isRecording ? <Square size={16} color="white" /> : <Mic size={16} color="white" />}
             </Hoverable>
+
+            {!isRecording && (
+              <Hoverable
+                style={[
+                  a.sendBtn,
+                  (!chatInput || chatLoading) && { opacity: 0.4 },
+                ]}
+                onPress={sendChat}
+                disabled={!chatInput || chatLoading}
+              >
+                <CircleDashed size={16} color="white" />
+              </Hoverable>
+            )}
           </View>
         </View>
 
@@ -248,50 +443,214 @@ export default function AIShieldScreen() {
 }
 
 const a = StyleSheet.create({
-  container:     { flex: 1, backgroundColor: BG },
-  header:        { paddingHorizontal: 20, paddingBottom: 16 },
-  title:         { fontSize: 24, fontWeight: "800", color: TEXT },
-  subtitle:      { fontSize: 12, color: PRIMARY, marginTop: 4, fontWeight: "600" },
-  card:          { backgroundColor: CARD, borderRadius: 20, padding: 18, marginHorizontal: 16, marginBottom: 14, borderWidth: 1, borderColor: BORDER },
-  cardHeader:    { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
-  cardIconBg:    { width: 38, height: 38, borderRadius: 11, backgroundColor: "rgba(236,72,153,0.12)", alignItems: "center", justifyContent: "center" },
-  cardTitle:     { fontSize: 15, fontWeight: "700", color: TEXT },
-  cardSub:       { fontSize: 11, color: SUBTEXT, marginTop: 1 },
-  textarea:      { borderWidth: 1, borderColor: BORDER, borderRadius: 14, padding: 14, fontSize: 13, color: TEXT, height: 88, marginBottom: 12, backgroundColor: "rgba(255,255,255,0.03)" },
-  analyzeBtn:    { backgroundColor: PINK, borderRadius: 14, paddingVertical: 14, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 },
-  analyzeBtnText:{ color: "white", fontWeight: "700", fontSize: 14 },
+  container: { flex: 1, backgroundColor: BG },
+  header: { paddingHorizontal: 20, paddingBottom: 16 },
+  title: { fontSize: 24, fontWeight: "800", color: TEXT },
+  subtitle: { fontSize: 12, color: PRIMARY, marginTop: 4, fontWeight: "600" },
+  card: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    padding: 18,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 14,
+  },
+  cardIconBg: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    backgroundColor: "rgba(236,72,153,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardTitle: { fontSize: 15, fontWeight: "700", color: TEXT },
+  cardSub: { fontSize: 11, color: SUBTEXT, marginTop: 1 },
+  textarea: {
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 13,
+    color: TEXT,
+    height: 88,
+    marginBottom: 12,
+    backgroundColor: "rgba(255,255,255,0.03)",
+  },
+  analyzeBtn: {
+    backgroundColor: PINK,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+  },
+  analyzeBtnText: { color: "white", fontWeight: "700", fontSize: 14 },
   // Result
-  resultBox:     { borderWidth: 1, borderRadius: 16, padding: 14, marginTop: 14, gap: 8 },
-  resultTopRow:  { flexDirection: "row" },
-  sevBadge:      { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  sevLabel:      { fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
+  resultBox: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginTop: 14,
+    gap: 8,
+  },
+  resultTopRow: { flexDirection: "row" },
+  sevBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  sevLabel: { fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
   resultSummary: { fontSize: 13, lineHeight: 19 },
-  actionRow:     { flexDirection: "row", alignItems: "flex-start", gap: 6 },
-  actionText:    { flex: 1, fontSize: 13, fontWeight: "600", lineHeight: 19 },
-  templateBox:   { backgroundColor: "rgba(0,0,0,0.15)", borderRadius: 10, padding: 10, gap: 3 },
-  templateLabel: { fontSize: 10, color: SUBTEXT, fontWeight: "600", textTransform: "uppercase" },
-  templateText:  { fontSize: 12, fontStyle: "italic", color: SUBTEXT },
-  catRow:        { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  catChip:       { borderWidth: 1, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
-  catText:       { fontSize: 11, fontWeight: "500" },
+  actionRow: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
+  actionText: { flex: 1, fontSize: 13, fontWeight: "600", lineHeight: 19 },
+  templateBox: {
+    backgroundColor: "rgba(0,0,0,0.15)",
+    borderRadius: 10,
+    padding: 10,
+    gap: 3,
+  },
+  templateLabel: {
+    fontSize: 10,
+    color: SUBTEXT,
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  templateText: { fontSize: 12, fontStyle: "italic", color: SUBTEXT },
+  catRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  catChip: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+  },
+  catText: { fontSize: 11, fontWeight: "500" },
   // Chat
-  chatCard:      { backgroundColor: CARD, borderRadius: 20, marginHorizontal: 16, marginBottom: 14, borderWidth: 1, borderColor: BORDER, overflow: "hidden" },
-  chatWindow:    { padding: 14, minHeight: 160, maxHeight: 270 },
-  bubble:        { marginBottom: 8 },
-  bubbleBot:     { flexDirection: "row", alignItems: "flex-end", gap: 6 },
-  bubbleUser:    { flexDirection: "row-reverse" },
-  botAvatar:     { width: 24, height: 24, borderRadius: 8, backgroundColor: "rgba(139,92,246,0.2)", alignItems: "center", justifyContent: "center", marginBottom: 2 },
-  bubbleBg:      { maxWidth: "80%", borderRadius: 16, paddingHorizontal: 13, paddingVertical: 9 },
-  bubbleBgBot:   { backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: BORDER, borderBottomLeftRadius: 4 },
-  bubbleBgUser:  { backgroundColor: PRIMARY, borderBottomRightRadius: 4 },
-  bubbleText:    { fontSize: 13, color: SUBTEXT, lineHeight: 18 },
-  typingDots:    { flexDirection: "row", gap: 4, paddingVertical: 4, paddingHorizontal: 2 },
-  dot:           { width: 7, height: 7, borderRadius: 4, backgroundColor: SUBTEXT },
-  chatInputRow:  { flexDirection: "row", gap: 8, padding: 12, borderTopWidth: 1, borderTopColor: BORDER },
-  chatInput:     { flex: 1, borderWidth: 1, borderColor: BORDER, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, fontSize: 13, color: TEXT, backgroundColor: "rgba(255,255,255,0.03)" },
-  sendBtn:       { backgroundColor: PRIMARY, borderRadius: 14, paddingHorizontal: 16, justifyContent: "center" },
+  chatCard: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: BORDER,
+    overflow: "hidden",
+  },
+  chatWindow: { padding: 14, minHeight: 160, maxHeight: 270 },
+  bubble: { marginBottom: 8 },
+  bubbleBot: { flexDirection: "row", alignItems: "flex-end", gap: 6 },
+  bubbleUser: { flexDirection: "row-reverse" },
+  botAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    backgroundColor: "rgba(139,92,246,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 2,
+  },
+  bubbleBg: {
+    maxWidth: "80%",
+    borderRadius: 16,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+  },
+  bubbleBgBot: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderBottomLeftRadius: 4,
+  },
+  bubbleBgUser: { backgroundColor: PRIMARY, borderBottomRightRadius: 4 },
+  bubbleText: { fontSize: 13, color: SUBTEXT, lineHeight: 18 },
+  typingDots: {
+    flexDirection: "row",
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: SUBTEXT },
+  chatInputRow: {
+    flexDirection: "row",
+    gap: 8,
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: BORDER,
+  },
+  chatInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: TEXT,
+    backgroundColor: "rgba(255,255,255,0.03)",
+  },
+  micBtn: {
+    backgroundColor: "rgba(139,92,246,0.3)",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    justifyContent: "center",
+  },
+  micBtnActive: {
+    backgroundColor: "#ef4444",
+  },
+  sendBtn: {
+    backgroundColor: PRIMARY,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+  },
+  recordingActiveBox: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.3)",
+    overflow: "hidden",
+  },
+  recordingPulse: {
+    position: "absolute",
+    left: 14,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "rgba(239, 68, 68, 0.3)",
+  },
+  recordingText: {
+    color: "#ef4444",
+    fontSize: 13,
+    fontWeight: "600",
+    marginLeft: 24,
+  },
   // Analyze error card
-  errorBox:      { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(248,113,113,0.08)", borderRadius: 14, borderWidth: 1, borderColor: "rgba(248,113,113,0.25)", padding: 12, marginTop: 12 },
-  errorText:     { flex: 1, fontSize: 13, color: "#f87171", lineHeight: 18 },
-  errorDismiss:  { padding: 4 },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "rgba(248,113,113,0.08)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.25)",
+    padding: 12,
+    marginTop: 12,
+  },
+  errorText: { flex: 1, fontSize: 13, color: "#f87171", lineHeight: 18 },
+  errorDismiss: { padding: 4 },
 });

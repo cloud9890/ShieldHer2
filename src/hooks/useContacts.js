@@ -9,7 +9,7 @@ const CACHE_KEY = "shieldher_contacts_cache";
 
 export default function useContacts() {
   const [contacts, setContacts] = useState([]);
-  const [loading,  setLoading]  = useState(true);
+  const [loading, setLoading] = useState(true);
 
   // ── Load from Supabase, with AsyncStorage as warm cache ─────────────────
   const load = useCallback(async () => {
@@ -20,8 +20,13 @@ export default function useContacts() {
       if (cached) setContacts(JSON.parse(cached));
 
       // 2. Fetch from Supabase (source of truth)
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from("contacts")
@@ -38,25 +43,36 @@ export default function useContacts() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // ── Add a contact — writes to Supabase + updates cache ──────────────────
   const addContact = useCallback(async ({ name, phone, relation = "" }) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return null;
 
       const { data, error } = await supabase
         .from("contacts")
-        .insert({ user_id: user.id, name: (name || "").trim(), phone: (phone || "").trim(), relation: (relation || "").trim() })
+        .insert({
+          user_id: user.id,
+          name: (name || "").trim(),
+          phone: (phone || "").trim(),
+          relation: (relation || "").trim(),
+        })
         .select()
         .single();
 
       if (error) throw error;
 
-      setContacts(prev => {
+      setContacts((prev) => {
         const updated = [...prev, data];
-        AsyncStorage.setItem(CACHE_KEY, JSON.stringify(updated)).catch(()=>{});
+        AsyncStorage.setItem(CACHE_KEY, JSON.stringify(updated)).catch(
+          () => {},
+        );
         return updated;
       });
       return data;
@@ -71,9 +87,11 @@ export default function useContacts() {
     try {
       const { error } = await supabase.from("contacts").delete().eq("id", id);
       if (error) throw error;
-      setContacts(prev => {
-        const updated = prev.filter(c => c.id !== id);
-        AsyncStorage.setItem(CACHE_KEY, JSON.stringify(updated)).catch(()=>{});
+      setContacts((prev) => {
+        const updated = prev.filter((c) => c.id !== id);
+        AsyncStorage.setItem(CACHE_KEY, JSON.stringify(updated)).catch(
+          () => {},
+        );
         return updated;
       });
     } catch (e) {
