@@ -144,7 +144,7 @@ export default function SelfDefenseScreen() {
           new Date().getHours() < 18 ? "daytime commuter" : "night traveler";
         const res = await recommendDefenseTechnique(`User is a ${time}`);
         if (res && res.techniqueName) setRecommendation(res);
-      } catch (e) {}
+      } catch (e) { }
       setRecLoading(false);
     })();
   }, []);
@@ -194,129 +194,135 @@ export default function SelfDefenseScreen() {
               style={{
                 color: SUBTEXT,
                 fontSize: 12,
-                lineHeight: 18,
-                marginBottom: 8,
-              }}
-            >
-              {recommendation.reasoning}
-            </Text>
-            {recommendation.searchQuery ? (
-              <Hoverable
-                style={s.aiSearchBtn}
-                onPress={() => openVideo(recommendation.searchQuery)}
-              >
-                <CircleDashed size={14} color="#ef4444" />
-                <Text style={s.aiSearchText}>Search Tutorial</Text>
-              </Hoverable>
-            ) : null}
-          </>
-        ) : (
-          <Text style={{ color: SUBTEXT, fontSize: 12 }}>
-            No personalized recommendations right now.
-          </Text>
-        )}
-      </View>
+                import { useState, useEffect } from "react";
+                import { CircleDashed, Info, PlayCircle } from "lucide-react-native";
+                import { Ionicons } from "@expo/vector-icons";
 
-      {/* Category filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={s.catScroll}
-        contentContainerStyle={s.catScrollContent}
-      >
-        {CATEGORIES.map((cat) => (
+                import {
+                  View, Text, TouchableOpacity, StyleSheet, ScrollView, Linking, ActivityIndicator
+                marginBottom: 8,
+                }
+              }
+                >
+                { recommendation.reasoning }
+            </Text>
+        {recommendation.searchQuery ? (
           <Hoverable
-            key={cat}
-            style={[s.catChip, activeCategory === cat && s.catChipActive]}
-            onPress={() => setActiveCategory(cat)}
+            style={s.aiSearchBtn}
+            onPress={() => openVideo(recommendation.searchQuery)}
           >
-            <Text
+            <CircleDashed size={14} color="#ef4444" />
+            <Text style={s.aiSearchText}>Search Tutorial</Text>
+          </Hoverable>
+        ) : null}
+      </>
+      ) : (
+      <Text style={{ color: SUBTEXT, fontSize: 12 }}>
+        No personalized recommendations right now.
+      </Text>
+        )}
+    </View>
+
+      {/* Category filter */ }
+  <ScrollView
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    style={s.catScroll}
+    contentContainerStyle={s.catScrollContent}
+  >
+    {CATEGORIES.map((cat) => (
+      <Hoverable
+        key={cat}
+        style={[s.catChip, activeCategory === cat && s.catChipActive]}
+        onPress={() => setActiveCategory(cat)}
+      >
+        <Text
+          style={[
+            s.catChipText,
+            activeCategory === cat && { color: "white" },
+          ]}
+        >
+          {cat}
+        </Text>
+      </Hoverable>
+    ))}
+  </ScrollView>
+
+  {/* Videos */ }
+  <View style={s.grid}>
+    {filtered.map((video) => (
+      <Hoverable
+        key={video.id}
+        style={s.videoCard}
+        onPress={() => openVideo(video.query)}
+      >
+        {/* Thumbnail area */}
+        <View
+          style={[s.thumbnail, { backgroundColor: video.color + "18" }]}
+        >
+          <View
+            style={{
+              alignItems: "center",
+              justifyContent: "center",
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: video.color + "22",
+            }}
+          >
+            <Ionicons name={video.icon} size={34} color={video.color} />
+          </View>
+          <View style={s.playBtn}>
+            <PlayCircle size={28} color="white" />
+          </View>
+          <View style={s.thumbnailOverlay} />
+          {/* Duration */}
+          <View style={s.durationBadge}>
+            <Text style={s.durationText}>{video.duration}</Text>
+          </View>
+        </View>
+
+        {/* Info */}
+        <View style={s.videoInfo}>
+          <View style={s.videoTopRow}>
+            <View
               style={[
-                s.catChipText,
-                activeCategory === cat && { color: "white" },
+                s.levelBadge,
+                {
+                  backgroundColor: LEVEL_COLOR[video.level] + "18",
+                  borderColor: LEVEL_COLOR[video.level] + "35",
+                },
               ]}
             >
-              {cat}
-            </Text>
-          </Hoverable>
-        ))}
-      </ScrollView>
-
-      {/* Videos */}
-      <View style={s.grid}>
-        {filtered.map((video) => (
-          <Hoverable
-            key={video.id}
-            style={s.videoCard}
-            onPress={() => openVideo(video.query)}
-          >
-            {/* Thumbnail area */}
-            <View
-              style={[s.thumbnail, { backgroundColor: video.color + "18" }]}
-            >
-              <View
-                style={{
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 64,
-                  height: 64,
-                  borderRadius: 32,
-                  backgroundColor: video.color + "22",
-                }}
+              <Text
+                style={[s.levelText, { color: LEVEL_COLOR[video.level] }]}
               >
-                <Ionicons name={video.icon} size={34} color={video.color} />
-              </View>
-              <View style={s.playBtn}>
-                <PlayCircle size={28} color="white" />
-              </View>
-              <View style={s.thumbnailOverlay} />
-              {/* Duration */}
-              <View style={s.durationBadge}>
-                <Text style={s.durationText}>{video.duration}</Text>
-              </View>
-            </View>
-
-            {/* Info */}
-            <View style={s.videoInfo}>
-              <View style={s.videoTopRow}>
-                <View
-                  style={[
-                    s.levelBadge,
-                    {
-                      backgroundColor: LEVEL_COLOR[video.level] + "18",
-                      borderColor: LEVEL_COLOR[video.level] + "35",
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[s.levelText, { color: LEVEL_COLOR[video.level] }]}
-                  >
-                    {video.level}
-                  </Text>
-                </View>
-                <View
-                  style={[s.catBadge, { backgroundColor: video.color + "15" }]}
-                >
-                  <Text style={[s.catBadgeText, { color: video.color }]}>
-                    {video.category}
-                  </Text>
-                </View>
-              </View>
-              <Text style={s.videoTitle}>{video.title}</Text>
-              <Text style={s.videoDesc} numberOfLines={2}>
-                {video.desc}
+                {video.level}
               </Text>
-              <View style={s.watchRow}>
-                <CircleDashed size={14} color="#ef4444" />
-                <Text style={s.watchText}>Watch on YouTube</Text>
-                <CircleDashed size={12} color="#4b5563" />
-              </View>
             </View>
-          </Hoverable>
-        ))}
-      </View>
+            <View
+              style={[s.catBadge, { backgroundColor: video.color + "15" }]}
+            >
+              <Text style={[s.catBadgeText, { color: video.color }]}>
+                {video.category}
+              </Text>
+            </View>
+          </View>
+          <Text style={s.videoTitle}>{video.title}</Text>
+          <Text style={s.videoDesc} numberOfLines={2}>
+            {video.desc}
+          </Text>
+          <View style={s.watchRow}>
+            <CircleDashed size={14} color="#ef4444" />
+            <Text style={s.watchText}>Watch on YouTube</Text>
+            <CircleDashed size={12} color="#4b5563" />
+          </View>
+        </View>
+      </Hoverable>
+    ))}
+  </View>
 
-      {/* Disclaimer */}
+  {/* Disclaimer */ }
       <View style={s.disclaimer}>
         <Info size={14} color="#4b5563" />
         <Text style={s.disclaimerText}>
@@ -326,7 +332,7 @@ export default function SelfDefenseScreen() {
       </View>
 
       <View style={{ height: 40 }} />
-    </ScrollView>
+    </ScrollView >
   );
 }
 
