@@ -194,17 +194,10 @@ export default function SelfDefenseScreen() {
               style={{
                 color: SUBTEXT,
                 fontSize: 12,
-                import { useState, useEffect } from "react";
-                import { CircleDashed, Info, PlayCircle } from "lucide-react-native";
-                import { Ionicons } from "@expo/vector-icons";
-
-                import {
-                  View, Text, TouchableOpacity, StyleSheet, ScrollView, Linking, ActivityIndicator
                 marginBottom: 8,
-                }
-              }
-                >
-                { recommendation.reasoning }
+              }}
+            >
+              {recommendation.reasoning}
             </Text>
         {recommendation.searchQuery ? (
           <Hoverable
