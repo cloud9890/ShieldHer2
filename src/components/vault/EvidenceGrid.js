@@ -1,9 +1,10 @@
 // src/components/vault/EvidenceGrid.js
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from "react-native";
+import { ChevronRight, Plus, ShieldCheck, Trash, X } from "lucide-react-native";
+
 import Hoverable from "../../components/common/Hoverable";
 
-import { Ionicons } from "@expo/vector-icons";
 import { CARD, BORDER, PRIMARY, PINK, SUBTEXT, SUCCESS, WARNING, TEXT } from "../../theme/colors";
 
 export default function EvidenceGrid({ incidents, fetchingRecords, onNew, onSelect, onDelete }) {
@@ -20,7 +21,7 @@ export default function EvidenceGrid({ incidents, fetchingRecords, onNew, onSele
       <View style={s.recordsHeader}>
         <Text style={s.sectionLabel}>SECURE ARCHIVES</Text>
         <Hoverable style={s.addRecordBtn} onPress={onNew}>
-          <Ionicons name="add" size={14} color={PINK} />
+          <Plus size={14} color={PINK} />
           <Text style={s.addBtnText}>New</Text>
         </Hoverable>
       </View>
@@ -29,7 +30,7 @@ export default function EvidenceGrid({ incidents, fetchingRecords, onNew, onSele
         <ActivityIndicator color={PRIMARY} style={{ paddingVertical: 20 }} />
       ) : incidents.length === 0 ? (
         <View style={s.emptyState}>
-          <Ionicons name="shield-checkmark-outline" size={36} color={SUBTEXT} />
+          <ShieldCheck size={36} color={SUBTEXT} />
           <Text style={s.emptyText}>No records yet</Text>
           <Text style={s.emptySubText}>Your encrypted incident records will appear here</Text>
         </View>
@@ -44,7 +45,7 @@ export default function EvidenceGrid({ incidents, fetchingRecords, onNew, onSele
             <Image source={{ uri: inc.media_url }} style={s.recordThumb} />
           ) : (
             <View style={s.recordIcon}>
-              <Ionicons name="lock-closed" size={14} color={WARNING} />
+              <X size={14} color={WARNING} />
             </View>
           )}
           <View style={{ flex: 1 }}>
@@ -57,13 +58,13 @@ export default function EvidenceGrid({ incidents, fetchingRecords, onNew, onSele
               <Text style={s.encChipText}>Encrypted</Text>
             </View>
             <View style={{ flexDirection: "row", gap: 4 }}>
-              <Ionicons name="chevron-forward" size={14} color={SUBTEXT} />
+              <ChevronRight size={14} color={SUBTEXT} />
               <Hoverable
                 onPress={() => { if (onDelete) onDelete(inc.id); }}
                 style={s.deleteBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Ionicons name="trash-outline" size={15} color={SUBTEXT} />
+                <Trash size={15} color={SUBTEXT} />
               </Hoverable>
             </View>
           </View>

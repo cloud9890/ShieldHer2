@@ -1,10 +1,11 @@
 // screens/SafetyLawsScreen.js
 import { useState } from "react";
+import { CircleDashed, Info, Search, X } from "lucide-react-native";
+
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
   TextInput, Linking, Alert, ActivityIndicator
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT, WARNING, DANGER } from "../../theme/colors";
 import { legalChat } from "../../api/gemini";
 import Hoverable from "../../components/common/Hoverable";
@@ -130,7 +131,7 @@ export default function SafetyLawsScreen() {
       {/* AI Legal Chatbot */}
       <View style={s.aiChatCard}>
         <View style={s.aiHeader}>
-          <Ionicons name="sparkles" size={16} color={PRIMARY} />
+          <CircleDashed size={16} color={PRIMARY} />
           <Text style={s.aiTitle}>AI Legal Assistant</Text>
         </View>
         <Text style={s.aiSub}>Ask a question about women's rights or safety laws.</Text>
@@ -155,14 +156,14 @@ export default function SafetyLawsScreen() {
              onSubmitEditing={handleAskAI}
            />
            <Hoverable style={s.aiSendBtn} onPress={handleAskAI} disabled={chatLoading}>
-              {chatLoading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="send" size={14} color="#fff" />}
+              {chatLoading ? <ActivityIndicator size="small" color="#fff" /> : <CircleDashed size={14} color="#fff" />}
            </Hoverable>
         </View>
       </View>
 
       {/* Search */}
       <View style={s.searchRow}>
-        <Ionicons name="search-outline" size={16} color={SUBTEXT} />
+        <Search size={16} color={SUBTEXT} />
         <TextInput
           style={s.searchInput}
           placeholder="Search laws, sections…"
@@ -172,7 +173,7 @@ export default function SafetyLawsScreen() {
         />
         {search ? (
           <Hoverable onPress={() => setSearch("")}>
-            <Ionicons name="close-circle" size={16} color="#4b5563" />
+            <X size={16} color="#4b5563" />
           </Hoverable>
         ) : null}
       </View>
@@ -222,7 +223,7 @@ export default function SafetyLawsScreen() {
 
       {/* Disclaimer */}
       <View style={s.disclaimer}>
-        <Ionicons name="information-circle-outline" size={14} color="#4b5563" />
+        <Info size={14} color="#4b5563" />
         <Text style={s.disclaimerText}>
           Information is for general awareness. For legal advice, consult a qualified lawyer or contact the National Commission for Women (NCW).
         </Text>

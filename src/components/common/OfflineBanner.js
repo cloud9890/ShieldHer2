@@ -2,7 +2,8 @@
 // Animated offline warning banner — shown at top of screen when no internet
 import { useEffect, useRef } from "react";
 import { View, Text, StyleSheet, Animated } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { CircleDashed } from "lucide-react-native";
+
 import useNetworkStatus from "../../hooks/useNetworkStatus";
 
 export default function OfflineBanner() {
@@ -34,7 +35,7 @@ export default function OfflineBanner() {
       style={[s.banner, { transform: [{ translateY: slideAnim }], opacity: opacityAnim }]}
       pointerEvents="none"
     >
-      <Ionicons name="cloud-offline" size={14} color="#fef3c7" />
+      <CircleDashed size={14} color="#fef3c7" />
       <Text style={s.text}>
         You're offline — SOS SMS still works, but AI features are unavailable.
       </Text>

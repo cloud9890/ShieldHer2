@@ -7,8 +7,9 @@ import {
   ScrollView, ActivityIndicator, Platform, Animated
 } from "react-native";
 import * as Location from "expo-location";
+import { CircleDashed, Clock, MapPin } from "lucide-react-native";
+
 import { analyzeRoute } from "../../api/gemini";
-import { Ionicons } from "@expo/vector-icons";
 
 let MapView, Marker, Polyline;
 if (Platform.OS !== "web") {
@@ -105,7 +106,7 @@ function SuggestionList({ suggestions, loading, onSelect }) {
       {loading && <ActivityIndicator color={PRIMARY} style={{ padding: 10 }} />}
       {suggestions.map((s, i) => (
         <Hoverable key={s.place_id} style={[sd.item, i < suggestions.length - 1 && sd.itemBorder]} onPress={() => onSelect(s.description)} >
-          <Ionicons name="location-outline" size={14} color={SUBTEXT} />
+          <MapPin size={14} color={SUBTEXT} />
           <View style={{ flex: 1 }}>
             <Text style={sd.mainText} numberOfLines={1}>{s.structured_formatting?.main_text || s.description}</Text>
             {s.structured_formatting?.secondary_text && <Text style={sd.subText} numberOfLines={1}>{s.structured_formatting.secondary_text}</Text>}
@@ -348,7 +349,7 @@ Routing Alternative Count: ${localRouteCount}
           </View>
           <View style={s.inputDivider} />
           <View style={s.inputRow}>
-            <Ionicons name="location" size={16} color={PINK} />
+            <CircleDashed size={16} color={PINK} />
             <TextInput style={s.input} value={to} onChangeText={v => { setTo(v); setToEditing(true); }} onFocus={() => setToEditing(true)} onBlur={() => setTimeout(() => setToEditing(false), 200)} placeholder="Destination" placeholderTextColor="#4b5563" returnKeyType="search" onSubmitEditing={analyze} />
           </View>
           {toEditing && <SuggestionList suggestions={suggestions} loading={sugLoading} onSelect={selectSuggestion} />}
@@ -372,7 +373,7 @@ Routing Alternative Count: ${localRouteCount}
                         style={[s.routeChip, isActive && s.routeChipActive]}
                       >
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                          <Ionicons name="time-outline" size={14} color={isActive ? "#fff" : SUBTEXT} />
+                          <Clock size={14} color={isActive ? "#fff" : SUBTEXT} />
                           <Text style={[s.routeChipTime, isActive && s.routeChipTimeActive]}>
                             {formatDuration(route.duration)}
                           </Text>
@@ -406,11 +407,11 @@ Routing Alternative Count: ${localRouteCount}
             <View style={s.signalsCard}>
               <Text style={s.sectionLabel}>SAFETY SIGNALS</Text>
               <View style={s.signalRow}>
-                <Ionicons name="shield-checkmark" size={16} color={PRIMARY} />
+                <CircleDashed size={16} color={PRIMARY} />
                 <Text style={s.signalText}>{scoreData.policeCount} police stations nearby</Text>
               </View>
               <View style={s.signalRow}>
-                <Ionicons name="medkit" size={16} color={SUCCESS} />
+                <CircleDashed size={16} color={SUCCESS} />
                 <Text style={s.signalText}>{scoreData.hospitalCount} hospitals nearby</Text>
               </View>
               <View style={s.signalRow}>
@@ -422,7 +423,7 @@ Routing Alternative Count: ${localRouteCount}
             {/* AI Highlights */}
             {insights && insights.highlights && (
               <View style={s.insightsCard}>
-                <View style={s.aiHeader}><Ionicons name="sparkles" size={14} color={PINK} /><Text style={s.aiTitle}>AI Insights</Text></View>
+                <View style={s.aiHeader}><CircleDashed size={14} color={PINK} /><Text style={s.aiTitle}>AI Insights</Text></View>
                 {insights.highlights.map((h, i) => (
                   <View key={i} style={s.hiRow}>
                     <View style={s.hiDot} />
@@ -431,7 +432,7 @@ Routing Alternative Count: ${localRouteCount}
                 ))}
                 {insights.tip && (
                   <View style={s.tipBox}>
-                    <Ionicons name="bulb-outline" size={16} color={WARNING} />
+                    <CircleDashed size={16} color={WARNING} />
                     <Text style={s.tipText}>{insights.tip}</Text>
                   </View>
                 )}

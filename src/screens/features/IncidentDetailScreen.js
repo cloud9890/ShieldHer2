@@ -6,8 +6,9 @@ import {
   Share, Alert, Image, ActivityIndicator
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { ArrowRight, CircleDashed, FileText, MapPin, Share, Trash, X } from "lucide-react-native";
+
 import { supabase } from "../../api/supabase";
 import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, DANGER, WARNING } from "../../theme/colors";
 
@@ -156,13 +157,13 @@ export default function IncidentDetailScreen() {
       {/* ── Custom Header ─────────────────────────────────────────────── */}
       <View style={s.header}>
         <Hoverable style={s.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color={TEXT} />
+          <ArrowRight size={20} color={TEXT} />
         </Hoverable>
         <Text style={s.headerTitle}>Incident Detail</Text>
         <Hoverable style={s.deleteBtn} onPress={deleteIncident} disabled={deleting}>
           {deleting
             ? <ActivityIndicator color={DANGER} size="small" />
-            : <Ionicons name="trash-outline" size={20} color={DANGER} />}
+            : <Trash size={20} color={DANGER} />}
         </Hoverable>
       </View>
 
@@ -182,7 +183,7 @@ export default function IncidentDetailScreen() {
         {incident.media_url ? (
           <View style={s.mediaCard}>
             <View style={s.mediaHeader}>
-              <Ionicons name="image" size={14} color={PRIMARY} />
+              <CircleDashed size={14} color={PRIMARY} />
               <Text style={s.sectionLabel}>EVIDENCE</Text>
             </View>
             <Image
@@ -191,7 +192,7 @@ export default function IncidentDetailScreen() {
               resizeMode="cover"
             />
             <View style={s.encBadge}>
-              <Ionicons name="lock-closed" size={10} color={SUCCESS} />
+              <X size={10} color={SUCCESS} />
               <Text style={s.encBadgeText}>Encrypted · Stored Securely</Text>
             </View>
           </View>
@@ -203,7 +204,7 @@ export default function IncidentDetailScreen() {
 
           {incident.location ? (
             <View style={s.metaRow}>
-              <Ionicons name="location-outline" size={16} color={PRIMARY} />
+              <MapPin size={16} color={PRIMARY} />
               <View style={s.metaTextWrap}>
                 <Text style={s.metaLabel}>Location</Text>
                 <Text style={s.metaValue}>{incident.location}</Text>
@@ -213,7 +214,7 @@ export default function IncidentDetailScreen() {
 
           {incident.description ? (
             <View style={[s.metaRow, { alignItems: "flex-start" }]}>
-              <Ionicons name="document-text-outline" size={16} color={PRIMARY} style={{ marginTop: 2 }} />
+              <FileText size={16} color={PRIMARY} style={{ marginTop: 2 }} />
               <View style={s.metaTextWrap}>
                 <Text style={s.metaLabel}>Description</Text>
                 <Text style={s.metaValue}>{incident.description}</Text>
@@ -222,7 +223,7 @@ export default function IncidentDetailScreen() {
           ) : null}
 
           <View style={s.metaRow}>
-            <Ionicons name="calendar-outline" size={16} color={PRIMARY} />
+            <CircleDashed size={16} color={PRIMARY} />
             <View style={s.metaTextWrap}>
               <Text style={s.metaLabel}>Recorded On</Text>
               <Text style={s.metaValue}>{formatDate(incident.created_at)} at {formatTime(incident.created_at)}</Text>
@@ -235,7 +236,7 @@ export default function IncidentDetailScreen() {
           <View style={s.complaintCard}>
             <View style={s.complaintHeader}>
               <View style={s.complaintIconBg}>
-                <Ionicons name="sparkles" size={14} color={SUCCESS} />
+                <CircleDashed size={14} color={SUCCESS} />
               </View>
               <Text style={s.complaintTitle}>AI-Drafted Complaint</Text>
               <View style={s.aiBadge}>
@@ -253,7 +254,7 @@ export default function IncidentDetailScreen() {
             {/* Action row */}
             <View style={s.actionRow}>
               <Hoverable style={[s.actionBtn, { borderColor: PRIMARY + "40" }]} onPress={shareComplaint}>
-                <Ionicons name="share-outline" size={16} color={PRIMARY} />
+                <Share size={16} color={PRIMARY} />
                 <Text style={[s.actionBtnText, { color: PRIMARY }]}>Share</Text>
               </Hoverable>
 
@@ -265,7 +266,7 @@ export default function IncidentDetailScreen() {
                 {exporting
                   ? <ActivityIndicator color={SUCCESS} size="small" />
                   : <>
-                      <Ionicons name="document" size={16} color={SUCCESS} />
+                      <CircleDashed size={16} color={SUCCESS} />
                       <Text style={[s.actionBtnText, { color: SUCCESS }]}>Export PDF</Text>
                     </>}
               </Hoverable>
@@ -273,7 +274,7 @@ export default function IncidentDetailScreen() {
           </View>
         ) : (
           <View style={[s.complaintCard, { alignItems: "center", gap: 8 }]}>
-            <Ionicons name="document-text-outline" size={28} color={SUBTEXT} />
+            <FileText size={28} color={SUBTEXT} />
             <Text style={[s.metaLabel, { textAlign: "center" }]}>No complaint draft yet</Text>
             <Text style={[s.metaValue, { textAlign: "center", opacity: 0.6 }]}>
               Open the Vault, select this record, and tap "Generate AI Complaint" to create a formal FIR draft.

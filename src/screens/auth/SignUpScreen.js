@@ -22,34 +22,53 @@ export default function SignUpScreen() {
     }
     setLoading(true);
     
-    // 1. Sign up auth user
-    const { data, error } = await supabase.auth.signUp({ 
-      email, 
-      password,
-      options: { data: { full_name: name } }
-    });
-    
-    if (error) {
-      setLoading(false);
-      Alert.alert('Sign Up Failed', error.message);
-      return;
-    }
+    try {
+      // 1. Sign up auth user
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: { data: { full_name: name } }
+      });
+      
+      if (error) {
+        Alert.alert('Sign Up Failed', error.message);
+        return;
+      }
 
-    // 2. Insert into profiles table immediately if user created
-    if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').insert([
-        { id: data.user.id, name, phone, guard_on: true, shake_on: true }
-      ]);
-      if (profileError) console.error("Profile creation error:", profileError);
-    }
-    
-    setLoading(false);
-    
-    if (data.session) {
-      // Auto logged in - global auth state will pick it up
-    } else {
-      Alert.alert('Success', 'Please check your email to verify your account.');
-      navigation.navigate('Login');
+      // 2. Insert into profiles table immediately if user created
+      if (data.user) {
+        let retries = 3;
+        let profileSuccess = false;
+        
+        while (retries > 0 && !profileSuccess) {
+          const { error: profileError } = await supabase.from('profiles').insert([
+            { id: data.user.id, name, phone, guard_on: true, shake_on: true }
+          ]);
+          
+          if (!profileError) {
+            profileSuccess = true;
+          } else {
+            retries--;
+            if (retries > 0) {
+              await new Promise(res => setTimeout(res, 500)); // wait 500ms before retry
+            } else {
+              console.error("Profile creation error after retries:", profileError);
+              Alert.alert('Notice', 'Account created but profile setup failed. Please contact support.');
+            }
+          }
+        }
+      }
+      
+      if (data.session) {
+        // Auto logged in - global auth state will pick it up
+      } else {
+        Alert.alert('Success', 'Please check your email to verify your account.');
+        navigation.navigate('Login');
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'An unexpected error occurred during sign up.');
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -8,11 +8,20 @@ const useAuthStore = create((set, get) => ({
   isInitialized: false,
   unsubAuth: null,
 
-  loadProfile: async (authUser) => {
-    if (!authUser) {
-      set({ profile: null });
+  profileLoadUserId: null,
+
+  loadProfileIfNeeded: (u) => {
+    if (!u) {
+      set({ profile: null, profileLoadUserId: null });
       return;
     }
+    if (get().profileLoadUserId !== u.id) {
+      set({ profileLoadUserId: u.id });
+      get().loadProfile(u);
+    }
+  },
+
+  loadProfile: async (authUser) => {
     try {
       const { data } = await supabase
         .from('profiles')
@@ -31,19 +40,26 @@ const useAuthStore = create((set, get) => ({
 
     supabase.auth.getUser().then(({ data: { user: u } }) => {
       set({ user: u || null, loading: false });
-      if (u) get().loadProfile(u);
+      get().loadProfileIfNeeded(u);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         const u = session?.user ?? null;
         set({ user: u });
-        if (u) get().loadProfile(u);
-        else set({ profile: null });
+        get().loadProfileIfNeeded(u);
       }
     );
     
     set({ unsubAuth: subscription.unsubscribe });
+  },
+
+  stopAuth: () => {
+    const { unsubAuth } = get();
+    if (unsubAuth) {
+      unsubAuth();
+      set({ unsubAuth: null, isInitialized: false });
+    }
   },
 
   refreshProfile: () => {

@@ -1,9 +1,10 @@
 // src/components/map/MapElements.js
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { CircleDashed, Navigation } from "lucide-react-native";
+
 import Hoverable from "../../components/common/Hoverable";
 
-import { Ionicons } from "@expo/vector-icons";
 import { PRIMARY, SUBTEXT, TEXT, BORDER, CARD } from "../../theme/colors";
 import { getTypeMeta } from "./incidentMeta";
 
@@ -64,7 +65,7 @@ export function PlaceCard({ place, onCall, onNavigate }) {
         <Text style={s.placeAddr} numberOfLines={1}>{place.address || "Emergency service"}</Text>
         {place.rating ? (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-            <Ionicons name="star" size={11} color="#fbbf24" />
+            <CircleDashed size={11} color="#fbbf24" />
             <Text style={s.placeRating}>{place.rating}</Text>
             {place.open === true && <Text style={[s.placeRating, { color: "#4ade80" }]}>· Open</Text>}
             {place.open === false && <Text style={[s.placeRating, { color: "#ef4444" }]}>· Closed</Text>}
@@ -75,12 +76,12 @@ export function PlaceCard({ place, onCall, onNavigate }) {
         {place.phone && (
           <Hoverable style={[s.actionBtn, { backgroundColor: "#22c55e18", borderColor: "#22c55e30" }]}
             onPress={() => onCall(place.phone)}>
-            <Ionicons name="call" size={14} color="#22c55e" />
+            <CircleDashed size={14} color="#22c55e" />
           </Hoverable>
         )}
         <Hoverable style={[s.actionBtn, { backgroundColor: PRIMARY + "18", borderColor: BORDER }]}
           onPress={() => onNavigate?.(place)}>
-          <Ionicons name="navigate" size={14} color={PRIMARY} />
+          <Navigation size={14} color={PRIMARY} />
         </Hoverable>
       </View>
     </View>

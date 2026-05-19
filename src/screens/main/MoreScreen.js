@@ -2,8 +2,9 @@
 import { ScrollView, View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from "react-native";
 import Hoverable from "../../components/common/Hoverable";
 
-import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { ChevronRight, CircleDashed, FileText, HelpCircle, LogOut, ShieldCheck } from "lucide-react-native";
+
 import { supabase } from "../../api/supabase";
 import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, WARNING, TEAL, DANGER } from "../../theme/colors";
 
@@ -44,7 +45,7 @@ export default function MoreScreen() {
   return (
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
       <View style={s.header}>
-        <Ionicons name="grid" size={18} color={PRIMARY} />
+        <CircleDashed size={18} color={PRIMARY} />
         <Text style={s.title}>MORE FEATURES</Text>
       </View>
 
@@ -58,7 +59,7 @@ export default function MoreScreen() {
               <Text style={s.cardLabel}>{f.label}</Text>
               <Text style={s.cardSub}>{f.subtitle}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={SUBTEXT} />
+            <ChevronRight size={16} color={SUBTEXT} />
           </Hoverable>
         ))}
       </View>
@@ -69,30 +70,30 @@ export default function MoreScreen() {
 
       <View style={s.listContainer}>
         <Hoverable style={s.listItem} onPress={() => navigation.navigate("Support")} >
-          <Ionicons name="help-circle-outline" size={20} color={SUBTEXT} style={s.listIcon} />
+          <HelpCircle size={20} color={SUBTEXT} style={s.listIcon} />
           <Text style={s.listText}>Help & Support</Text>
-          <Ionicons name="chevron-forward" size={16} color={SUBTEXT} />
+          <ChevronRight size={16} color={SUBTEXT} />
         </Hoverable>
         
         <View style={s.listDivider} />
 
         <Hoverable style={s.listItem} onPress={() => navigation.navigate("Privacy")} >
-          <Ionicons name="shield-checkmark-outline" size={20} color={SUBTEXT} style={s.listIcon} />
+          <ShieldCheck size={20} color={SUBTEXT} style={s.listIcon} />
           <Text style={s.listText}>Privacy Policy</Text>
-          <Ionicons name="chevron-forward" size={16} color={SUBTEXT} />
+          <ChevronRight size={16} color={SUBTEXT} />
         </Hoverable>
 
         <View style={s.listDivider} />
 
         <Hoverable style={s.listItem} onPress={() => navigation.navigate("Terms")} >
-          <Ionicons name="document-text-outline" size={20} color={SUBTEXT} style={s.listIcon} />
+          <FileText size={20} color={SUBTEXT} style={s.listIcon} />
           <Text style={s.listText}>Terms of Service</Text>
-          <Ionicons name="chevron-forward" size={16} color={SUBTEXT} />
+          <ChevronRight size={16} color={SUBTEXT} />
         </Hoverable>
       </View>
 
       <Hoverable style={s.signOutBtn} onPress={signOut}>
-        <Ionicons name="log-out-outline" size={18} color={DANGER} />
+        <LogOut size={18} color={DANGER} />
         <Text style={s.signOutText}>Sign Out</Text>
       </Hoverable>
 

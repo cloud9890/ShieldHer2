@@ -5,9 +5,10 @@ import {
   TextInput, Alert, Animated, Modal, Platform, ActivityIndicator
 } from "react-native";
 import * as Location from "expo-location";
-import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AlertTriangle, ArrowRight, ChevronRight, CircleDashed, Navigation, Plus, Trash, Users, User, Phone, Heart, Lightbulb, UserX, AlertOctagon, MapPin, Car } from "lucide-react-native";
+
 import {
   sendSOSAlert, sendEscortSOS, startLocationWatch, stopLocationWatch,
   createLiveSession, endLiveSession, getCurrentLocation
@@ -20,12 +21,12 @@ import Hoverable from "../../components/common/Hoverable";
 
 
 const REPORT_CATEGORIES = [
-  { label: "Poor Lighting", icon: "bulb-outline" },
-  { label: "Suspicious Person", icon: "person-outline" },
-  { label: "No Footpath", icon: "warning-outline" },
-  { label: "Harassment Spot", icon: "alert-circle-outline" },
-  { label: "Isolated Area", icon: "moon-outline" },
-  { label: "Unsafe Traffic", icon: "car-outline" },
+  { label: "Poor Lighting", Icon: Lightbulb },
+  { label: "Suspicious Person", Icon: UserX },
+  { label: "No Footpath", Icon: AlertOctagon },
+  { label: "Harassment Spot", Icon: AlertTriangle },
+  { label: "Isolated Area", Icon: MapPin },
+  { label: "Unsafe Traffic", Icon: Car },
 ];
 
 export default function SafeCircleScreen() {
@@ -259,24 +260,24 @@ export default function SafeCircleScreen() {
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
       {/* Header — notch-safe */}
       <View style={[s.header, { paddingTop: insets.top + 12 }]}>
-        <Ionicons name="shield-checkmark" size={20} color={PRIMARY} />
+        <CircleDashed size={20} color={PRIMARY} />
         <Text style={s.title}>SAFE CIRCLE</Text>
       </View>
 
       {/* SOS Hero */}
       <Hoverable style={s.sosHeroBtn} onPress={triggerSOS}>
-        <Ionicons name="warning" size={22} color="white" />
+        <AlertTriangle size={22} color="white" />
         <View style={{ flex: 1 }}>
           <Text style={s.sosHeroText}>Emergency SOS</Text>
           <Text style={s.sosHeroSub}>Send location to all contacts instantly</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
+        <ChevronRight size={18} color="rgba(255,255,255,0.5)" />
       </Hoverable>
 
       {/* Optional Context Field */}
       <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
         <Text style={s.aiContextLabel}>
-           <Ionicons name="sparkles" size={12} color={PRIMARY} /> AI Personalised Message
+           <CircleDashed size={12} color={PRIMARY} /> AI Personalised Message
         </Text>
         <TextInput
            style={s.contextInput}
@@ -292,7 +293,7 @@ export default function SafeCircleScreen() {
       {/* Escort Card */}
       <Animated.View style={[s.escortCard, escortActive && s.escortCardActive, escortActive && { transform: [{ scale: pulseAnim }] }]}>
         <View style={s.escortHeader}>
-          <Ionicons name={escortActive ? "navigate" : "navigate-outline"} size={20} color={escortActive ? SUCCESS : PRIMARY} />
+          <Navigation size={20} color={escortActive ? SUCCESS : PRIMARY} />
           <Text style={[s.escortTitle, escortActive && { color: SUCCESS }]}>Live Escort</Text>
           {escortActive && <View style={s.liveDot} />}
           {escortLoading && !escortActive && (
@@ -315,12 +316,12 @@ export default function SafeCircleScreen() {
             )}
             {trackUrl && (
               <View style={s.trackUrlBox}>
-                <Ionicons name="link" size={12} color={SUCCESS} />
+                <CircleDashed size={12} color={SUCCESS} />
                 <Text style={s.trackUrlText} numberOfLines={1}>{trackUrl}</Text>
               </View>
             )}
             <Hoverable style={s.safeBtn} onPress={endEscort}>
-              <Ionicons name="checkmark-circle" size={18} color="white" />
+              <CircleDashed size={18} color="white" />
               <Text style={s.safeBtnText}>I'm Safe — End Journey</Text>
             </Hoverable>
           </>
@@ -334,7 +335,7 @@ export default function SafeCircleScreen() {
             >
               {escortLoading
                 ? <ActivityIndicator size="small" color="white" />
-                : <Ionicons name="navigate" size={16} color="white" />}
+                : <Navigation size={16} color="white" />}
               <Text style={s.startBtnText}>
                 {escortLoading ? "Acquiring GPS lock..." : "Start Live Escort"}
               </Text>
@@ -348,13 +349,13 @@ export default function SafeCircleScreen() {
         <View style={s.cardHeader}>
           <Text style={s.cardTitle}>My Circle ({contacts.length})</Text>
           <Hoverable style={s.addBtn} onPress={() => setAddModal(true)}>
-            <Ionicons name="person-add" size={13} color={PRIMARY} />
+            <Plus size={13} color={PRIMARY} />
             <Text style={s.addBtnText}>Add</Text>
           </Hoverable>
         </View>
         {contacts.length === 0 ? (
           <View style={s.emptyBox}>
-            <Ionicons name="people-outline" size={28} color={SUBTEXT} />
+            <Users size={28} color={SUBTEXT} />
             <Text style={s.emptyText}>No contacts added yet</Text>
           </View>
         ) : contacts.map(c => (
@@ -367,7 +368,7 @@ export default function SafeCircleScreen() {
               <Text style={s.contactMeta}>{c.phone}{c.relation ? ` · ${c.relation}` : ""}</Text>
             </View>
             <Hoverable onPress={() => removeContact(c.id)} style={s.deleteBtn}>
-              <Ionicons name="trash-outline" size={16} color={SUBTEXT} />
+              <Trash size={16} color={SUBTEXT} />
             </Hoverable>
           </View>
         ))}
@@ -378,7 +379,7 @@ export default function SafeCircleScreen() {
         <View style={s.cardHeader}>
           <Text style={s.cardTitle}>Community Alerts</Text>
           <Hoverable style={[s.addBtn, { borderColor: "rgba(239,68,68,0.4)" }]} onPress={() => setReportModal(true)}>
-            <Ionicons name="flag" size={13} color={DANGER} />
+            <CircleDashed size={13} color={DANGER} />
             <Text style={[s.addBtnText, { color: DANGER }]}>Report</Text>
           </Hoverable>
         </View>
@@ -386,13 +387,16 @@ export default function SafeCircleScreen() {
           <Text style={s.emptyText}>No alerts in your area</Text>
         ) : reports.map(r => (
           <View key={r.id} style={s.reportRow}>
-            <Ionicons name={REPORT_CATEGORIES.find(c => c.label === r.cat)?.icon || "alert-circle-outline"} size={16} color={WARNING} />
+            {(() => {
+              const CatIcon = REPORT_CATEGORIES.find(c => c.label === r.cat)?.Icon || AlertTriangle;
+              return <CatIcon size={16} color={WARNING} />;
+            })()}
             <View style={{ flex: 1 }}>
               <Text style={s.reportCat}>{r.cat}</Text>
               <Text style={s.reportArea}>{r.area} · {r.time}</Text>
             </View>
             <Hoverable style={s.upvoteBtn} onPress={() => upvote(r.id)}>
-              <Ionicons name="arrow-up" size={12} color={PRIMARY} />
+              <ArrowRight size={12} color={PRIMARY} />
               <Text style={s.upvoteText}>{r.upvotes || 0}</Text>
             </Hoverable>
             <Hoverable style={{ padding: 6 }} onPress={() =>
@@ -401,7 +405,7 @@ export default function SafeCircleScreen() {
                 { text: "Delete", style: "destructive", onPress: () => saveReports(reports.filter(x => x.id !== r.id)) },
               ])
             }>
-              <Ionicons name="trash-outline" size={15} color={SUBTEXT} />
+              <Trash size={15} color={SUBTEXT} />
             </Hoverable>
           </View>
         ))}
@@ -415,12 +419,12 @@ export default function SafeCircleScreen() {
           <View style={s.modalCard}>
             <Text style={s.modalTitle}>Add to SafeCircle</Text>
             {[
-              { key: "name", placeholder: "Full Name", icon: "person" },
-              { key: "phone", placeholder: "Phone (with country code)", icon: "call" },
-              { key: "relation", placeholder: "Relation (optional)", icon: "heart" },
+              { key: "name", placeholder: "Full Name", Icon: User },
+              { key: "phone", placeholder: "Phone (with country code)", Icon: Phone },
+              { key: "relation", placeholder: "Relation (optional)", Icon: Heart },
             ].map(f => (
               <View key={f.key} style={s.modalInputRow}>
-                <Ionicons name={f.icon} size={16} color={MUTED} />
+                <f.Icon size={16} color={MUTED} />
                 <TextInput
                   style={s.modalInput}
                   placeholder={f.placeholder}
@@ -454,13 +458,13 @@ export default function SafeCircleScreen() {
                 <Hoverable key={c.label}
                   style={[s.catBtn, selectedCat === c.label && s.catBtnActive]}
                   onPress={() => setSelectedCat(c.label)}>
-                  <Ionicons name={c.icon} size={14} color={selectedCat === c.label ? "white" : SUBTEXT} />
+                  <c.Icon size={14} color={selectedCat === c.label ? "white" : SUBTEXT} />
                   <Text style={[s.catBtnText, selectedCat === c.label && { color: "white" }]}>{c.label}</Text>
                 </Hoverable>
               ))}
             </View>
             <View style={s.modalInputRow}>
-              <Ionicons name="location" size={16} color={MUTED} />
+              <CircleDashed size={16} color={MUTED} />
               <TextInput style={s.modalInput} placeholderTextColor={MUTED}
                 placeholder="Area name (blank = auto-pin)" value={reportArea} onChangeText={setReportArea} />
             </View>

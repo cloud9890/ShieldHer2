@@ -6,9 +6,10 @@
 //   return <View>...<ToastComponent /></View>
 import { useState, useRef, useCallback } from "react";
 import { Animated, View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { X } from "lucide-react-native";
+
 import Hoverable from "../components/common/Hoverable";
 
-import { Ionicons } from "@expo/vector-icons";
 
 const CONFIGS = {
   success: { icon: "checkmark-circle", color: "#34d399", bg: "rgba(52,211,153,0.12)", border: "rgba(52,211,153,0.3)" },
@@ -61,7 +62,7 @@ export default function useToast() {
         <Ionicons name={cfg.icon} size={18} color={cfg.color} />
         <Text style={[styles.text, { color: cfg.color }]} numberOfLines={2}>{toast.message}</Text>
         <Hoverable onPress={dismiss} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="close" size={14} color={cfg.color} />
+          <X size={14} color={cfg.color} />
         </Hoverable>
       </Animated.View>
     );

@@ -10,11 +10,12 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { draftComplaint, analyzeEvidence, detectIncidentPattern } from "../../api/gemini";
 import { supabase } from "../../api/supabase";
-import { Ionicons } from "@expo/vector-icons";
 import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, WARNING } from "../../theme/colors";
 import useBiometric from "../../hooks/useBiometric";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
+import { AlertTriangle, ChevronRight, CircleDashed, Fingerprint, Plus, Share, ShieldCheck, Trash, X } from "lucide-react-native";
+
 import useToast from "../../hooks/useToast";
 
 // PDF export (optional — graceful if not installed)
@@ -275,7 +276,7 @@ export default function VaultScreen() {
       <View style={{ flex: 1, backgroundColor: BG, alignItems: "center", justifyContent: "center", padding: 32 }}>
         <View style={{ backgroundColor: CARD, borderRadius: 28, padding: 32, alignItems: "center", borderWidth: 1, borderColor: BORDER, gap: 16, width: "100%" }}>
           <View style={{ width: 80, height: 80, borderRadius: 24, backgroundColor: `${PRIMARY}25`, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: `${PRIMARY}50` }}>
-            <Ionicons name="lock-closed" size={36} color={PRIMARY} />
+            <X size={36} color={PRIMARY} />
           </View>
           <Text style={{ fontSize: 22, fontWeight: "800", color: TEXT }}>Evidence Vault</Text>
           <Text style={{ fontSize: 14, color: SUBTEXT, textAlign: "center", lineHeight: 22 }}>
@@ -285,7 +286,7 @@ export default function VaultScreen() {
             style={{ backgroundColor: PRIMARY, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 32, flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4, width: "100%", justifyContent: "center" }}
             onPress={() => authenticate("Authenticate to access Evidence Vault")}
           >
-            <Ionicons name="finger-print" size={20} color="white" />
+            <Fingerprint size={20} color="white" />
             <Text style={{ color: "white", fontWeight: "700", fontSize: 15 }}>Unlock Vault</Text>
           </Hoverable>
         </View>
@@ -306,13 +307,13 @@ export default function VaultScreen() {
         <View style={s.headerRow}>
           <View>
             <View style={s.headerTitleRow}>
-              <Ionicons name="shield" size={18} color={PRIMARY} />
+              <CircleDashed size={18} color={PRIMARY} />
               <Text style={s.title}>EVIDENCE VAULT</Text>
             </View>
             <Text style={s.subtitle}>{incidents.length} encrypted record{incidents.length !== 1 ? "s" : ""}</Text>
           </View>
           <View style={s.encBadge}>
-            <Ionicons name="lock-closed" size={11} color={SUCCESS} />
+            <X size={11} color={SUCCESS} />
             <Text style={s.encText}>ONLINE SYNC</Text>
           </View>
         </View>
@@ -352,7 +353,7 @@ export default function VaultScreen() {
           <View style={s.formHeader}>
             <Text style={s.formTitle}>Document Incident</Text>
             <Hoverable onPress={() => { setShowForm(false); setEvidenceImage(null); }}>
-              <Ionicons name="close-circle" size={22} color={SUBTEXT} />
+              <X size={22} color={SUBTEXT} />
             </Hoverable>
           </View>
 
@@ -360,7 +361,7 @@ export default function VaultScreen() {
             <View style={s.evidencePreviewBox}>
               <Image source={{ uri: evidenceImage }} style={s.evidencePreview} />
               <View style={s.evidenceTag}>
-                <Ionicons name="checkmark-circle" size={12} color={SUCCESS} />
+                <CircleDashed size={12} color={SUCCESS} />
                 <Text style={s.evidenceTagText}>Evidence Attached</Text>
               </View>
             </View>
@@ -384,7 +385,7 @@ export default function VaultScreen() {
               value={form.location}
               onChangeText={v => setForm(f => ({ ...f, location: v }))} />
             <Hoverable onPress={captureLocation} style={s.gpsBtn}>
-              <Ionicons name="locate" size={18} color={PRIMARY} />
+              <CircleDashed size={18} color={PRIMARY} />
             </Hoverable>
           </View>
 
@@ -399,7 +400,7 @@ export default function VaultScreen() {
           <Hoverable style={[s.draftBtn, loading && { opacity: 0.6 }]} onPress={generate} disabled={loading}>
             {loading ? <ActivityIndicator color="white" /> : (
               <>
-                <Ionicons name="sparkles" size={16} color="white" />
+                <CircleDashed size={16} color="white" />
                 <Text style={s.draftBtnText}>Generate AI Complaint</Text>
               </>
             )}
@@ -412,7 +413,7 @@ export default function VaultScreen() {
         <View style={s.complaintCard}>
           <View style={s.complaintHeader}>
             <View style={s.complaintIconBg}>
-              <Ionicons name="document-text" size={16} color={SUCCESS} />
+              <CircleDashed size={16} color={SUCCESS} />
             </View>
             <Text style={s.complaintTitle}>AI-Drafted Complaint Ready</Text>
           </View>
@@ -471,7 +472,7 @@ export default function VaultScreen() {
                 Alert.alert("Export Failed", e.message);
               }
             }}>
-            <Ionicons name="share-outline" size={16} color="white" />
+            <Share size={16} color="white" />
             <Text style={s.exportBtnText}>Export as PDF</Text>
           </Hoverable>
         </View>
@@ -481,13 +482,13 @@ export default function VaultScreen() {
       {patternAnalysis && (
         <View style={s.patternCard}>
           <View style={s.patternHeader}>
-            <Ionicons name="warning" size={16} color={WARNING} />
+            <AlertTriangle size={16} color={WARNING} />
             <Text style={s.patternTitle}>AI Pattern Detected</Text>
             <View style={s.aiBadge}><Text style={s.aiBadgeText}>GEMINI</Text></View>
           </View>
           <Text style={s.patternSummary}>{patternAnalysis.summary}</Text>
           <View style={s.patternActionBox}>
-            <Ionicons name="bulb-outline" size={16} color={PRIMARY} />
+            <CircleDashed size={16} color={PRIMARY} />
             <Text style={s.patternActionText}>{patternAnalysis.recommendation}</Text>
           </View>
         </View>
@@ -498,7 +499,7 @@ export default function VaultScreen() {
         <View style={s.recordsHeader}>
           <Text style={s.sectionLabel}>SECURE ARCHIVES</Text>
           <Hoverable style={s.addRecordBtn} onPress={() => setShowForm(true)}>
-            <Ionicons name="add" size={14} color={PINK} />
+            <Plus size={14} color={PINK} />
             <Text style={s.addBtnText}>New</Text>
           </Hoverable>
         </View>
@@ -507,7 +508,7 @@ export default function VaultScreen() {
           <ActivityIndicator color={PRIMARY} style={{ paddingVertical: 20 }} />
         ) : incidents.length === 0 ? (
           <View style={s.emptyState}>
-            <Ionicons name="shield-checkmark-outline" size={36} color={SUBTEXT} />
+            <ShieldCheck size={36} color={SUBTEXT} />
             <Text style={s.emptyText}>No records yet</Text>
             <Text style={s.emptySubText}>Your encrypted incident records will appear here</Text>
           </View>
@@ -529,7 +530,7 @@ export default function VaultScreen() {
                 <Image source={{ uri: inc.media_url }} style={s.recordThumb} />
               ) : (
                 <View style={s.recordIcon}>
-                  <Ionicons name="lock-closed" size={14} color={WARNING} />
+                  <X size={14} color={WARNING} />
                 </View>
               )}
               <View style={{ flex: 1 }}>
@@ -542,13 +543,13 @@ export default function VaultScreen() {
                   <Text style={s.encChipText}>Encrypted</Text>
                 </View>
                 <View style={{ flexDirection: "row", gap: 4 }}>
-                  <Ionicons name="chevron-forward" size={14} color={SUBTEXT} />
+                  <ChevronRight size={14} color={SUBTEXT} />
                   <Hoverable
                     onPress={() => { _deletePressed = true; deleteIncident(inc.id); }}
                     style={s.deleteBtn}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Ionicons name="trash-outline" size={15} color={SUBTEXT} />
+                    <Trash size={15} color={SUBTEXT} />
                   </Hoverable>
                 </View>
               </View>

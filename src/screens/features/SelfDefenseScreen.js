@@ -1,9 +1,10 @@
 // screens/SelfDefenseScreen.js
 import { useState, useEffect } from "react";
+import { CircleDashed, Info, PlayCircle } from "lucide-react-native";
+
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, Linking, ActivityIndicator
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT, WARNING } from "../../theme/colors";
 import { recommendDefenseTechnique } from "../../api/gemini";
 
@@ -143,7 +144,7 @@ export default function SelfDefenseScreen() {
 
       {/* Safety tip banner */}
       <View style={s.tipBanner}>
-        <Ionicons name="bulb-outline" size={20} color="#a78bfa" />
+        <CircleDashed size={20} color="#a78bfa" />
         <Text style={s.tipText}>
           Practice these techniques regularly. Muscle memory formed in safety could save your life in danger.
         </Text>
@@ -152,7 +153,7 @@ export default function SelfDefenseScreen() {
       {/* AI Recommendation */}
       <View style={s.aiCard}>
         <View style={s.aiHeader}>
-          <Ionicons name="sparkles" size={16} color={WARNING} />
+          <CircleDashed size={16} color={WARNING} />
           <Text style={s.aiTitle}>AI Recommended for You</Text>
         </View>
         {recLoading ? (
@@ -163,7 +164,7 @@ export default function SelfDefenseScreen() {
             <Text style={{ color: SUBTEXT, fontSize: 12, lineHeight: 18, marginBottom: 8 }}>{recommendation.reasoning}</Text>
             {recommendation.searchQuery ? (
               <Hoverable style={s.aiSearchBtn} onPress={() => openVideo(recommendation.searchQuery)}>
-                <Ionicons name="logo-youtube" size={14} color="#ef4444" />
+                <CircleDashed size={14} color="#ef4444" />
                 <Text style={s.aiSearchText}>Search Tutorial</Text>
               </Hoverable>
             ) : null}
@@ -196,7 +197,7 @@ export default function SelfDefenseScreen() {
                 <Ionicons name={video.icon} size={34} color={video.color} />
               </View>
               <View style={s.playBtn}>
-                <Ionicons name="play-circle" size={28} color="white" />
+                <PlayCircle size={28} color="white" />
               </View>
               <View style={s.thumbnailOverlay} />
               {/* Duration */}
@@ -218,9 +219,9 @@ export default function SelfDefenseScreen() {
               <Text style={s.videoTitle}>{video.title}</Text>
               <Text style={s.videoDesc} numberOfLines={2}>{video.desc}</Text>
               <View style={s.watchRow}>
-                <Ionicons name="logo-youtube" size={14} color="#ef4444" />
+                <CircleDashed size={14} color="#ef4444" />
                 <Text style={s.watchText}>Watch on YouTube</Text>
-                <Ionicons name="open-outline" size={12} color="#4b5563" />
+                <CircleDashed size={12} color="#4b5563" />
               </View>
             </View>
           </Hoverable>
@@ -229,7 +230,7 @@ export default function SelfDefenseScreen() {
 
       {/* Disclaimer */}
       <View style={s.disclaimer}>
-        <Ionicons name="information-circle-outline" size={14} color="#4b5563" />
+        <Info size={14} color="#4b5563" />
         <Text style={s.disclaimerText}>
           These videos open YouTube searches. Content accuracy depends on the video creator. Practice with a certified instructor for best results.
         </Text>

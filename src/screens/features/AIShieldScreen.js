@@ -3,16 +3,18 @@ import { useState, useRef, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform } from "react-native";
 import Hoverable from "../../components/common/Hoverable";
 
-import { Ionicons } from "@expo/vector-icons";
 import { analyzeHarassment, safetyChat } from "../../api/gemini";
 import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT } from "../../theme/colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Location from "expo-location";
+import { ArrowRight, CircleDashed, X, CheckCircle2, Info, AlertTriangle, AlertCircle } from "lucide-react-native";
+
 
 const SEV_CONFIG = {
-  none:     { bg: "rgba(52,211,153,0.08)",  border: "rgba(52,211,153,0.25)",  color: "#34d399", icon: "checkmark-circle", label: "NONE"     },
-  mild:     { bg: "rgba(251,191,36,0.08)",  border: "rgba(251,191,36,0.25)",  color: "#fbbf24", icon: "information-circle", label: "MILD"    },
-  moderate: { bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.25)",  color: "#f97316", icon: "warning",           label: "MODERATE" },
-  severe:   { bg: "rgba(248,113,113,0.1)",  border: "rgba(248,113,113,0.3)",  color: "#f87171", icon: "alert-circle",      label: "SEVERE"   },
+  none:     { bg: "rgba(52,211,153,0.08)",  border: "rgba(52,211,153,0.25)",  color: "#34d399", Icon: CheckCircle2, label: "NONE"     },
+  mild:     { bg: "rgba(251,191,36,0.08)",  border: "rgba(251,191,36,0.25)",  color: "#fbbf24", Icon: Info, label: "MILD"    },
+  moderate: { bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.25)",  color: "#f97316", Icon: AlertTriangle, label: "MODERATE" },
+  severe:   { bg: "rgba(248,113,113,0.1)",  border: "rgba(248,113,113,0.3)",  color: "#f87171", Icon: AlertCircle, label: "SEVERE"   },
 };
 
 export default function AIShieldScreen() {
@@ -57,7 +59,25 @@ export default function AIShieldScreen() {
     setChatLoading(true);
     try {
       const history = messages.map(m => ({ role: m.role, text: m.text }));
-      const reply = await safetyChat(history, userMsg);
+      
+      let locationStr = "Unknown";
+      try {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getLastKnownPositionAsync();
+          if (loc) {
+            const geocode = await Location.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+            if (geocode[0]) locationStr = `${geocode[0].city || geocode[0].subregion}, ${geocode[0].region}`;
+          }
+        }
+      } catch (e) {}
+
+      const context = {
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        location: locationStr
+      };
+
+      const reply = await safetyChat(history, userMsg, context);
       setMessages(m => [...m, { id: (Date.now() + 1).toString(), role: "assistant", text: reply }]);
     } catch {
       setMessages(m => [...m, { id: (Date.now() + 1).toString(), role: "assistant", text: "Sorry, I couldn't respond right now. Please try again." }]);
@@ -85,7 +105,7 @@ export default function AIShieldScreen() {
         <View style={a.card}>
           <View style={a.cardHeader}>
             <View style={a.cardIconBg}>
-              <Ionicons name="scan" size={16} color={PINK} />
+              <CircleDashed size={16} color={PINK} />
             </View>
             <View>
               <Text style={a.cardTitle}>Harassment Detector</Text>
@@ -109,7 +129,7 @@ export default function AIShieldScreen() {
               <ActivityIndicator color="white" size="small" />
             ) : (
               <>
-                <Ionicons name="search" size={16} color="white" />
+                <CircleDashed size={16} color="white" />
                 <Text style={a.analyzeBtnText}>Analyze Message</Text>
               </>
             )}
@@ -118,10 +138,10 @@ export default function AIShieldScreen() {
           {/* Analysis error card */}
           {analyzeError && (
             <View style={a.errorBox}>
-              <Ionicons name="cloud-offline-outline" size={18} color="#f87171" />
+              <CircleDashed size={18} color="#f87171" />
               <Text style={a.errorText}>{analyzeError}</Text>
               <Hoverable onPress={() => setAnalyzeError(null)} style={a.errorDismiss}>
-                <Ionicons name="close" size={14} color="#f87171" />
+                <X size={14} color="#f87171" />
               </Hoverable>
             </View>
           )}
@@ -130,13 +150,13 @@ export default function AIShieldScreen() {
             <View style={[a.resultBox, { backgroundColor: sev.bg, borderColor: sev.border }]}>
               <View style={a.resultTopRow}>
                 <View style={[a.sevBadge, { backgroundColor: sev.color + "20", borderColor: sev.color + "40" }]}>
-                  <Ionicons name={sev.icon} size={14} color={sev.color} />
+                  <sev.Icon size={14} color={sev.color} />
                   <Text style={[a.sevLabel, { color: sev.color }]}>{sev.label} SEVERITY</Text>
                 </View>
               </View>
               <Text style={[a.resultSummary, { color: sev.color }]}>{result.summary}</Text>
               <View style={a.actionRow}>
-                <Ionicons name="arrow-forward-circle" size={14} color={sev.color} />
+                <ArrowRight size={14} color={sev.color} />
                 <Text style={[a.actionText, { color: sev.color }]}>{result.action}</Text>
               </View>
               {result.reportTemplate && (
@@ -162,7 +182,7 @@ export default function AIShieldScreen() {
         <View style={a.chatCard}>
           <View style={a.cardHeader}>
             <View style={[a.cardIconBg, { backgroundColor: "rgba(139,92,246,0.12)" }]}>
-              <Ionicons name="chatbubbles" size={16} color={PRIMARY} />
+              <CircleDashed size={16} color={PRIMARY} />
             </View>
             <View>
               <Text style={a.cardTitle}>Safety Assistant</Text>
@@ -180,7 +200,7 @@ export default function AIShieldScreen() {
                 <View style={[a.bubble, item.role === "user" ? a.bubbleUser : a.bubbleBot]}>
                   {item.role === "assistant" && (
                     <View style={a.botAvatar}>
-                      <Ionicons name="sparkles" size={14} color={PRIMARY} />
+                      <CircleDashed size={14} color={PRIMARY} />
                     </View>
                   )}
                   <View style={[a.bubbleBg, item.role === "user" ? a.bubbleBgUser : a.bubbleBgBot]}>
@@ -192,7 +212,7 @@ export default function AIShieldScreen() {
             {chatLoading && (
               <View style={[a.bubble, a.bubbleBot]}>
                 <View style={a.botAvatar}>
-                  <Ionicons name="sparkles" size={14} color={PRIMARY} />
+                  <CircleDashed size={14} color={PRIMARY} />
                 </View>
                 <View style={a.bubbleBgBot}>
                   <View style={a.typingDots}>
@@ -216,7 +236,7 @@ export default function AIShieldScreen() {
               returnKeyType="send"
             />
             <Hoverable style={[a.sendBtn, (!chatInput || chatLoading) && { opacity: 0.4 }]} onPress={sendChat} disabled={!chatInput || chatLoading}>
-              <Ionicons name="send" size={16} color="white" />
+              <CircleDashed size={16} color="white" />
             </Hoverable>
           </View>
         </View>

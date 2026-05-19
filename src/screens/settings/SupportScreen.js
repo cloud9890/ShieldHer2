@@ -1,8 +1,9 @@
 // src/screens/SupportScreen.js
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity, Linking, Alert } from "react-native";
+import { ChevronRight, CircleDashed } from "lucide-react-native";
+
 import Hoverable from "../../components/common/Hoverable";
 
-import { Ionicons } from "@expo/vector-icons";
 import { BG_DEEP, CARD_DEEP, TEXT, SUBTEXT, PRIMARY, BORDER_VIOLET } from "../../theme/colors";
 import SectionLabel from "../../components/common/SectionLabel";
 
@@ -37,35 +38,35 @@ export default function SupportScreen() {
 
       <Hoverable style={s.card} onPress={handleFAQ} >
         <View style={s.iconWrapper}>
-          <Ionicons name="chatbubbles" size={24} color={PRIMARY} />
+          <CircleDashed size={24} color={PRIMARY} />
         </View>
         <View style={s.cardContent}>
           <Text style={s.cardTitle}>Frequently Asked Questions</Text>
           <Text style={s.cardDesc}>Read our guides on setting up your safety circle and using the SOS feature.</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={SUBTEXT} />
+        <ChevronRight size={18} color={SUBTEXT} />
       </Hoverable>
 
       <Hoverable style={s.card} onPress={handleEmail} >
         <View style={s.iconWrapper}>
-          <Ionicons name="mail" size={24} color={PRIMARY} />
+          <CircleDashed size={24} color={PRIMARY} />
         </View>
         <View style={s.cardContent}>
           <Text style={s.cardTitle}>Contact Support</Text>
           <Text style={s.cardDesc}>Email our dedicated safety support team directly at support@shieldher.app.</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={SUBTEXT} />
+        <ChevronRight size={18} color={SUBTEXT} />
       </Hoverable>
 
       <Hoverable style={s.card} onPress={handleBugReport} >
         <View style={s.iconWrapper}>
-          <Ionicons name="build" size={24} color={PRIMARY} />
+          <CircleDashed size={24} color={PRIMARY} />
         </View>
         <View style={s.cardContent}>
           <Text style={s.cardTitle}>Report a Bug</Text>
           <Text style={s.cardDesc}>Found a glitch? Let us know so we can fix it immediately.</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={SUBTEXT} />
+        <ChevronRight size={18} color={SUBTEXT} />
       </Hoverable>
 
       {/* Emergency Helplines */}
@@ -78,7 +79,7 @@ export default function SupportScreen() {
       ].map(h => (
         <View key={h.number} style={[s.card, { justifyContent: "space-between" }]}>
           <View style={s.iconWrapper}>
-            <Ionicons name="call" size={22} color="#22c55e" />
+            <CircleDashed size={22} color="#22c55e" />
           </View>
           <View style={s.cardContent}>
             <Text style={s.cardTitle}>{h.name}</Text>

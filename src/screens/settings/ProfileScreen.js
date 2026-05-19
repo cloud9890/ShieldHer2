@@ -6,7 +6,8 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
-import { Ionicons } from "@expo/vector-icons";
+import { ChevronRight, CloudCheck, Phone, UploadCloud, User } from "lucide-react-native";
+
 import { supabase } from "../../api/supabase";
 import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT } from "../../theme/colors";
 import useToast from "../../hooks/useToast";
@@ -198,7 +199,7 @@ export default function ProfileScreen() {
         <Text style={s.rowLabel}>{label}</Text>
         {sub ? <Text style={s.rowSub}>{sub}</Text> : null}
       </View>
-      {right ?? (onPress ? <Ionicons name="chevron-forward" size={14} color="#4b5563" /> : null)}
+      {right ?? (onPress ? <ChevronRight size={14} color="#4b5563" /> : null)}
     </Hoverable>
   );
 
@@ -232,24 +233,24 @@ export default function ProfileScreen() {
             </View>
           )}
           <View style={s.cameraOverlay}>
-            {uploading ? <ActivityIndicator size="small" color="white" /> : <Ionicons name="cloud-upload" size={14} color="white" />}
+            {uploading ? <ActivityIndicator size="small" color="white" /> : <UploadCloud size={14} color="white" />}
           </View>
         </Hoverable>
 
         {editing ? (
           <View style={s.editForm}>
             <View style={s.inputRow}>
-              <Ionicons name="person-outline" size={15} color={SUBTEXT} />
+              <User size={15} color={SUBTEXT} />
               <TextInput style={s.input} value={draft.name} onChangeText={v => setDraft(d => ({ ...d, name: v }))} placeholder="Full name" placeholderTextColor="#4b5563" />
             </View>
             <View style={s.inputRow}>
-              <Ionicons name="call-outline" size={15} color={SUBTEXT} />
+              <Phone size={15} color={SUBTEXT} />
               <TextInput style={s.input} value={draft.phone} onChangeText={v => setDraft(d => ({ ...d, phone: v }))} placeholder="+91-XXXXXXXXXX" placeholderTextColor="#4b5563" keyboardType="phone-pad" />
             </View>
             <Hoverable style={[s.saveBtn, saving && { opacity: 0.6 }]} onPress={save} disabled={saving}>
               {saving
                 ? <ActivityIndicator color="white" size="small" />
-                : <><Ionicons name="cloud-done" size={16} color="white" /><Text style={s.saveBtnText}>Save to Cloud</Text></>
+                : <><CloudCheck size={16} color="white" /><Text style={s.saveBtnText}>Save to Cloud</Text></>
               }
             </Hoverable>
           </View>
@@ -258,7 +259,7 @@ export default function ProfileScreen() {
             <Text style={s.profileName}>{profile.name}</Text>
             <Text style={s.profilePhone}>{profile.phone}</Text>
             <View style={s.badge}>
-              <Ionicons name="cloud-done" size={12} color="#34d399" />
+              <CloudCheck size={12} color="#34d399" />
               <Text style={s.badgeText}>Supabase Synced</Text>
             </View>
           </View>

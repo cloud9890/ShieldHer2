@@ -43,8 +43,15 @@ Evaluate the route and return ONLY a valid JSON object with the following exact 
   }
 }
 
-export async function safetyChat(history, query) {
-  const system = `You are the ShieldHer AI Safety Assistant. Provide concise, legally accurate, and emotionally supportive answers related to women's safety, self-defense, rights, and using the ShieldHer app. Be brief but highly helpful.`;
+export async function safetyChat(history, query, context = {}) {
+  const { location = "Unknown", time = new Date().toLocaleTimeString() } = context;
+  const system = `You are the ShieldHer AI Safety Assistant. Provide concise, legally accurate, and emotionally supportive answers related to women's safety, self-defense, rights, and using the ShieldHer app. Be brief but highly helpful.
+
+Current Context:
+- Time: ${time}
+- Location: ${location}
+
+Use this context to provide hyper-relevant advice (e.g., if it's late at night or in a specific city), but do not mention the context directly unless it's relevant to the answer.`;
   const formattedHistory = history.map(h => ({
     role: h.role,
     content: h.text

@@ -19,12 +19,16 @@ export default function LoginScreen() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      Alert.alert('Login Failed', error.message);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        Alert.alert('Login Failed', error.message);
+      }
+    } catch (err) {
+      Alert.alert('Login Failed', 'Network error. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    // On success, global Zustand store in App.js catches the auth state change and updates navigation
   };
 
   return (

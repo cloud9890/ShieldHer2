@@ -2,9 +2,10 @@
 // Global error boundary — catches render crashes and shows friendly fallback
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { AlertTriangle } from "lucide-react-native";
+
 import Hoverable from "../../components/common/Hoverable";
 
-import { Ionicons } from "@expo/vector-icons";
 
 export default class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
@@ -21,7 +22,7 @@ export default class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <View style={s.container}>
-          <Ionicons name="warning-outline" size={56} color="#f87171" />
+          <AlertTriangle size={56} color="#f87171" />
           <Text style={s.title}>Something went wrong</Text>
           <Text style={s.subtitle}>
             The app encountered an unexpected error. Please restart.

@@ -1,11 +1,12 @@
 // src/components/home/FakeCallScreen.js
 // Designed to look exactly like Google Dialer / Android incoming call screen
 import { useState, useEffect, useRef } from "react";
+import { CircleDashed } from "lucide-react-native";
+
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated,
   Vibration, Dimensions, StatusBar, Platform
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 
 const { width, height } = Dimensions.get("window");
@@ -110,7 +111,7 @@ export default function FakeCallScreen({ callerName, onEnd }) {
         {/* Hang up */}
         <View style={styles.hangupRow}>
           <Hoverable style={styles.hangupBtn} onPress={handleHangup}>
-            <Ionicons name="call" size={30} color="white" style={{ transform: [{ rotate: "135deg" }] }} />
+            <CircleDashed size={30} color="white" style={{ transform: [{ rotate: "135deg" }] }} />
           </Hoverable>
         </View>
       </View>
@@ -159,7 +160,7 @@ export default function FakeCallScreen({ callerName, onEnd }) {
         {/* Decline */}
         <View style={styles.callBtnWrap}>
           <Hoverable style={[styles.callBtn, styles.declineBtn]} onPress={handleDecline}>
-            <Ionicons name="call" size={30} color="white" style={{ transform: [{ rotate: "135deg" }] }} />
+            <CircleDashed size={30} color="white" style={{ transform: [{ rotate: "135deg" }] }} />
           </Hoverable>
           <Text style={styles.callBtnLabel}>Decline</Text>
         </View>
@@ -170,7 +171,7 @@ export default function FakeCallScreen({ callerName, onEnd }) {
             <PulseRing color="#34d399" delay={0} />
             <PulseRing color="#34d399" delay={500} />
             <Hoverable style={[styles.callBtn, styles.acceptBtn]} onPress={handleAccept}>
-              <Ionicons name="call" size={30} color="white" />
+              <CircleDashed size={30} color="white" />
             </Hoverable>
           </View>
           <Text style={styles.callBtnLabel}>Accept</Text>

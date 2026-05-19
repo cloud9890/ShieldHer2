@@ -8,7 +8,8 @@ import {
   Linking, Platform, Modal, PanResponder
 } from "react-native";
 import * as Location from "expo-location";
-import { Ionicons } from "@expo/vector-icons";
+import { AlertTriangle, CircleDashed, Navigation, X } from "lucide-react-native";
+
 import { BG, PRIMARY, SUBTEXT, TEXT, BORDER, CARD, WARNING, DANGER, SUCCESS } from "../../theme/colors";
 import useCommunityReports from "../../hooks/useCommunityReports";
 import { getTypeMeta, EMERGENCY_NUMBERS, INCIDENT_TYPES } from "../../components/map/incidentMeta";
@@ -268,7 +269,7 @@ export default function NearbyScreen() {
       {/* ── TOP SEARCH OVERLAY ────────────────────────────────────────────────── */}
       <View style={s.topOverlay}>
         <View style={s.searchBox}>
-          <Ionicons name="search" size={20} color={SUBTEXT} />
+          <CircleDashed size={20} color={SUBTEXT} />
           <TextInput 
             style={s.searchInput} 
             value={search} onChangeText={setSearch} 
@@ -279,7 +280,7 @@ export default function NearbyScreen() {
         <Hoverable style={s.recenterBtn} onPress={() => {
            if(location) mapRef.current?.animateToRegion({ latitude: location.latitude, longitude: location.longitude, latitudeDelta: 0.04, longitudeDelta: 0.04 }, 1000);
         }}>
-          <Ionicons name="locate" size={20} color={PRIMARY} />
+          <CircleDashed size={20} color={PRIMARY} />
         </Hoverable>
       </View>
 
@@ -337,7 +338,7 @@ export default function NearbyScreen() {
                     <Text style={s.placeAddr} numberOfLines={1}>{p.address || "Emergency service"}</Text>
                     {p.rating && (
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-                        <Ionicons name="star" size={11} color="#fbbf24" />
+                        <CircleDashed size={11} color="#fbbf24" />
                         <Text style={s.placeRating}>{p.rating}</Text>
                       </View>
                     )}
@@ -361,7 +362,7 @@ export default function NearbyScreen() {
                 <View style={s.modalHeader}>
                   <Text style={s.modalTitle}>{selectedPlace.name}</Text>
                   <Hoverable onPress={() => setSelectedPlace(null)}>
-                    <Ionicons name="close" size={24} color={TEXT} />
+                    <X size={24} color={TEXT} />
                   </Hoverable>
                 </View>
                 <Text style={{color:SUBTEXT, marginBottom: 16}}>{selectedPlace.address}</Text>
@@ -369,12 +370,12 @@ export default function NearbyScreen() {
                 <View style={{ flexDirection: "row", gap: 10, marginBottom: 16 }}>
                   {selectedPlace.phone && (
                     <Hoverable style={[s.mBtn, { backgroundColor: SUCCESS + "18", borderColor: SUCCESS }]} onPress={() => Linking.openURL(`tel:${selectedPlace.phone}`)}>
-                      <Ionicons name="call" size={18} color={SUCCESS} />
+                      <CircleDashed size={18} color={SUCCESS} />
                       <Text style={[s.mBtnText, { color: SUCCESS }]}>Call</Text>
                     </Hoverable>
                   )}
                   <Hoverable style={[s.mBtn, { backgroundColor: PRIMARY + "18", borderColor: PRIMARY }]} onPress={() => Linking.openURL(`geo:0,0?q=${selectedPlace.lat},${selectedPlace.lng}`)}>
-                    <Ionicons name="navigate" size={18} color={PRIMARY} />
+                    <Navigation size={18} color={PRIMARY} />
                     <Text style={[s.mBtnText, { color: PRIMARY }]}>Navigate</Text>
                   </Hoverable>
                 </View>
@@ -384,14 +385,14 @@ export default function NearbyScreen() {
                   <Hoverable style={s.dangerBtn} onPress={onEscapeAdvice}>
                     {selectedPlace.aiLoading ? <ActivityIndicator size="small" color={DANGER} /> : (
                       <>
-                        <Ionicons name="warning" size={18} color={DANGER} />
+                        <AlertTriangle size={18} color={DANGER} />
                         <Text style={s.dangerBtnText}>I feel unsafe here</Text>
                       </>
                     )}
                   </Hoverable>
                 ) : (
                   <View style={s.adviceBox}>
-                    <View style={s.aiHeader}><Ionicons name="sparkles" size={14} color={WARNING}/><Text style={s.aiTitle}>AI Escape Advice</Text></View>
+                    <View style={s.aiHeader}><CircleDashed size={14} color={WARNING} /><Text style={s.aiTitle}>AI Escape Advice</Text></View>
                     {(selectedPlace.advice.steps || []).map((step, i) => (
                       <Text key={i} style={s.adviceStep}>{i+1}. {step}</Text>
                     ))}
@@ -412,7 +413,7 @@ export default function NearbyScreen() {
                 <View style={s.modalHeader}>
                   <Text style={s.modalTitle}>{getTypeMeta(reportDetail.category).label}</Text>
                   <Hoverable onPress={() => setReportDetail(null)}>
-                    <Ionicons name="close" size={24} color={TEXT} />
+                    <X size={24} color={TEXT} />
                   </Hoverable>
                 </View>
                 <Text style={{color:TEXT, fontSize:15, marginBottom: 12}}>{reportDetail.note}</Text>
@@ -420,7 +421,7 @@ export default function NearbyScreen() {
 
                 {/* AI-2 Report Summary */}
                 <View style={s.adviceBox}>
-                  <View style={s.aiHeader}><Ionicons name="sparkles" size={14} color={WARNING}/><Text style={s.aiTitle}>AI Summary</Text></View>
+                  <View style={s.aiHeader}><CircleDashed size={14} color={WARNING} /><Text style={s.aiTitle}>AI Summary</Text></View>
                   {reportDetail.aiLoading ? <ActivityIndicator color={WARNING} /> : reportDetail.aiSummary ? (
                     <>
                       <Text style={{color: TEXT, fontWeight: '700', marginBottom: 4}}>Risk: <Text style={{color: reportDetail.aiSummary.risk === 'high' ? DANGER : WARNING}}>{(reportDetail.aiSummary.risk || "").toUpperCase()}</Text></Text>
