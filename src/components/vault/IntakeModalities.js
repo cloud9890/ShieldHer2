@@ -1,6 +1,8 @@
 // src/components/vault/IntakeModalities.js
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import Hoverable from "../../components/common/Hoverable";
+
 import { Ionicons } from "@expo/vector-icons";
 import { CARD, BORDER, PRIMARY, PINK, WARNING, SUBTEXT } from "../../theme/colors";
 
@@ -15,14 +17,14 @@ export default function IntakeModalities({ onPhoto, onUpload, onDoc, onGPS }) {
           { icon: "document-text", label: "Doc",     color: "#06b6d4", action: onDoc },
           { icon: "location",      label: "GPS",     color: WARNING, action: onGPS },
         ].map(b => (
-          <TouchableOpacity 
+          <Hoverable 
             key={b.label} 
             style={[s.captureBtn, { backgroundColor: b.color + "18", borderColor: b.color + "40" }]}
             onPress={b.action}
           >
             <Ionicons name={b.icon} size={22} color={b.color} />
             <Text style={[s.captureBtnText, { color: b.color }]}>{b.label}</Text>
-          </TouchableOpacity>
+          </Hoverable>
         ))}
       </View>
     </View>

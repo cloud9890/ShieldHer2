@@ -1,6 +1,8 @@
 // src/components/vault/EvidenceGrid.js
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from "react-native";
+import Hoverable from "../../components/common/Hoverable";
+
 import { Ionicons } from "@expo/vector-icons";
 import { CARD, BORDER, PRIMARY, PINK, SUBTEXT, SUCCESS, WARNING, TEXT } from "../../theme/colors";
 
@@ -17,10 +19,10 @@ export default function EvidenceGrid({ incidents, fetchingRecords, onNew, onSele
     <View style={s.recordsCard}>
       <View style={s.recordsHeader}>
         <Text style={s.sectionLabel}>SECURE ARCHIVES</Text>
-        <TouchableOpacity style={s.addRecordBtn} onPress={onNew}>
+        <Hoverable style={s.addRecordBtn} onPress={onNew}>
           <Ionicons name="add" size={14} color={PINK} />
           <Text style={s.addBtnText}>New</Text>
-        </TouchableOpacity>
+        </Hoverable>
       </View>
 
       {fetchingRecords ? (
@@ -32,10 +34,10 @@ export default function EvidenceGrid({ incidents, fetchingRecords, onNew, onSele
           <Text style={s.emptySubText}>Your encrypted incident records will appear here</Text>
         </View>
       ) : incidents.map(inc => (
-        <TouchableOpacity
+        <Hoverable
           key={inc.id}
           style={s.recordRow}
-          activeOpacity={0.75}
+          
           onPress={() => { if (onSelect) onSelect(inc); }}
         >
           {inc.media_url ? (
@@ -56,16 +58,16 @@ export default function EvidenceGrid({ incidents, fetchingRecords, onNew, onSele
             </View>
             <View style={{ flexDirection: "row", gap: 4 }}>
               <Ionicons name="chevron-forward" size={14} color={SUBTEXT} />
-              <TouchableOpacity
+              <Hoverable
                 onPress={() => { if (onDelete) onDelete(inc.id); }}
                 style={s.deleteBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Ionicons name="trash-outline" size={15} color={SUBTEXT} />
-              </TouchableOpacity>
+              </Hoverable>
             </View>
           </View>
-        </TouchableOpacity>
+        </Hoverable>
       ))}
     </View>
   );

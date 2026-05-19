@@ -8,6 +8,8 @@ import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEX
 import { recommendDefenseTechnique } from "../../api/gemini";
 
 // Curated self-defense video topics with YouTube search queries
+import Hoverable from "../../components/common/Hoverable";
+
 const VIDEOS = [
   {
     id: "v1",
@@ -160,10 +162,10 @@ export default function SelfDefenseScreen() {
             <Text style={{ color: TEXT, fontWeight: '700', marginBottom: 4 }}>{recommendation.techniqueName}</Text>
             <Text style={{ color: SUBTEXT, fontSize: 12, lineHeight: 18, marginBottom: 8 }}>{recommendation.reasoning}</Text>
             {recommendation.searchQuery ? (
-              <TouchableOpacity style={s.aiSearchBtn} onPress={() => openVideo(recommendation.searchQuery)}>
+              <Hoverable style={s.aiSearchBtn} onPress={() => openVideo(recommendation.searchQuery)}>
                 <Ionicons name="logo-youtube" size={14} color="#ef4444" />
                 <Text style={s.aiSearchText}>Search Tutorial</Text>
-              </TouchableOpacity>
+              </Hoverable>
             ) : null}
           </>
         ) : (
@@ -174,20 +176,20 @@ export default function SelfDefenseScreen() {
       {/* Category filter */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catScroll} contentContainerStyle={s.catScrollContent}>
         {CATEGORIES.map(cat => (
-          <TouchableOpacity
+          <Hoverable
             key={cat}
             style={[s.catChip, activeCategory === cat && s.catChipActive]}
             onPress={() => setActiveCategory(cat)}
           >
             <Text style={[s.catChipText, activeCategory === cat && { color: "white" }]}>{cat}</Text>
-          </TouchableOpacity>
+          </Hoverable>
         ))}
       </ScrollView>
 
       {/* Videos */}
       <View style={s.grid}>
         {filtered.map(video => (
-          <TouchableOpacity key={video.id} style={s.videoCard} onPress={() => openVideo(video.query)} activeOpacity={0.85}>
+          <Hoverable key={video.id} style={s.videoCard} onPress={() => openVideo(video.query)} >
             {/* Thumbnail area */}
             <View style={[s.thumbnail, { backgroundColor: video.color + "18" }]}>
               <View style={{ alignItems: "center", justifyContent: "center", width: 64, height: 64, borderRadius: 32, backgroundColor: video.color + "22" }}>
@@ -221,7 +223,7 @@ export default function SelfDefenseScreen() {
                 <Ionicons name="open-outline" size={12} color="#4b5563" />
               </View>
             </View>
-          </TouchableOpacity>
+          </Hoverable>
         ))}
       </View>
 

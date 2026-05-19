@@ -1,11 +1,13 @@
 // src/components/home/GuardianBadge.js
 import React from "react";
 import { View, Text, TouchableOpacity, Animated, StyleSheet } from "react-native";
+import Hoverable from "../../components/common/Hoverable";
+
 import { CARD, BORDER, TEXT, SUCCESS, MUTED } from "../../theme/colors";
 
 export default function GuardianBadge({ guardianOn, onPress, pulseAnim }) {
   return (
-    <TouchableOpacity style={s.guardianCard} onPress={onPress} activeOpacity={0.8}>
+    <Hoverable style={s.guardianCard} onPress={onPress} >
       <View style={s.guardianLeft}>
         <Animated.View style={[
           s.guardianDot,
@@ -21,7 +23,7 @@ export default function GuardianBadge({ guardianOn, onPress, pulseAnim }) {
       <View style={[s.guardianToggle, { backgroundColor: guardianOn ? SUCCESS : "#374151" }]}>
         <View style={[s.guardianThumb, { alignSelf: guardianOn ? "flex-end" : "flex-start" }]} />
       </View>
-    </TouchableOpacity>
+    </Hoverable>
   );
 }
 

@@ -1,6 +1,8 @@
 // src/components/home/SOSButton.js
 import React from "react";
 import { View, Text, TouchableOpacity, Animated, StyleSheet } from "react-native";
+import Hoverable from "../../components/common/Hoverable";
+
 import { DANGER } from "../../theme/colors";
 
 export default function SOSButton({ 
@@ -25,15 +27,15 @@ export default function SOSButton({
         <Animated.View style={[s.sosRingMid, { opacity: glowAnim }]} />
         <View style={s.sosRing}>
           <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: ringColor, borderRadius: 999 }]} />
-          <TouchableOpacity 
+          <Hoverable 
             style={s.sosBtn} 
             onPressIn={onPressIn} 
             onPressOut={onPressOut} 
-            activeOpacity={0.9}
+            
           >
             <Text style={s.sosBtnLabel}>SOS</Text>
             <Text style={s.sosBtnSub}>Hold 3s</Text>
-          </TouchableOpacity>
+          </Hoverable>
         </View>
       </View>
       

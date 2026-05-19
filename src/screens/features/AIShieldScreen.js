@@ -1,6 +1,8 @@
 // screens/AIShieldScreen.js
 import { useState, useRef, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform } from "react-native";
+import Hoverable from "../../components/common/Hoverable";
+
 import { Ionicons } from "@expo/vector-icons";
 import { analyzeHarassment, safetyChat } from "../../api/gemini";
 import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT } from "../../theme/colors";
@@ -102,7 +104,7 @@ export default function AIShieldScreen() {
             textAlignVertical="top"
           />
 
-          <TouchableOpacity style={[a.analyzeBtn, (!text || analyzing) && { opacity: 0.5 }]} onPress={analyze} disabled={!text || analyzing}>
+          <Hoverable style={[a.analyzeBtn, (!text || analyzing) && { opacity: 0.5 }]} onPress={analyze} disabled={!text || analyzing}>
             {analyzing ? (
               <ActivityIndicator color="white" size="small" />
             ) : (
@@ -111,16 +113,16 @@ export default function AIShieldScreen() {
                 <Text style={a.analyzeBtnText}>Analyze Message</Text>
               </>
             )}
-          </TouchableOpacity>
+          </Hoverable>
 
           {/* Analysis error card */}
           {analyzeError && (
             <View style={a.errorBox}>
               <Ionicons name="cloud-offline-outline" size={18} color="#f87171" />
               <Text style={a.errorText}>{analyzeError}</Text>
-              <TouchableOpacity onPress={() => setAnalyzeError(null)} style={a.errorDismiss}>
+              <Hoverable onPress={() => setAnalyzeError(null)} style={a.errorDismiss}>
                 <Ionicons name="close" size={14} color="#f87171" />
-              </TouchableOpacity>
+              </Hoverable>
             </View>
           )}
 
@@ -213,9 +215,9 @@ export default function AIShieldScreen() {
               onSubmitEditing={sendChat}
               returnKeyType="send"
             />
-            <TouchableOpacity style={[a.sendBtn, (!chatInput || chatLoading) && { opacity: 0.4 }]} onPress={sendChat} disabled={!chatInput || chatLoading}>
+            <Hoverable style={[a.sendBtn, (!chatInput || chatLoading) && { opacity: 0.4 }]} onPress={sendChat} disabled={!chatInput || chatLoading}>
               <Ionicons name="send" size={16} color="white" />
-            </TouchableOpacity>
+            </Hoverable>
           </View>
         </View>
 

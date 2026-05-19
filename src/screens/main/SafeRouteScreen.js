@@ -19,6 +19,8 @@ if (Platform.OS !== "web") {
 }
 
 import { PRIMARY, TEXT, SUBTEXT, PINK, SUCCESS, WARNING, DANGER, BG, CARD, BORDER } from "../../theme/colors";
+import Hoverable from "../../components/common/Hoverable";
+
 
 const GOOGLE_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
 
@@ -102,13 +104,13 @@ function SuggestionList({ suggestions, loading, onSelect }) {
     <View style={sd.container}>
       {loading && <ActivityIndicator color={PRIMARY} style={{ padding: 10 }} />}
       {suggestions.map((s, i) => (
-        <TouchableOpacity key={s.place_id} style={[sd.item, i < suggestions.length - 1 && sd.itemBorder]} onPress={() => onSelect(s.description)} activeOpacity={0.7}>
+        <Hoverable key={s.place_id} style={[sd.item, i < suggestions.length - 1 && sd.itemBorder]} onPress={() => onSelect(s.description)} >
           <Ionicons name="location-outline" size={14} color={SUBTEXT} />
           <View style={{ flex: 1 }}>
             <Text style={sd.mainText} numberOfLines={1}>{s.structured_formatting?.main_text || s.description}</Text>
             {s.structured_formatting?.secondary_text && <Text style={sd.subText} numberOfLines={1}>{s.structured_formatting.secondary_text}</Text>}
           </View>
-        </TouchableOpacity>
+        </Hoverable>
       ))}
     </View>
   );
@@ -350,9 +352,9 @@ Routing Alternative Count: ${localRouteCount}
             <TextInput style={s.input} value={to} onChangeText={v => { setTo(v); setToEditing(true); }} onFocus={() => setToEditing(true)} onBlur={() => setTimeout(() => setToEditing(false), 200)} placeholder="Destination" placeholderTextColor="#4b5563" returnKeyType="search" onSubmitEditing={analyze} />
           </View>
           {toEditing && <SuggestionList suggestions={suggestions} loading={sugLoading} onSelect={selectSuggestion} />}
-          <TouchableOpacity style={s.btn} onPress={analyze} disabled={loading}>
+          <Hoverable style={s.btn} onPress={analyze} disabled={loading}>
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Analyze Safety</Text>}
-          </TouchableOpacity>
+          </Hoverable>
         </View>
 
         {/* RESULTS SECTION */}
@@ -366,7 +368,7 @@ Routing Alternative Count: ${localRouteCount}
                   {routesData.map((route, i) => {
                     const isActive = i === selectedRouteIndex;
                     return (
-                      <TouchableOpacity key={i} onPress={() => setSelectedRouteIndex(i)} activeOpacity={0.8}
+                      <Hoverable key={i} onPress={() => setSelectedRouteIndex(i)} 
                         style={[s.routeChip, isActive && s.routeChipActive]}
                       >
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
@@ -381,7 +383,7 @@ Routing Alternative Count: ${localRouteCount}
                             <Text style={s.fastestText}>Fastest</Text>
                           </View>
                         )}
-                      </TouchableOpacity>
+                      </Hoverable>
                     );
                   })}
                 </View>

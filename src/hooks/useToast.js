@@ -6,6 +6,8 @@
 //   return <View>...<ToastComponent /></View>
 import { useState, useRef, useCallback } from "react";
 import { Animated, View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import Hoverable from "../components/common/Hoverable";
+
 import { Ionicons } from "@expo/vector-icons";
 
 const CONFIGS = {
@@ -58,9 +60,9 @@ export default function useToast() {
       >
         <Ionicons name={cfg.icon} size={18} color={cfg.color} />
         <Text style={[styles.text, { color: cfg.color }]} numberOfLines={2}>{toast.message}</Text>
-        <TouchableOpacity onPress={dismiss} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Hoverable onPress={dismiss} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="close" size={14} color={cfg.color} />
-        </TouchableOpacity>
+        </Hoverable>
       </Animated.View>
     );
   };

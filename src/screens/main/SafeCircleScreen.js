@@ -16,6 +16,8 @@ import { personaliseSOSMessage } from "../../api/gemini";
 import { BG, CARD, BORDER, PRIMARY, DANGER, SUCCESS, TEXT, SUBTEXT, MUTED, WARNING } from "../../theme/colors";
 import { supabase } from "../../api/supabase";
 import useContacts from "../../hooks/useContacts";
+import Hoverable from "../../components/common/Hoverable";
+
 
 const REPORT_CATEGORIES = [
   { label: "Poor Lighting", icon: "bulb-outline" },
@@ -262,14 +264,14 @@ export default function SafeCircleScreen() {
       </View>
 
       {/* SOS Hero */}
-      <TouchableOpacity style={s.sosHeroBtn} onPress={triggerSOS}>
+      <Hoverable style={s.sosHeroBtn} onPress={triggerSOS}>
         <Ionicons name="warning" size={22} color="white" />
         <View style={{ flex: 1 }}>
           <Text style={s.sosHeroText}>Emergency SOS</Text>
           <Text style={s.sosHeroSub}>Send location to all contacts instantly</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
-      </TouchableOpacity>
+      </Hoverable>
 
       {/* Optional Context Field */}
       <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
@@ -317,15 +319,15 @@ export default function SafeCircleScreen() {
                 <Text style={s.trackUrlText} numberOfLines={1}>{trackUrl}</Text>
               </View>
             )}
-            <TouchableOpacity style={s.safeBtn} onPress={endEscort}>
+            <Hoverable style={s.safeBtn} onPress={endEscort}>
               <Ionicons name="checkmark-circle" size={18} color="white" />
               <Text style={s.safeBtnText}>I'm Safe — End Journey</Text>
-            </TouchableOpacity>
+            </Hoverable>
           </>
         ) : (
           <>
             <Text style={s.escortSub}>Contacts get a real-time tracking link updating every second.</Text>
-            <TouchableOpacity
+            <Hoverable
               style={[s.startBtn, escortLoading && { opacity: 0.6 }]}
               onPress={startEscort}
               disabled={escortLoading}
@@ -336,7 +338,7 @@ export default function SafeCircleScreen() {
               <Text style={s.startBtnText}>
                 {escortLoading ? "Acquiring GPS lock..." : "Start Live Escort"}
               </Text>
-            </TouchableOpacity>
+            </Hoverable>
           </>
         )}
       </Animated.View>
@@ -345,10 +347,10 @@ export default function SafeCircleScreen() {
       <View style={s.card}>
         <View style={s.cardHeader}>
           <Text style={s.cardTitle}>My Circle ({contacts.length})</Text>
-          <TouchableOpacity style={s.addBtn} onPress={() => setAddModal(true)}>
+          <Hoverable style={s.addBtn} onPress={() => setAddModal(true)}>
             <Ionicons name="person-add" size={13} color={PRIMARY} />
             <Text style={s.addBtnText}>Add</Text>
-          </TouchableOpacity>
+          </Hoverable>
         </View>
         {contacts.length === 0 ? (
           <View style={s.emptyBox}>
@@ -364,9 +366,9 @@ export default function SafeCircleScreen() {
               <Text style={s.contactName}>{c.name}</Text>
               <Text style={s.contactMeta}>{c.phone}{c.relation ? ` · ${c.relation}` : ""}</Text>
             </View>
-            <TouchableOpacity onPress={() => removeContact(c.id)} style={s.deleteBtn}>
+            <Hoverable onPress={() => removeContact(c.id)} style={s.deleteBtn}>
               <Ionicons name="trash-outline" size={16} color={SUBTEXT} />
-            </TouchableOpacity>
+            </Hoverable>
           </View>
         ))}
       </View>
@@ -375,10 +377,10 @@ export default function SafeCircleScreen() {
       <View style={s.card}>
         <View style={s.cardHeader}>
           <Text style={s.cardTitle}>Community Alerts</Text>
-          <TouchableOpacity style={[s.addBtn, { borderColor: "rgba(239,68,68,0.4)" }]} onPress={() => setReportModal(true)}>
+          <Hoverable style={[s.addBtn, { borderColor: "rgba(239,68,68,0.4)" }]} onPress={() => setReportModal(true)}>
             <Ionicons name="flag" size={13} color={DANGER} />
             <Text style={[s.addBtnText, { color: DANGER }]}>Report</Text>
-          </TouchableOpacity>
+          </Hoverable>
         </View>
         {reports.length === 0 ? (
           <Text style={s.emptyText}>No alerts in your area</Text>
@@ -389,18 +391,18 @@ export default function SafeCircleScreen() {
               <Text style={s.reportCat}>{r.cat}</Text>
               <Text style={s.reportArea}>{r.area} · {r.time}</Text>
             </View>
-            <TouchableOpacity style={s.upvoteBtn} onPress={() => upvote(r.id)}>
+            <Hoverable style={s.upvoteBtn} onPress={() => upvote(r.id)}>
               <Ionicons name="arrow-up" size={12} color={PRIMARY} />
               <Text style={s.upvoteText}>{r.upvotes || 0}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={{ padding: 6 }} onPress={() =>
+            </Hoverable>
+            <Hoverable style={{ padding: 6 }} onPress={() =>
               Alert.alert("Delete Alert", "Remove report?", [
                 { text: "Cancel", style: "cancel" },
                 { text: "Delete", style: "destructive", onPress: () => saveReports(reports.filter(x => x.id !== r.id)) },
               ])
             }>
               <Ionicons name="trash-outline" size={15} color={SUBTEXT} />
-            </TouchableOpacity>
+            </Hoverable>
           </View>
         ))}
       </View>
@@ -430,12 +432,12 @@ export default function SafeCircleScreen() {
               </View>
             ))}
             <View style={s.modalBtns}>
-              <TouchableOpacity style={s.cancelBtn} onPress={() => setAddModal(false)}>
+              <Hoverable style={s.cancelBtn} onPress={() => setAddModal(false)}>
                 <Text style={s.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.confirmBtn} onPress={addContact}>
+              </Hoverable>
+              <Hoverable style={s.confirmBtn} onPress={addContact}>
                 <Text style={s.confirmText}>Save</Text>
-              </TouchableOpacity>
+              </Hoverable>
             </View>
           </View>
         </View>
@@ -449,12 +451,12 @@ export default function SafeCircleScreen() {
             <Text style={s.modalSub}>Your report is anonymous</Text>
             <View style={s.catGrid}>
               {REPORT_CATEGORIES.map(c => (
-                <TouchableOpacity key={c.label}
+                <Hoverable key={c.label}
                   style={[s.catBtn, selectedCat === c.label && s.catBtnActive]}
                   onPress={() => setSelectedCat(c.label)}>
                   <Ionicons name={c.icon} size={14} color={selectedCat === c.label ? "white" : SUBTEXT} />
                   <Text style={[s.catBtnText, selectedCat === c.label && { color: "white" }]}>{c.label}</Text>
-                </TouchableOpacity>
+                </Hoverable>
               ))}
             </View>
             <View style={s.modalInputRow}>
@@ -463,12 +465,12 @@ export default function SafeCircleScreen() {
                 placeholder="Area name (blank = auto-pin)" value={reportArea} onChangeText={setReportArea} />
             </View>
             <View style={s.modalBtns}>
-              <TouchableOpacity style={s.cancelBtn} onPress={() => setReportModal(false)}>
+              <Hoverable style={s.cancelBtn} onPress={() => setReportModal(false)}>
                 <Text style={s.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.confirmBtn, { backgroundColor: DANGER }]} onPress={submitReport}>
+              </Hoverable>
+              <Hoverable style={[s.confirmBtn, { backgroundColor: DANGER }]} onPress={submitReport}>
                 <Text style={s.confirmText}>Pin Alert</Text>
-              </TouchableOpacity>
+              </Hoverable>
             </View>
           </View>
         </View>

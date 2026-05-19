@@ -84,6 +84,8 @@ function MarkerBubble({ type, size = 44 }) {
 }
 
 // ── Main Screen ─────────────────────────────────────────────────────────────
+import Hoverable from "../../components/common/Hoverable";
+
 export default function NearbyScreen() {
   const [location, setLocation] = useState(null);
   const [places, setPlaces]     = useState([]);
@@ -274,20 +276,20 @@ export default function NearbyScreen() {
             onSubmitEditing={performSearch}
           />
         </View>
-        <TouchableOpacity style={s.recenterBtn} onPress={() => {
+        <Hoverable style={s.recenterBtn} onPress={() => {
            if(location) mapRef.current?.animateToRegion({ latitude: location.latitude, longitude: location.longitude, latitudeDelta: 0.04, longitudeDelta: 0.04 }, 1000);
         }}>
           <Ionicons name="locate" size={20} color={PRIMARY} />
-        </TouchableOpacity>
+        </Hoverable>
       </View>
 
       {/* ── SOS QUICK DIAL STRIP ────────────────────────────────────────────── */}
       <View style={s.sosStrip}>
         {EMERGENCY_NUMBERS.map(e => (
-          <TouchableOpacity key={e.number} style={[s.sosBtn, { borderColor: e.color + "40", backgroundColor: CARD }]} onPress={() => Linking.openURL(`tel:${e.number}`)}>
+          <Hoverable key={e.number} style={[s.sosBtn, { borderColor: e.color + "40", backgroundColor: CARD }]} onPress={() => Linking.openURL(`tel:${e.number}`)}>
             <Ionicons name={e.icon} size={14} color={e.color} />
             <Text style={{ color: TEXT, fontSize: 11, fontWeight: "700" }}>{e.number}</Text>
-          </TouchableOpacity>
+          </Hoverable>
         ))}
       </View>
 
@@ -302,22 +304,22 @@ export default function NearbyScreen() {
           {/* Radius Selector */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipScroll} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}>
             {[1, 5, 10, 20].map(rad => (
-               <TouchableOpacity key={rad} style={[s.chip, radiusKm === rad && s.chipActive]} onPress={() => setRadiusKm(rad)}>
+               <Hoverable key={rad} style={[s.chip, radiusKm === rad && s.chipActive]} onPress={() => setRadiusKm(rad)}>
                  <Text style={[s.chipText, radiusKm === rad && s.chipTextActive]}>{rad} km</Text>
-               </TouchableOpacity>
+               </Hoverable>
             ))}
           </ScrollView>
 
           {/* Filter Row */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.chipScroll, { marginTop: 12 }]} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}>
-            <TouchableOpacity onPress={() => setFilter("all")} style={[s.chip, filter === "all" && s.chipActive]}>
+            <Hoverable onPress={() => setFilter("all")} style={[s.chip, filter === "all" && s.chipActive]}>
               <Text style={[s.chipText, filter === "all" && s.chipTextActive]}>All Nearby</Text>
-            </TouchableOpacity>
+            </Hoverable>
             {INCIDENT_TYPES.map(f => (
-              <TouchableOpacity key={f.key} onPress={() => setFilter(f.key)} style={[s.chip, filter === f.key && s.chipActive]}>
+              <Hoverable key={f.key} onPress={() => setFilter(f.key)} style={[s.chip, filter === f.key && s.chipActive]}>
                 <Ionicons name={f.icon} size={14} color={filter === f.key ? PRIMARY : SUBTEXT} />
                 <Text style={[s.chipText, filter === f.key && s.chipTextActive]}>{f.label}</Text>
-              </TouchableOpacity>
+              </Hoverable>
             ))}
           </ScrollView>
 
@@ -325,7 +327,7 @@ export default function NearbyScreen() {
           <View style={{ marginTop: 16, paddingHorizontal: 16, gap: 12 }}>
             {loading ? <ActivityIndicator color={PRIMARY} style={{ marginTop: 40 }} /> : null}
             {!loading && filteredPlaces.map(p => (
-              <TouchableOpacity key={p.id} onPress={() => setSelectedPlace(p)}>
+              <Hoverable key={p.id} onPress={() => setSelectedPlace(p)}>
                 <View style={[s.placeCard, { borderLeftColor: getTypeMeta(p.type).color, borderLeftWidth: 3 }]}>
                   <View style={[s.placeIconWrap, { backgroundColor: getTypeMeta(p.type).color + "18" }]}>
                     <Ionicons name={getTypeMeta(p.type).icon} size={20} color={getTypeMeta(p.type).color} />
@@ -344,7 +346,7 @@ export default function NearbyScreen() {
                     <Text style={{ color: SUBTEXT, fontSize: 11 }}>{p.dist}</Text>
                   </View>
                 </View>
-              </TouchableOpacity>
+              </Hoverable>
             ))}
           </View>
         </ScrollView>
@@ -358,35 +360,35 @@ export default function NearbyScreen() {
               <>
                 <View style={s.modalHeader}>
                   <Text style={s.modalTitle}>{selectedPlace.name}</Text>
-                  <TouchableOpacity onPress={() => setSelectedPlace(null)}>
+                  <Hoverable onPress={() => setSelectedPlace(null)}>
                     <Ionicons name="close" size={24} color={TEXT} />
-                  </TouchableOpacity>
+                  </Hoverable>
                 </View>
                 <Text style={{color:SUBTEXT, marginBottom: 16}}>{selectedPlace.address}</Text>
                 
                 <View style={{ flexDirection: "row", gap: 10, marginBottom: 16 }}>
                   {selectedPlace.phone && (
-                    <TouchableOpacity style={[s.mBtn, { backgroundColor: SUCCESS + "18", borderColor: SUCCESS }]} onPress={() => Linking.openURL(`tel:${selectedPlace.phone}`)}>
+                    <Hoverable style={[s.mBtn, { backgroundColor: SUCCESS + "18", borderColor: SUCCESS }]} onPress={() => Linking.openURL(`tel:${selectedPlace.phone}`)}>
                       <Ionicons name="call" size={18} color={SUCCESS} />
                       <Text style={[s.mBtnText, { color: SUCCESS }]}>Call</Text>
-                    </TouchableOpacity>
+                    </Hoverable>
                   )}
-                  <TouchableOpacity style={[s.mBtn, { backgroundColor: PRIMARY + "18", borderColor: PRIMARY }]} onPress={() => Linking.openURL(`geo:0,0?q=${selectedPlace.lat},${selectedPlace.lng}`)}>
+                  <Hoverable style={[s.mBtn, { backgroundColor: PRIMARY + "18", borderColor: PRIMARY }]} onPress={() => Linking.openURL(`geo:0,0?q=${selectedPlace.lat},${selectedPlace.lng}`)}>
                     <Ionicons name="navigate" size={18} color={PRIMARY} />
                     <Text style={[s.mBtnText, { color: PRIMARY }]}>Navigate</Text>
-                  </TouchableOpacity>
+                  </Hoverable>
                 </View>
 
                 {/* AI-3 Escape Advisor Trigger */}
                 {!selectedPlace.advice ? (
-                  <TouchableOpacity style={s.dangerBtn} onPress={onEscapeAdvice}>
+                  <Hoverable style={s.dangerBtn} onPress={onEscapeAdvice}>
                     {selectedPlace.aiLoading ? <ActivityIndicator size="small" color={DANGER} /> : (
                       <>
                         <Ionicons name="warning" size={18} color={DANGER} />
                         <Text style={s.dangerBtnText}>I feel unsafe here</Text>
                       </>
                     )}
-                  </TouchableOpacity>
+                  </Hoverable>
                 ) : (
                   <View style={s.adviceBox}>
                     <View style={s.aiHeader}><Ionicons name="sparkles" size={14} color={WARNING}/><Text style={s.aiTitle}>AI Escape Advice</Text></View>
@@ -409,9 +411,9 @@ export default function NearbyScreen() {
               <>
                 <View style={s.modalHeader}>
                   <Text style={s.modalTitle}>{getTypeMeta(reportDetail.category).label}</Text>
-                  <TouchableOpacity onPress={() => setReportDetail(null)}>
+                  <Hoverable onPress={() => setReportDetail(null)}>
                     <Ionicons name="close" size={24} color={TEXT} />
-                  </TouchableOpacity>
+                  </Hoverable>
                 </View>
                 <Text style={{color:TEXT, fontSize:15, marginBottom: 12}}>{reportDetail.note}</Text>
                 <Text style={{color:SUBTEXT, fontSize:12, marginBottom: 16}}>Reported: {new Date(reportDetail.created_at).toLocaleString()}</Text>

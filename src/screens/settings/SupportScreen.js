@@ -1,5 +1,7 @@
 // src/screens/SupportScreen.js
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity, Linking, Alert } from "react-native";
+import Hoverable from "../../components/common/Hoverable";
+
 import { Ionicons } from "@expo/vector-icons";
 import { BG_DEEP, CARD_DEEP, TEXT, SUBTEXT, PRIMARY, BORDER_VIOLET } from "../../theme/colors";
 import SectionLabel from "../../components/common/SectionLabel";
@@ -33,7 +35,7 @@ export default function SupportScreen() {
         Need assistance or want to report an issue with the app? We're here to help you stay safe and secure.
       </Text>
 
-      <TouchableOpacity style={s.card} onPress={handleFAQ} activeOpacity={0.7}>
+      <Hoverable style={s.card} onPress={handleFAQ} >
         <View style={s.iconWrapper}>
           <Ionicons name="chatbubbles" size={24} color={PRIMARY} />
         </View>
@@ -42,9 +44,9 @@ export default function SupportScreen() {
           <Text style={s.cardDesc}>Read our guides on setting up your safety circle and using the SOS feature.</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={SUBTEXT} />
-      </TouchableOpacity>
+      </Hoverable>
 
-      <TouchableOpacity style={s.card} onPress={handleEmail} activeOpacity={0.7}>
+      <Hoverable style={s.card} onPress={handleEmail} >
         <View style={s.iconWrapper}>
           <Ionicons name="mail" size={24} color={PRIMARY} />
         </View>
@@ -53,9 +55,9 @@ export default function SupportScreen() {
           <Text style={s.cardDesc}>Email our dedicated safety support team directly at support@shieldher.app.</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={SUBTEXT} />
-      </TouchableOpacity>
+      </Hoverable>
 
-      <TouchableOpacity style={s.card} onPress={handleBugReport} activeOpacity={0.7}>
+      <Hoverable style={s.card} onPress={handleBugReport} >
         <View style={s.iconWrapper}>
           <Ionicons name="build" size={24} color={PRIMARY} />
         </View>
@@ -64,7 +66,7 @@ export default function SupportScreen() {
           <Text style={s.cardDesc}>Found a glitch? Let us know so we can fix it immediately.</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={SUBTEXT} />
-      </TouchableOpacity>
+      </Hoverable>
 
       {/* Emergency Helplines */}
       <Text style={s.sectionTitle}>Emergency Helplines (India)</Text>
@@ -82,12 +84,12 @@ export default function SupportScreen() {
             <Text style={s.cardTitle}>{h.name}</Text>
             <Text style={s.cardDesc}>{h.desc}</Text>
           </View>
-          <TouchableOpacity
+          <Hoverable
             style={{ backgroundColor: "rgba(34,197,94,0.12)", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: "rgba(34,197,94,0.3)" }}
             onPress={() => callHelpline(h.number)}
           >
             <Text style={{ color: "#22c55e", fontWeight: "800", fontSize: 14 }}>{h.number}</Text>
-          </TouchableOpacity>
+          </Hoverable>
         </View>
       ))}
 

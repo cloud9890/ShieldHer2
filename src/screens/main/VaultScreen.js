@@ -18,6 +18,8 @@ import { useNavigation } from "@react-navigation/native";
 import useToast from "../../hooks/useToast";
 
 // PDF export (optional — graceful if not installed)
+import Hoverable from "../../components/common/Hoverable";
+
 let Print = null;
 let Sharing = null;
 try { Print = require("expo-print"); } catch (_) {}
@@ -279,13 +281,13 @@ export default function VaultScreen() {
           <Text style={{ fontSize: 14, color: SUBTEXT, textAlign: "center", lineHeight: 22 }}>
             This vault is protected by biometric authentication.{"\n"}Authenticate to access your records.
           </Text>
-          <TouchableOpacity
+          <Hoverable
             style={{ backgroundColor: PRIMARY, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 32, flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4, width: "100%", justifyContent: "center" }}
             onPress={() => authenticate("Authenticate to access Evidence Vault")}
           >
             <Ionicons name="finger-print" size={20} color="white" />
             <Text style={{ color: "white", fontWeight: "700", fontSize: 15 }}>Unlock Vault</Text>
-          </TouchableOpacity>
+          </Hoverable>
         </View>
       </View>
     );
@@ -326,11 +328,11 @@ export default function VaultScreen() {
             { icon: "document-text", label: "Doc",     color: "#06b6d4", action: () => setShowForm(true) },
             { icon: "location",      label: "GPS",     color: WARNING, action: captureLocation },
           ].map(b => (
-            <TouchableOpacity key={b.label} style={[s.captureBtn, { backgroundColor: b.color + "18", borderColor: b.color + "40" }]}
+            <Hoverable key={b.label} style={[s.captureBtn, { backgroundColor: b.color + "18", borderColor: b.color + "40" }]}
               onPress={b.action}>
               <Ionicons name={b.icon} size={22} color={b.color} />
               <Text style={[s.captureBtnText, { color: b.color }]}>{b.label}</Text>
-            </TouchableOpacity>
+            </Hoverable>
           ))}
         </View>
       </View>
@@ -349,9 +351,9 @@ export default function VaultScreen() {
         <View style={s.formCard}>
           <View style={s.formHeader}>
             <Text style={s.formTitle}>Document Incident</Text>
-            <TouchableOpacity onPress={() => { setShowForm(false); setEvidenceImage(null); }}>
+            <Hoverable onPress={() => { setShowForm(false); setEvidenceImage(null); }}>
               <Ionicons name="close-circle" size={22} color={SUBTEXT} />
-            </TouchableOpacity>
+            </Hoverable>
           </View>
 
           {evidenceImage && (
@@ -367,10 +369,10 @@ export default function VaultScreen() {
           <Text style={s.label}>INCIDENT TYPE</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
             {INCIDENT_TYPES.map(t => (
-              <TouchableOpacity key={t} onPress={() => setForm(f => ({ ...f, type: t }))}
+              <Hoverable key={t} onPress={() => setForm(f => ({ ...f, type: t }))}
                 style={[s.chip, form.type === t && s.chipActive]}>
                 <Text style={[s.chipText, form.type === t && { color: "#fff" }]}>{t}</Text>
-              </TouchableOpacity>
+              </Hoverable>
             ))}
           </ScrollView>
 
@@ -381,9 +383,9 @@ export default function VaultScreen() {
               placeholderTextColor={SUBTEXT}
               value={form.location}
               onChangeText={v => setForm(f => ({ ...f, location: v }))} />
-            <TouchableOpacity onPress={captureLocation} style={s.gpsBtn}>
+            <Hoverable onPress={captureLocation} style={s.gpsBtn}>
               <Ionicons name="locate" size={18} color={PRIMARY} />
-            </TouchableOpacity>
+            </Hoverable>
           </View>
 
           <Text style={s.label}>DESCRIPTION</Text>
@@ -394,14 +396,14 @@ export default function VaultScreen() {
             onChangeText={v => setForm(f => ({ ...f, desc: v }))}
             multiline numberOfLines={5} textAlignVertical="top" />
 
-          <TouchableOpacity style={[s.draftBtn, loading && { opacity: 0.6 }]} onPress={generate} disabled={loading}>
+          <Hoverable style={[s.draftBtn, loading && { opacity: 0.6 }]} onPress={generate} disabled={loading}>
             {loading ? <ActivityIndicator color="white" /> : (
               <>
                 <Ionicons name="sparkles" size={16} color="white" />
                 <Text style={s.draftBtnText}>Generate AI Complaint</Text>
               </>
             )}
-          </TouchableOpacity>
+          </Hoverable>
         </View>
       )}
 
@@ -417,7 +419,7 @@ export default function VaultScreen() {
           <ScrollView style={s.complaintScroll} nestedScrollEnabled>
             <Text style={s.complaintText}>{complaint}</Text>
           </ScrollView>
-          <TouchableOpacity style={s.exportBtn}
+          <Hoverable style={s.exportBtn}
             onPress={async () => {
               if (!Print || !Sharing) {
                 Alert.alert("Not Available", "PDF export requires expo-print and expo-sharing.");
@@ -471,7 +473,7 @@ export default function VaultScreen() {
             }}>
             <Ionicons name="share-outline" size={16} color="white" />
             <Text style={s.exportBtnText}>Export as PDF</Text>
-          </TouchableOpacity>
+          </Hoverable>
         </View>
       )}
 
@@ -495,10 +497,10 @@ export default function VaultScreen() {
       <View style={s.recordsCard}>
         <View style={s.recordsHeader}>
           <Text style={s.sectionLabel}>SECURE ARCHIVES</Text>
-          <TouchableOpacity style={s.addRecordBtn} onPress={() => setShowForm(true)}>
+          <Hoverable style={s.addRecordBtn} onPress={() => setShowForm(true)}>
             <Ionicons name="add" size={14} color={PINK} />
             <Text style={s.addBtnText}>New</Text>
-          </TouchableOpacity>
+          </Hoverable>
         </View>
 
         {fetchingRecords ? (
@@ -514,10 +516,10 @@ export default function VaultScreen() {
           // Use a flag ref to suppress the outer onPress when delete is tapped.
           let _deletePressed = false;
           return (
-            <TouchableOpacity
+            <Hoverable
               key={inc.id}
               style={s.recordRow}
-              activeOpacity={0.75}
+              
               onPress={() => {
                 if (_deletePressed) { _deletePressed = false; return; }
                 navigation.navigate("IncidentDetail", { incident: inc });
@@ -541,16 +543,16 @@ export default function VaultScreen() {
                 </View>
                 <View style={{ flexDirection: "row", gap: 4 }}>
                   <Ionicons name="chevron-forward" size={14} color={SUBTEXT} />
-                  <TouchableOpacity
+                  <Hoverable
                     onPress={() => { _deletePressed = true; deleteIncident(inc.id); }}
                     style={s.deleteBtn}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <Ionicons name="trash-outline" size={15} color={SUBTEXT} />
-                  </TouchableOpacity>
+                  </Hoverable>
                 </View>
               </View>
-            </TouchableOpacity>
+            </Hoverable>
           );
         })}
 

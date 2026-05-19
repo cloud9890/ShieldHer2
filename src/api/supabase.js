@@ -14,27 +14,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-let currentClerkToken = null;
-
-export const setSupabaseToken = (token) => {
-  currentClerkToken = token;
-};
-
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // Disable Supabase Auth, we are using Clerk
-    persistSession: false,
-    autoRefreshToken: false,
+    storage: AsyncStorage,
+    autoRefreshToken: true,
+    persistSession: true,
     detectSessionInUrl: false,
-  },
-  global: {
-    fetch: async (url, options) => {
-      const headers = new Headers(options?.headers);
-      if (currentClerkToken) {
-        headers.set('Authorization', `Bearer ${currentClerkToken}`);
-      }
-      return fetch(url, { ...options, headers });
-    },
-    headers: { 'X-Client-Info': 'shieldher-rn-clerk' },
   },
 });

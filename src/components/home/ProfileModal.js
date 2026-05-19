@@ -6,6 +6,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../../theme/colors";
+import Hoverable from "../../components/common/Hoverable";
+
 
 export default function ProfileModal({ 
   visible, 
@@ -27,19 +29,19 @@ export default function ProfileModal({
     <Modal visible={visible} animationType="slide" transparent={false}>
       <View style={s.modBg}>
         <View style={s.modHeader}>
-          <TouchableOpacity onPress={onClose}><Ionicons name="chevron-down" size={28} color={COLORS.PRIMARY} /></TouchableOpacity>
+          <Hoverable onPress={onClose}><Ionicons name="chevron-down" size={28} color={COLORS.PRIMARY} /></Hoverable>
           <Text style={s.modTitle}>Account Settings</Text>
-          <TouchableOpacity style={s.modEdit} onPress={() => { if(!editing) setDraft(profile); setEditing(!editing); }}>
+          <Hoverable style={s.modEdit} onPress={() => { if(!editing) setDraft(profile); setEditing(!editing); }}>
             <Text style={s.modEditText}>{editing ? "Cancel" : "Edit"}</Text>
-          </TouchableOpacity>
+          </Hoverable>
         </View>
 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
           <View style={s.modAvatarSection}>
-            <TouchableOpacity style={s.modAvatar} onPress={pickImage}>
+            <Hoverable style={s.modAvatar} onPress={pickImage}>
               {imageUri ? <Image source={{ uri: imageUri }} style={s.modImg} /> : <View style={[s.modInitials, { backgroundColor: avatarColor + "22" }]}><Text style={[s.modInitText, { color: avatarColor }]}>{initials}</Text></View>}
               <View style={s.modCam}><Ionicons name="camera" size={12} color="white" /></View>
-            </TouchableOpacity>
+            </Hoverable>
             {uploading && <ActivityIndicator color={COLORS.PRIMARY} style={{ marginTop: 10 }} />}
           </View>
 
@@ -47,7 +49,7 @@ export default function ProfileModal({
             <View style={s.modForm}>
               <View style={s.modInputRow}><Ionicons name="person-outline" size={16} color={COLORS.SUBTEXT} /><TextInput style={s.modInput} value={draft.name} onChangeText={v => setDraft(d=>({...d, name:v}))} placeholder="Name" placeholderTextColor="#4b5563" /></View>
               <View style={s.modInputRow}><Ionicons name="call-outline" size={16} color={COLORS.SUBTEXT} /><TextInput style={s.modInput} value={draft.phone} onChangeText={v => setDraft(d=>({...d, phone:v}))} placeholder="Phone" placeholderTextColor="#4b5563" keyboardType="phone-pad" /></View>
-              <TouchableOpacity style={s.modSave} onPress={saveProfile}><Text style={s.modSaveText}>Update Profile</Text></TouchableOpacity>
+              <Hoverable style={s.modSave} onPress={saveProfile}><Text style={s.modSaveText}>Update Profile</Text></Hoverable>
             </View>
           ) : (
             <View style={s.modInfo}>
@@ -61,7 +63,7 @@ export default function ProfileModal({
             <View style={s.modCard}>
               <View style={s.modRow}><Ionicons name="phone-portrait-outline" size={18} color={COLORS.PINK} /><Text style={s.modRowLabel}>Shake to SOS</Text><Switch value={true} trackColor={{ true: COLORS.PRIMARY+"80" }} thumbColor={COLORS.PRIMARY} /></View>
               <View style={s.modRow}><Ionicons name="notifications-outline" size={18} color="#f59e0b" /><Text style={s.modRowLabel}>Alerts</Text><Switch value={true} trackColor={{ true: COLORS.PRIMARY+"80" }} thumbColor={COLORS.PRIMARY} /></View>
-              <TouchableOpacity style={[s.modRow, { borderBottomWidth: 0 }]} onPress={onSignOut}><Ionicons name="log-out-outline" size={18} color="#ef4444" /><Text style={[s.modRowLabel, { color: "#ef4444" }]}>Sign Out</Text></TouchableOpacity>
+              <Hoverable style={[s.modRow, { borderBottomWidth: 0 }]} onPress={onSignOut}><Ionicons name="log-out-outline" size={18} color="#ef4444" /><Text style={[s.modRowLabel, { color: "#ef4444" }]}>Sign Out</Text></Hoverable>
             </View>
           </View>
         </ScrollView>

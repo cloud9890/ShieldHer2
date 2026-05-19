@@ -15,6 +15,8 @@ const AVATARS = ["P", "R", "M", "E"];
 const AVATAR_BG = ["#7c3aed", "#ec4899", "#0ea5e9", "#10b981"];
 
 // Ripple animation component for the accept button
+import Hoverable from "../../components/common/Hoverable";
+
 function PulseRing({ color, delay = 0 }) {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -94,12 +96,12 @@ export default function FakeCallScreen({ callerName, onEnd }) {
             { icon: "person-add-outline",                                  label: "Add Call",                        onPress: () => {},                   active: false    },
           ].map((b, i) => (
             <View key={i} style={styles.controlItem}>
-              <TouchableOpacity
+              <Hoverable
                 style={[styles.controlBtn, b.active && styles.controlBtnActive]}
                 onPress={b.onPress}
               >
                 <Ionicons name={b.icon} size={24} color={b.active ? "#fff" : "#d1d5db"} />
-              </TouchableOpacity>
+              </Hoverable>
               <Text style={styles.controlLabel}>{b.label}</Text>
             </View>
           ))}
@@ -107,9 +109,9 @@ export default function FakeCallScreen({ callerName, onEnd }) {
 
         {/* Hang up */}
         <View style={styles.hangupRow}>
-          <TouchableOpacity style={styles.hangupBtn} onPress={handleHangup}>
+          <Hoverable style={styles.hangupBtn} onPress={handleHangup}>
             <Ionicons name="call" size={30} color="white" style={{ transform: [{ rotate: "135deg" }] }} />
-          </TouchableOpacity>
+          </Hoverable>
         </View>
       </View>
     );
@@ -156,9 +158,9 @@ export default function FakeCallScreen({ callerName, onEnd }) {
       <View style={styles.callButtons}>
         {/* Decline */}
         <View style={styles.callBtnWrap}>
-          <TouchableOpacity style={[styles.callBtn, styles.declineBtn]} onPress={handleDecline}>
+          <Hoverable style={[styles.callBtn, styles.declineBtn]} onPress={handleDecline}>
             <Ionicons name="call" size={30} color="white" style={{ transform: [{ rotate: "135deg" }] }} />
-          </TouchableOpacity>
+          </Hoverable>
           <Text style={styles.callBtnLabel}>Decline</Text>
         </View>
 
@@ -167,9 +169,9 @@ export default function FakeCallScreen({ callerName, onEnd }) {
           <View style={styles.pulseContainer}>
             <PulseRing color="#34d399" delay={0} />
             <PulseRing color="#34d399" delay={500} />
-            <TouchableOpacity style={[styles.callBtn, styles.acceptBtn]} onPress={handleAccept}>
+            <Hoverable style={[styles.callBtn, styles.acceptBtn]} onPress={handleAccept}>
               <Ionicons name="call" size={30} color="white" />
-            </TouchableOpacity>
+            </Hoverable>
           </View>
           <Text style={styles.callBtnLabel}>Accept</Text>
         </View>

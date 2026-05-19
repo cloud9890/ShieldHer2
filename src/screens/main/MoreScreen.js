@@ -1,8 +1,9 @@
 // src/screens/MoreScreen.js
-import { ScrollView, View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { ScrollView, View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from "react-native";
+import Hoverable from "../../components/common/Hoverable";
+
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { useAuth } from "@clerk/expo";
 import { supabase } from "../../api/supabase";
 import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, WARNING, TEAL, DANGER } from "../../theme/colors";
 
@@ -31,13 +32,13 @@ const FEATURES = [
 
 export default function MoreScreen() {
   const navigation = useNavigation();
-  const { signOut: clerkSignOut } = useAuth();
 
-  const signOut = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Sign Out", style: "destructive", onPress: () => clerkSignOut() },
-    ]);
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.log(e);
+    }
   };
 
   return (
@@ -49,7 +50,7 @@ export default function MoreScreen() {
 
       <View style={s.grid}>
         {FEATURES.map(f => (
-          <TouchableOpacity key={f.label} style={s.card} onPress={() => navigation.navigate(f.screen)} activeOpacity={0.7} accessible={true} accessibilityRole="button" accessibilityLabel={`${f.label}, ${f.subtitle}`} accessibilityHint={`Opens ${f.label} screen`}>
+          <Hoverable key={f.label} style={s.card} onPress={() => navigation.navigate(f.screen)}  accessible={true} accessibilityRole="button" accessibilityLabel={`${f.label}, ${f.subtitle}`} accessibilityHint={`Opens ${f.label} screen`}>
             <View style={[s.iconBox, { backgroundColor: f.color + "18", borderColor: f.color + "30" }]}>
               <Ionicons name={f.icon} size={24} color={f.color} />
             </View>
@@ -58,7 +59,7 @@ export default function MoreScreen() {
               <Text style={s.cardSub}>{f.subtitle}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={SUBTEXT} />
-          </TouchableOpacity>
+          </Hoverable>
         ))}
       </View>
 
@@ -67,33 +68,33 @@ export default function MoreScreen() {
       </View>
 
       <View style={s.listContainer}>
-        <TouchableOpacity style={s.listItem} onPress={() => navigation.navigate("Support")} activeOpacity={0.7}>
+        <Hoverable style={s.listItem} onPress={() => navigation.navigate("Support")} >
           <Ionicons name="help-circle-outline" size={20} color={SUBTEXT} style={s.listIcon} />
           <Text style={s.listText}>Help & Support</Text>
           <Ionicons name="chevron-forward" size={16} color={SUBTEXT} />
-        </TouchableOpacity>
+        </Hoverable>
         
         <View style={s.listDivider} />
 
-        <TouchableOpacity style={s.listItem} onPress={() => navigation.navigate("Privacy")} activeOpacity={0.7}>
+        <Hoverable style={s.listItem} onPress={() => navigation.navigate("Privacy")} >
           <Ionicons name="shield-checkmark-outline" size={20} color={SUBTEXT} style={s.listIcon} />
           <Text style={s.listText}>Privacy Policy</Text>
           <Ionicons name="chevron-forward" size={16} color={SUBTEXT} />
-        </TouchableOpacity>
+        </Hoverable>
 
         <View style={s.listDivider} />
 
-        <TouchableOpacity style={s.listItem} onPress={() => navigation.navigate("Terms")} activeOpacity={0.7}>
+        <Hoverable style={s.listItem} onPress={() => navigation.navigate("Terms")} >
           <Ionicons name="document-text-outline" size={20} color={SUBTEXT} style={s.listIcon} />
           <Text style={s.listText}>Terms of Service</Text>
           <Ionicons name="chevron-forward" size={16} color={SUBTEXT} />
-        </TouchableOpacity>
+        </Hoverable>
       </View>
 
-      <TouchableOpacity style={s.signOutBtn} onPress={signOut}>
+      <Hoverable style={s.signOutBtn} onPress={signOut}>
         <Ionicons name="log-out-outline" size={18} color={DANGER} />
         <Text style={s.signOutText}>Sign Out</Text>
-      </TouchableOpacity>
+      </Hoverable>
 
       <View style={{ height: 50 }} />
     </ScrollView>

@@ -7,6 +7,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Hoverable from "../components/common/Hoverable";
+
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
@@ -86,11 +88,11 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
           };
 
           return (
-            <TouchableOpacity
+            <Hoverable
               key={route.key}
               onPress={onPress}
               style={s.tabBtn}
-              activeOpacity={0.75}
+              
               accessibilityRole="button"
               accessibilityLabel={label}
               accessibilityState={{ selected: isFocused }}
@@ -118,7 +120,7 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
                   {label}
                 </Text>
               </Animated.View>
-            </TouchableOpacity>
+            </Hoverable>
           );
         })}
       </View>

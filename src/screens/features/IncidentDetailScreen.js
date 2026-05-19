@@ -12,6 +12,8 @@ import { supabase } from "../../api/supabase";
 import { BG, CARD, BORDER, PRIMARY, PINK, TEXT, SUBTEXT, SUCCESS, DANGER, WARNING } from "../../theme/colors";
 
 // Optional PDF export
+import Hoverable from "../../components/common/Hoverable";
+
 let Print = null, Sharing = null;
 try { Print = require("expo-print"); } catch (_) {}
 try { Sharing = require("expo-sharing"); } catch (_) {}
@@ -153,15 +155,15 @@ export default function IncidentDetailScreen() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       {/* ── Custom Header ─────────────────────────────────────────────── */}
       <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
+        <Hoverable style={s.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color={TEXT} />
-        </TouchableOpacity>
+        </Hoverable>
         <Text style={s.headerTitle}>Incident Detail</Text>
-        <TouchableOpacity style={s.deleteBtn} onPress={deleteIncident} disabled={deleting}>
+        <Hoverable style={s.deleteBtn} onPress={deleteIncident} disabled={deleting}>
           {deleting
             ? <ActivityIndicator color={DANGER} size="small" />
             : <Ionicons name="trash-outline" size={20} color={DANGER} />}
-        </TouchableOpacity>
+        </Hoverable>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
@@ -250,12 +252,12 @@ export default function IncidentDetailScreen() {
 
             {/* Action row */}
             <View style={s.actionRow}>
-              <TouchableOpacity style={[s.actionBtn, { borderColor: PRIMARY + "40" }]} onPress={shareComplaint}>
+              <Hoverable style={[s.actionBtn, { borderColor: PRIMARY + "40" }]} onPress={shareComplaint}>
                 <Ionicons name="share-outline" size={16} color={PRIMARY} />
                 <Text style={[s.actionBtnText, { color: PRIMARY }]}>Share</Text>
-              </TouchableOpacity>
+              </Hoverable>
 
-              <TouchableOpacity
+              <Hoverable
                 style={[s.actionBtn, { borderColor: SUCCESS + "40", flex: 2 }]}
                 onPress={exportPDF}
                 disabled={exporting}
@@ -266,7 +268,7 @@ export default function IncidentDetailScreen() {
                       <Ionicons name="document" size={16} color={SUCCESS} />
                       <Text style={[s.actionBtnText, { color: SUCCESS }]}>Export PDF</Text>
                     </>}
-              </TouchableOpacity>
+              </Hoverable>
             </View>
           </View>
         ) : (

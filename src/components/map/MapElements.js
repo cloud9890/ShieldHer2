@@ -1,6 +1,8 @@
 // src/components/map/MapElements.js
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import Hoverable from "../../components/common/Hoverable";
+
 import { Ionicons } from "@expo/vector-icons";
 import { PRIMARY, SUBTEXT, TEXT, BORDER, CARD } from "../../theme/colors";
 import { getTypeMeta } from "./incidentMeta";
@@ -29,10 +31,10 @@ export function MarkerBubble({ type, size = 44 }) {
 export function IncidentCard({ item, onPress }) {
   const meta = getTypeMeta(item.type);
   return (
-    <TouchableOpacity
+    <Hoverable
       style={[s.incCard, { borderColor: meta.color + "50", backgroundColor: meta.bg }]}
       onPress={onPress}
-      activeOpacity={0.85}
+      
     >
       <View style={s.incCardHeader}>
         <Ionicons name={meta.icon} size={14} color={meta.color} />
@@ -46,7 +48,7 @@ export function IncidentCard({ item, onPress }) {
           <Text style={[s.viewBtnText, { color: meta.color }]}>View</Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </Hoverable>
   );
 }
 
@@ -71,15 +73,15 @@ export function PlaceCard({ place, onCall, onNavigate }) {
       </View>
       <View style={s.placeActions}>
         {place.phone && (
-          <TouchableOpacity style={[s.actionBtn, { backgroundColor: "#22c55e18", borderColor: "#22c55e30" }]}
+          <Hoverable style={[s.actionBtn, { backgroundColor: "#22c55e18", borderColor: "#22c55e30" }]}
             onPress={() => onCall(place.phone)}>
             <Ionicons name="call" size={14} color="#22c55e" />
-          </TouchableOpacity>
+          </Hoverable>
         )}
-        <TouchableOpacity style={[s.actionBtn, { backgroundColor: PRIMARY + "18", borderColor: BORDER }]}
+        <Hoverable style={[s.actionBtn, { backgroundColor: PRIMARY + "18", borderColor: BORDER }]}
           onPress={() => onNavigate?.(place)}>
           <Ionicons name="navigate" size={14} color={PRIMARY} />
-        </TouchableOpacity>
+        </Hoverable>
       </View>
     </View>
   );

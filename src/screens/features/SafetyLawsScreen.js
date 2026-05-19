@@ -7,6 +7,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT, WARNING, DANGER } from "../../theme/colors";
 import { legalChat } from "../../api/gemini";
+import Hoverable from "../../components/common/Hoverable";
+
 
 const LAWS = [
   {
@@ -152,9 +154,9 @@ export default function SafetyLawsScreen() {
              onChangeText={setChatQ}
              onSubmitEditing={handleAskAI}
            />
-           <TouchableOpacity style={s.aiSendBtn} onPress={handleAskAI} disabled={chatLoading}>
+           <Hoverable style={s.aiSendBtn} onPress={handleAskAI} disabled={chatLoading}>
               {chatLoading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="send" size={14} color="#fff" />}
-           </TouchableOpacity>
+           </Hoverable>
         </View>
       </View>
 
@@ -169,16 +171,16 @@ export default function SafetyLawsScreen() {
           onChangeText={setSearch}
         />
         {search ? (
-          <TouchableOpacity onPress={() => setSearch("")}>
+          <Hoverable onPress={() => setSearch("")}>
             <Ionicons name="close-circle" size={16} color="#4b5563" />
-          </TouchableOpacity>
+          </Hoverable>
         ) : null}
       </View>
 
       {/* Categories */}
       {filtered.map(cat => (
         <View key={cat.id} style={s.catCard}>
-          <TouchableOpacity style={s.catHeader} onPress={() => toggle(cat.id)} activeOpacity={0.8}>
+          <Hoverable style={s.catHeader} onPress={() => toggle(cat.id)} >
             <View style={[s.catIcon, { backgroundColor: cat.color + "18" }]}>
               <Ionicons name={cat.icon} size={18} color={cat.color} />
             </View>
@@ -187,7 +189,7 @@ export default function SafetyLawsScreen() {
               <Text style={s.catCount}>{cat.laws.length}</Text>
             </View>
             <Ionicons name={expanded[cat.id] ? "chevron-up" : "chevron-down"} size={16} color={SUBTEXT} />
-          </TouchableOpacity>
+          </Hoverable>
 
           {expanded[cat.id] && cat.laws.map((law, i) => (
             <View key={i} style={[s.lawItem, i < cat.laws.length - 1 && s.lawBorder]}>
@@ -198,7 +200,7 @@ export default function SafetyLawsScreen() {
               </View>
               <Text style={s.lawTitle}>{law.title}</Text>
               <Text style={s.lawDesc}>{law.desc}</Text>
-              <TouchableOpacity
+              <Hoverable
                 style={[s.actionBtn, { borderColor: cat.color + "40", backgroundColor: cat.color + "10" }]}
                 onPress={() => handleAction(law.action, cat.id === "5")}
                 accessible={true}
@@ -212,7 +214,7 @@ export default function SafetyLawsScreen() {
                 <Text style={[s.actionBtnText, { color: cat.color }]}>
                   {law.action.startsWith("tel:") ? `Call ${law.section}` : "How to file complaint"}
                 </Text>
-              </TouchableOpacity>
+              </Hoverable>
             </View>
           ))}
         </View>

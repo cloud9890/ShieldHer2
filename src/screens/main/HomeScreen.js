@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated,
-  Alert, Vibration, ScrollView, Image, Platform
+  Alert, Vibration, ScrollView, Image, Platform, Pressable
 } from "react-native";
 import * as Location from "expo-location";
-import { Ionicons } from "@expo/vector-icons";
+import { AlertCircle, CheckCircle2, Phone, Sparkles, ShieldCheck, ChevronRight, Eye, Flashlight, AlertTriangle, Megaphone } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BG, CARD, BORDER, PRIMARY, PINK, DANGER, SUCCESS, WARNING, TEXT, SUBTEXT, MUTED } from "../../theme/colors";
@@ -26,6 +27,8 @@ import SOSButton       from "../../components/home/SOSButton";
 import GuardianBadge   from "../../components/home/GuardianBadge";
 import FakeCallScreen  from "../features/FakeCallScreen";
 import { getSituationBriefing } from "../../api/gemini";
+import Hoverable from "../../components/common/Hoverable";
+
 
 const AVATAR_COLORS = ["#7c3aed","#0ea5e9","#ec4899","#f59e0b","#10b981"];
 
@@ -39,11 +42,11 @@ const DANGER_REASONS = {
 };
 
 const REPORT_CATEGORIES = {
-  "Suspicious Person": { icon: "eye-outline", color: "#f87171" },
-  "Poor Lighting":     { icon: "flashlight-outline", color: "#fbbf24" },
-  "Unsafe Area":       { icon: "warning-outline", color: "#fb923c" },
-  "Harassment":        { icon: "megaphone-outline", color: "#f472b6" },
-  "Other":             { icon: "alert-circle-outline", color: "#a78bfa" },
+  "Suspicious Person": { icon: Eye, color: "#f87171" },
+  "Poor Lighting":     { icon: Flashlight, color: "#fbbf24" },
+  "Unsafe Area":       { icon: AlertTriangle, color: "#fb923c" },
+  "Harassment":        { icon: Megaphone, color: "#f472b6" },
+  "Other":             { icon: AlertCircle, color: "#a78bfa" },
 };
 
 export default function HomeScreen() {
@@ -97,6 +100,14 @@ export default function HomeScreen() {
   const ringOpacity3 = useRef(new Animated.Value(0.2)).current;
   const countdownRef = useRef(null);
 
+  // Entrance animations
+  const fadeAnim1 = useRef(new Animated.Value(0)).current;
+  const slideAnim1 = useRef(new Animated.Value(30)).current;
+  const fadeAnim2 = useRef(new Animated.Value(0)).current;
+  const slideAnim2 = useRef(new Animated.Value(30)).current;
+  const fadeAnim3 = useRef(new Animated.Value(0)).current;
+  const slideAnim3 = useRef(new Animated.Value(30)).current;
+
   // Sync profile data from auth hook
   useEffect(() => {
     if (authProfile) {
@@ -111,6 +122,23 @@ export default function HomeScreen() {
     startRingAnimations();
     startGlowAnim();
     startPulseAnim();
+    
+    // Start entrance cascade
+    Animated.stagger(150, [
+      Animated.parallel([
+        Animated.spring(slideAnim1, { toValue: 0, friction: 8, tension: 50, useNativeDriver: true }),
+        Animated.timing(fadeAnim1, { toValue: 1, duration: 500, useNativeDriver: true })
+      ]),
+      Animated.parallel([
+        Animated.spring(slideAnim2, { toValue: 0, friction: 8, tension: 50, useNativeDriver: true }),
+        Animated.timing(fadeAnim2, { toValue: 1, duration: 500, useNativeDriver: true })
+      ]),
+      Animated.parallel([
+        Animated.spring(slideAnim3, { toValue: 0, friction: 8, tension: 50, useNativeDriver: true }),
+        Animated.timing(fadeAnim3, { toValue: 1, duration: 500, useNativeDriver: true })
+      ])
+    ]).start();
+
     return () => {
       ring1.stopAnimation(); ring2.stopAnimation(); ring3.stopAnimation();
       glowAnim.stopAnimation(); pulseAnim.stopAnimation();
@@ -307,13 +335,13 @@ export default function HomeScreen() {
   if (sosActive) return (
     <View style={s.sosBg}>
       <Animated.View style={[s.sosGlow, { opacity: glowAnim }]} />
-      <Ionicons name="alert-circle" size={72} color={DANGER} />
+      <AlertCircle size={72} color={DANGER} />
       <Text style={s.sosActiveTitle}>SOS ACTIVATED</Text>
       <View style={s.sosActiveCard}>
         {["Live location sent to contacts", "SMS alert dispatched", "Recording started", "Emergency services notified"]
           .map((t, i) => (
             <View key={i} style={s.sosItem}>
-              <Ionicons name="checkmark-circle" size={16} color={SUCCESS} />
+              <CheckCircle2 size={16} color={SUCCESS} />
               <Text style={s.sosItemText}>{t}</Text>
             </View>
           ))}
@@ -321,9 +349,9 @@ export default function HomeScreen() {
       {location && (
         <Text style={s.sosCoords}>📍 {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}</Text>
       )}
-      <TouchableOpacity style={s.cancelSosBtn} onPress={cancelSOS}>
+      <Hoverable style={s.cancelSosBtn} onPress={cancelSOS}>
         <Text style={s.cancelSosBtnText}>I'm Safe — Cancel SOS</Text>
-      </TouchableOpacity>
+      </Hoverable>
     </View>
   );
 
@@ -335,19 +363,19 @@ export default function HomeScreen() {
         <Text style={s.dangerTitle}>Danger Detected!</Text>
         <Text style={s.dangerBody}>{DANGER_REASONS[dangerAlert.reason] || "Possible danger detected."}</Text>
         <Text style={s.dangerCountdown}>Auto-SOS in {autoSOSCountdown}s</Text>
-        <TouchableOpacity style={s.dangerCancelBtn} onPress={cancelDangerAlert}>
+        <Hoverable style={s.dangerCancelBtn} onPress={cancelDangerAlert}>
           <Text style={s.dangerCancelText}>I'm Safe — Cancel</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.dangerSOSBtn} onPress={() => { cancelDangerAlert(); activateSOS(); }}>
+        </Hoverable>
+        <Hoverable style={s.dangerSOSBtn} onPress={() => { cancelDangerAlert(); activateSOS(); }}>
           <Text style={s.dangerSOSText}>Activate SOS Now</Text>
-        </TouchableOpacity>
+        </Hoverable>
       </View>
     </View>
   );
 
   // ── Main Screen ────────────────────────────────────────────
   return (
-    <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={s.container} contentContainerStyle={{ paddingBottom: 90 }} showsVerticalScrollIndicator={false}>
       {/* Header — paddingTop from safe area insets (notch-safe) */}
       <View style={[s.header, { paddingTop: insets.top + 10 }]}>
         <View style={s.headerInner}>
@@ -355,10 +383,10 @@ export default function HomeScreen() {
             <Text style={s.greeting}>{timeGreeting}</Text>
             <Text style={s.headerTitle}>Stay Safe, {profile.name.split(" ")[0]} 💜</Text>
           </View>
-          <TouchableOpacity
+          <Hoverable
             style={s.profileThumb}
             onPress={() => navigation.navigate("Profile")}
-            activeOpacity={0.8}
+            
           >
             {imageUri ? (
               <Image source={{ uri: imageUri }} style={s.thumbImg} />
@@ -367,84 +395,124 @@ export default function HomeScreen() {
                 <Text style={[s.thumbText, { color: avatarColor }]}>{initials}</Text>
               </View>
             )}
-          </TouchableOpacity>
+          </Hoverable>
         </View>
       </View>
 
-      {/* Guardian Mode — now uses extracted component */}
-      <GuardianBadge
-        guardianOn={guardianOn}
-        onPress={toggleGuardian}
-        pulseAnim={pulseAnim}
-      />
+      {/* Entrance Animation Wrap 1 */}
+      <Animated.View style={{ opacity: fadeAnim1, transform: [{ translateY: slideAnim1 }] }}>
+        {/* Guardian Mode */}
+        <Pressable
+          onPress={toggleGuardian}
+          style={({ pressed, hovered }) => [
+            { alignSelf: 'center', marginBottom: 20 },
+            { 
+              transform: [{ scale: pressed || hovered ? 1.05 : 1 }],
+              ...(Platform.OS === 'web' && { transition: 'all 0.2s ease', cursor: 'pointer' })
+            }
+          ]}
+        >
+          <GuardianBadge
+            guardianOn={guardianOn}
+            pulseAnim={pulseAnim}
+          />
+        </Pressable>
 
-      {/* SOS Section */}
-      <View style={s.sosSection}>
-        <Animated.View style={[s.ring, s.ring3, { transform: [{ scale: ring3 }], opacity: ringOpacity3 }]} />
-        <Animated.View style={[s.ring, s.ring2, { transform: [{ scale: ring2 }], opacity: ringOpacity2 }]} />
-        <Animated.View style={[s.ring, s.ring1, { transform: [{ scale: ring1 }], opacity: ringOpacity1 }]} />
+        {/* SOS Section */}
+        <View style={s.sosSection}>
+          <Animated.View style={[s.ring, s.ring3, { transform: [{ scale: ring3 }], opacity: ringOpacity3 }]} />
+          <Animated.View style={[s.ring, s.ring2, { transform: [{ scale: ring2 }], opacity: ringOpacity2 }]} />
+          <Animated.View style={[s.ring, s.ring1, { transform: [{ scale: ring1 }], opacity: ringOpacity1 }]} />
 
-        <SOSButton
-          onPressIn={() => {
-            pressAnim.current = Animated.timing(pressProgress, { toValue: 1, duration: 3000, useNativeDriver: false });
-            pressAnim.current.start(({ finished }) => { if (finished) activateSOS(); });
-          }}
-          onPressOut={() => {
-            pressAnim.current?.stop();
-            Animated.timing(pressProgress, { toValue: 0, duration: 200, useNativeDriver: false }).start();
-          }}
-          glowAnim={glowAnim}
-          pressProgress={pressProgress}
-        />
-      </View>
+          <SOSButton
+            onPressIn={() => {
+              pressAnim.current = Animated.timing(pressProgress, { toValue: 1, duration: 3000, useNativeDriver: false });
+              pressAnim.current.start(({ finished }) => { if (finished) activateSOS(); });
+            }}
+            onPressOut={() => {
+              pressAnim.current?.stop();
+              Animated.timing(pressProgress, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+            }}
+            glowAnim={glowAnim}
+            pressProgress={pressProgress}
+          />
+        </View>
 
-      {/* Fake Call Button */}
-      <TouchableOpacity style={s.fakeCallBtn} onPress={() => setFakeCall(true)} activeOpacity={0.8}>
-        <Ionicons name="call-outline" size={16} color={SUBTEXT} />
-        <Text style={s.fakeCallBtnText}>Trigger Fake Call</Text>
-      </TouchableOpacity>
+        {/* Fake Call Button */}
+        <Pressable 
+          onPress={() => setFakeCall(true)}
+          style={({ pressed, hovered }) => [
+            s.fakeCallBtn, s.shadowCard,
+            { 
+              transform: [{ scale: pressed || hovered ? 1.05 : 1 }],
+              opacity: pressed || hovered ? 0.8 : 1,
+              ...(Platform.OS === 'web' && { transition: 'all 0.2s ease-in-out', cursor: 'pointer' })
+            }
+          ]}
+        >
+          <Phone size={16} color={SUBTEXT} />
+          <Text style={s.fakeCallBtnText}>Trigger Fake Call</Text>
+        </Pressable>
+      </Animated.View>
 
       {/* AI Situation Advisor */}
       {advisorBrief && (
-        <View style={s.advisorCard}>
-          <View style={s.advisorHeader}>
-            <Ionicons name="sparkles" size={14} color={PINK} />
-            <Text style={s.advisorTitle}>AI SITUATION ADVISOR</Text>
-            <View style={{ flex: 1 }} />
-            <View style={[s.riskBadge, { backgroundColor: advisorBrief.riskLevel === 'high' ? "rgba(239,68,68,0.15)" : advisorBrief.riskLevel === 'moderate' ? "rgba(245,158,11,0.15)" : "rgba(34,197,94,0.15)" }]}>
-               <Text style={[s.riskBadgeText, { color: advisorBrief.riskLevel === 'high' ? DANGER : advisorBrief.riskLevel === 'moderate' ? WARNING : SUCCESS }]}>
-                 {advisorBrief.riskLevel?.toUpperCase()} RISK
-               </Text>
-            </View>
-          </View>
-          <Text style={s.advisorText}>{advisorBrief.briefing}</Text>
-        </View>
-      )}
-
-      {/* Community Alerts — now from Supabase */}
-      <Text style={s.sectionLabel}>COMMUNITY ALERTS NEARBY</Text>
-      {communityAlerts.length === 0 ? (
-        <View style={s.alertCard}>
-          <Ionicons name="shield-checkmark-outline" size={18} color={SUBTEXT} />
-          <Text style={[s.alertText, { color: SUBTEXT }]}>No reports nearby — all clear!</Text>
-        </View>
-      ) : (
-        communityAlerts.map((a, i) => {
-          const cat = REPORT_CATEGORIES[a.category] || REPORT_CATEGORIES["Other"];
-          return (
-            <TouchableOpacity key={a.id || i} style={s.alertCard} activeOpacity={0.7}>
-              <View style={[s.alertDot, { backgroundColor: cat.color }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.alertText}>{a.category}{a.note ? ` — ${a.note}` : ""}</Text>
-                <Text style={s.alertTime}>{formatTimeAgo(a.created_at)}</Text>
+        <Animated.View style={{ opacity: fadeAnim2, transform: [{ translateY: slideAnim2 }] }}>
+          <LinearGradient
+            colors={['rgba(139,92,246,0.15)', 'rgba(22,27,34,0.9)']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={[s.advisorCard, s.shadowCard]}
+          >
+            <View style={s.advisorHeader}>
+              <Sparkles size={14} color={PINK} />
+              <Text style={s.advisorTitle}>AI SITUATION ADVISOR</Text>
+              <View style={{ flex: 1 }} />
+              <View style={[s.riskBadge, { backgroundColor: advisorBrief.riskLevel === 'high' ? "rgba(239,68,68,0.25)" : advisorBrief.riskLevel === 'moderate' ? "rgba(245,158,11,0.25)" : "rgba(34,197,94,0.25)" }]}>
+                 <Text style={[s.riskBadgeText, { color: advisorBrief.riskLevel === 'high' ? "#fca5a5" : advisorBrief.riskLevel === 'moderate' ? "#fcd34d" : "#86efac" }]}>
+                   {advisorBrief.riskLevel?.toUpperCase()} RISK
+                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={14} color={MUTED} />
-            </TouchableOpacity>
-          );
-        })
+            </View>
+            <Text style={s.advisorText}>{advisorBrief.briefing}</Text>
+          </LinearGradient>
+        </Animated.View>
       )}
 
-      <View style={{ height: 50 }} />
+      {/* Community Alerts */}
+      <Animated.View style={{ opacity: fadeAnim3, transform: [{ translateY: slideAnim3 }] }}>
+        <Text style={s.sectionLabel}>COMMUNITY ALERTS NEARBY</Text>
+        {communityAlerts.length === 0 ? (
+          <View style={[s.alertCard, s.shadowCard]}>
+            <ShieldCheck size={18} color={SUBTEXT} />
+            <Text style={[s.alertText, { color: SUBTEXT }]}>No reports nearby — all clear!</Text>
+          </View>
+        ) : (
+          communityAlerts.map((a, i) => {
+            const cat = REPORT_CATEGORIES[a.category] || REPORT_CATEGORIES["Other"];
+            return (
+              <Pressable 
+                key={a.id || i}
+                onPress={() => {}}
+                style={({ pressed, hovered }) => [
+                  s.alertCard, s.shadowCard,
+                  { 
+                    transform: [{ scale: pressed || hovered ? 1.03 : 1 }],
+                    ...(Platform.OS === 'web' && { transition: 'all 0.2s ease-in-out', cursor: 'pointer' })
+                  }
+                ]}
+              >
+                <View style={[s.alertDot, { backgroundColor: cat.color }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.alertText}>{a.category}{a.note ? ` — ${a.note}` : ""}</Text>
+                  <Text style={s.alertTime}>{formatTimeAgo(a.created_at)}</Text>
+                </View>
+                <ChevronRight size={14} color={MUTED} />
+              </Pressable>
+            );
+          })
+        )}
+        <View style={{ height: 20 }} />
+      </Animated.View>
     </ScrollView>
   );
 }
@@ -470,7 +538,7 @@ const s = StyleSheet.create({
   fakeCallBtn:        { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginTop: 4, marginBottom: 20, backgroundColor: CARD, borderRadius: 50, paddingVertical: 10, borderWidth: 1, borderColor: BORDER },
   fakeCallBtnText:    { color: SUBTEXT, fontSize: 13, fontWeight: "600" },
   // Advisor
-  advisorCard:        { marginHorizontal: 16, marginBottom: 20, padding: 16, backgroundColor: CARD, borderRadius: 16, borderWidth: 1, borderColor: BORDER },
+  advisorCard:        { marginHorizontal: 16, marginBottom: 20, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(139,92,246,0.3)' },
   advisorHeader:      { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
   advisorTitle:       { color: PINK, fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
   riskBadge:          { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
@@ -503,4 +571,11 @@ const s = StyleSheet.create({
   dangerCancelText:   { color: TEXT, fontWeight: "700" },
   dangerSOSBtn:       { backgroundColor: DANGER, borderRadius: 14, paddingVertical: 13, width: "100%", alignItems: "center" },
   dangerSOSText:      { color: "white", fontWeight: "700", fontSize: 14 },
+  shadowCard: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    elevation: 6,
+  },
 });

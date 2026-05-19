@@ -3,7 +3,8 @@
 **ShieldHer** is a comprehensive mobile safety application designed to empower individuals with intelligent, real-time protection tools. Built with React Native, Supabase, and Google Gemini AI, ShieldHer goes beyond a basic panic button to offer proactive safety measures, encrypted evidence vaults, and community-driven hazard mapping.
 
 > [!WARNING]
-> **Project Status:** This application is currently in an early development phase and is **not fully functional**. Users may encounter UI glitches, navigation issues, or incomplete features. It is not intended for real-world emergency use at this time.
+> **Project Status:** This application is currently in the **development phase**. It may not work properly and may encounter glitches. It is not intended for real-world emergency use at this time.
+
 
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)

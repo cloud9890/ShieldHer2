@@ -2,6 +2,8 @@
 // Global error boundary — catches render crashes and shows friendly fallback
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import Hoverable from "../../components/common/Hoverable";
+
 import { Ionicons } from "@expo/vector-icons";
 
 export default class ErrorBoundary extends React.Component {
@@ -24,12 +26,12 @@ export default class ErrorBoundary extends React.Component {
           <Text style={s.subtitle}>
             The app encountered an unexpected error. Please restart.
           </Text>
-          <TouchableOpacity
+          <Hoverable
             style={s.btn}
             onPress={() => this.setState({ hasError: false, error: null })}
           >
             <Text style={s.btnText}>Try Again</Text>
-          </TouchableOpacity>
+          </Hoverable>
         </View>
       );
     }

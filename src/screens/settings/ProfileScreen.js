@@ -8,9 +8,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../api/supabase";
-import { useAuth } from "@clerk/expo";
 import { BG_DEEP as BG, CARD_DEEP as CARD, BORDER_VIOLET as BORDER, PRIMARY, TEXT, SUBTEXT } from "../../theme/colors";
 import useToast from "../../hooks/useToast";
+import Hoverable from "../../components/common/Hoverable";
+
 
 const VERSION = "1.0.0";
 const AVATAR_COLORS = ["#7c3aed","#0ea5e9","#ec4899","#f59e0b","#10b981"];
@@ -176,21 +177,12 @@ export default function ProfileScreen() {
     }
   };
 
-  const { signOut: clerkSignOut } = useAuth();
-  const signOut = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out", style: "destructive",
-        onPress: async () => {
-          try {
-            await clerkSignOut();
-          } catch (e) {
-            showToast("Sign out failed. Try again.", "error");
-          }
-        },
-      },
-    ]);
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      showToast("Sign out failed. Try again.", "error");
+    }
   };
 
   // ── Derived ──────────────────────────────────────────────────────────────
@@ -198,7 +190,7 @@ export default function ProfileScreen() {
   const initials    = profile.name.trim().split(" ").map(w => w[0] || "").join("").slice(0, 2).toUpperCase() || "SH";
 
   const Row = ({ icon, color = PRIMARY, label, sub, right, onPress, last }) => (
-    <TouchableOpacity style={[s.row, !last && s.rowBorder]} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
+    <Hoverable style={[s.row, !last && s.rowBorder]} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
       <View style={[s.rowIcon, { backgroundColor: color + "18" }]}>
         <Ionicons name={icon} size={16} color={color} />
       </View>
@@ -207,7 +199,7 @@ export default function ProfileScreen() {
         {sub ? <Text style={s.rowSub}>{sub}</Text> : null}
       </View>
       {right ?? (onPress ? <Ionicons name="chevron-forward" size={14} color="#4b5563" /> : null)}
-    </TouchableOpacity>
+    </Hoverable>
   );
 
   const Card = ({ title, children, redBorder }) => (
@@ -221,17 +213,17 @@ export default function ProfileScreen() {
     <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
       <View style={s.header}>
         <Text style={s.headerLabel}>MY PROFILE (CLOUD)</Text>
-        <TouchableOpacity style={s.editBtn} onPress={() => {
+        <Hoverable style={s.editBtn} onPress={() => {
             if (!editing) setDraft({ name: profile.name, phone: profile.phone });
             setEditing(!editing);
           }}>
           <Ionicons name={editing ? "close" : "pencil"} size={15} color={PRIMARY} />
           <Text style={s.editBtnText}>{editing ? "Cancel" : "Edit"}</Text>
-        </TouchableOpacity>
+        </Hoverable>
       </View>
 
       <View style={s.avatarCard}>
-        <TouchableOpacity style={s.avatarWrapper} onPress={pickImage} activeOpacity={0.85} disabled={uploading}>
+        <Hoverable style={s.avatarWrapper} onPress={pickImage}  disabled={uploading}>
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={s.avatarImage} />
           ) : (
@@ -242,7 +234,7 @@ export default function ProfileScreen() {
           <View style={s.cameraOverlay}>
             {uploading ? <ActivityIndicator size="small" color="white" /> : <Ionicons name="cloud-upload" size={14} color="white" />}
           </View>
-        </TouchableOpacity>
+        </Hoverable>
 
         {editing ? (
           <View style={s.editForm}>
@@ -254,12 +246,12 @@ export default function ProfileScreen() {
               <Ionicons name="call-outline" size={15} color={SUBTEXT} />
               <TextInput style={s.input} value={draft.phone} onChangeText={v => setDraft(d => ({ ...d, phone: v }))} placeholder="+91-XXXXXXXXXX" placeholderTextColor="#4b5563" keyboardType="phone-pad" />
             </View>
-            <TouchableOpacity style={[s.saveBtn, saving && { opacity: 0.6 }]} onPress={save} disabled={saving}>
+            <Hoverable style={[s.saveBtn, saving && { opacity: 0.6 }]} onPress={save} disabled={saving}>
               {saving
                 ? <ActivityIndicator color="white" size="small" />
                 : <><Ionicons name="cloud-done" size={16} color="white" /><Text style={s.saveBtnText}>Save to Cloud</Text></>
               }
-            </TouchableOpacity>
+            </Hoverable>
           </View>
         ) : (
           <View style={s.profileInfo}>
